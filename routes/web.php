@@ -7,6 +7,10 @@ Route::get('/', function () {
     return Inertia::render('landingPage');
 })->name('home');
 
+Route::get('/menuPage', function () {
+    return Inertia::render('menuPage');
+})->name('Menu Caffe');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
