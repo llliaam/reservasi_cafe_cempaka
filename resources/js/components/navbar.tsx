@@ -1,11 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Link as ScrollLink } from 'react-scroll';
+import { type SharedData } from '@/types';
+import { Link, usePage } from '@inertiajs/react';
 
 const Navbar = () => {
+    const { auth } = usePage<SharedData>().props;
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isSticky, setIsSticky] = useState(false);
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
     const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+
+    // Menambahkan effect untuk mendeteksi scroll
+    useEffect(() => {
+        const handleScroll = () => {
+            // Mengatur navbar menjadi sticky saat pengguna scroll lebih dari 10px
+            if (window.scrollY > 10) {
+                setIsSticky(true);
+            } else {
+                setIsSticky(false);
+            }
+        };
+
+        // Menambahkan event listener untuk scroll
+        window.addEventListener('scroll', handleScroll);
+
+        // Membersihkan event listener saat component unmount
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+        };
+    }, []);
 
     const menuItems = [
         { name: "Breakfast", href: "#hot-coffee" },
@@ -18,9 +43,12 @@ const Navbar = () => {
     ];
 
     return (
-        <nav className="bg-white shadow-md px-6 py-4">
+        <nav 
+            className={`bg-white shadow-md px-6 py-4 w-full z-50 transition-all duration-300
+            ${isSticky ? 'fixed top-0 left-0 animate-slideDown' : ''}`}
+        >
             <div className="flex justify-between items-center">
-                <h1 className="text-xl font-bold text-gray-800">Cafe Cempaka</h1>
+                <h1 className="text-xl font-bold text-gray-800 hover:text-green-500">Cemapaka Cafe & Resto</h1>
 
                 {/* Burger button for mobile */}
                 <button
@@ -33,12 +61,12 @@ const Navbar = () => {
                 </button>
 
                 {/* Desktop menu */}
-                <div className="hidden md:flex items-center space-x-4">
+                <div className="hidden md:flex items-center space-x-4 gap-1.5">
                     {/* Dropdown */}
                     <div className="relative">
                         <button
                             onClick={toggleMenu}
-                            className="text-gray-600 hover:text-gray-900 flex items-center"
+                            className="text-gray-600 hover:text-green-500 flex items-center"
                         >
                             Menu
                             <svg
@@ -66,9 +94,45 @@ const Navbar = () => {
                         )}
                     </div>
 
-                    <a href="#contact" className="text-gray-600 hover:text-gray-900">Contact</a>
-                    <a href="/dashboard" className="text-gray-600 hover:text-gray-900">Dashboard</a>
-                    <a href="#order" className="text-white bg-green-600 hover:bg-green-700 px-4 py-2 rounded">Reserve Now</a>
+                    <ScrollLink
+                        to="contact"
+                        smooth={true}
+                        duration={500}
+                        offset={-70}
+                        className="text-gray-600 hover:text-green-400 cursor-pointer"
+                    >   Contact
+                    </ScrollLink>
+                    <ScrollLink
+                        to="dashboard"
+                        smooth={true}
+                        duration={500}
+                        offset={-70}
+                        className="text-gray-600 hover:text-green-400 cursor-pointer"
+                    >   Dashboard
+                    </ScrollLink>
+                    {auth.user ? (
+                            <Link
+                                href={route('dashboard')}
+                                className="inline-block rounded-sm border border-transparent px-5 py-1.5 text-lg leading-normal bg-[#DDA853] hover:bg-yellow-600 font-bold text-black hover:border-[#DDA853] dark:text-white dark:hover:border-[#DDA853]"
+                            >
+                                Dashboard
+                            </Link>
+                        ) : (
+                            <>
+                                <Link
+                                    href={route('login')}
+                                    className="inline-block rounded-sm border border-transparent border-2 px-5 py-1.5 text-lg leading-normal font-bold text-black hover:border-[#DDA853] dark:text-[#DDA853] dark:hover:text-yellow-600 dark:hover:border-yellow-600"
+                                >
+                                    Log in
+                                </Link>
+                                <Link
+                                    href={route('register')}
+                                    className="inline-block rounded-sm border border-transparent px-5 py-1.5 text-lg leading-normal bg-[#DDA853] hover:bg-yellow-600 font-bold text-black hover:border-[#DDA853] dark:text-white dark:hover:border-[#DDA853]"
+                                >
+                                    Register
+                                </Link>
+                            </>
+                        )}
                 </div>
             </div>
 
