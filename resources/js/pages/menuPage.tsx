@@ -1,127 +1,171 @@
-import { useState } from 'react';
+// MenuPage.tsx
+import React, { useState } from 'react';
+import { Head } from '@inertiajs/react';
+import Header from '@/components/header';
+import ProductGrid from '@/components/productGrid';
+import CartSidebar from '@/components/cartSidebar';
 
-const MenuPage = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
-  // Sample product data - you can replace with your actual data
-  const products = [
-    { id: 1, name: "Café Latte", price: "$3.99", category: "Hot Coffee" },
-    { id: 2, name: "Cappuccino", price: "$3.99", category: "Hot Coffee" },
-    { id: 3, name: "Americano", price: "$2.99", category: "Hot Coffee" },
-    { id: 4, name: "Espresso", price: "$2.99", category: "Hot Coffee" },
-    { id: 5, name: "Mocha", price: "$4.99", category: "Hot Coffee" },
-    { id: 6, name: "Iced Coffee", price: "$3.99", category: "Cold Coffee" },
-    { id: 7, name: "Cheesecake", price: "$5.99", category: "Desserts" },
-    { id: 8, name: "Croissant", price: "$2.99", category: "Breakfast" },
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  category: string;
+  image: string;
+  rating: number;
+  isPopular?: boolean;
+}
+
+interface CartItem extends Product {
+  quantity: number;
+}
+
+const MenuPage: React.FC = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All Menu');
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  const products: Product[] = [
+    {
+      id: 1,
+      name: "Nasi Goreng Spesial",
+      price: 25000,
+      originalPrice: 30000,
+      category: "Main Course",
+      image: "/api/placeholder/300/200",
+      rating: 4.8,
+      isPopular: true
+    },
+    {
+      id: 2,
+      name: "Indomie Goreng Telur",
+      price: 20000,
+      category: "Main Course",
+      image: "/api/placeholder/300/200",
+      rating: 4.6
+    },
+    {
+      id: 3,
+      name: "Steak Ayam Premium",
+      price: 35000,
+      category: "Main Course",
+      image: "/api/placeholder/300/200",
+      rating: 4.9,
+      isPopular: true
+    },
+    {
+      id: 4,
+      name: "Café Latte",
+      price: 15000,
+      category: "Hot Coffee",
+      image: "/api/placeholder/300/200",
+      rating: 4.7
+    }
   ];
 
+  const categories = ['All Menu', 'Hot Coffee', 'Cold Coffee', 'Main Course'];
+
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'All Menu' || product.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const addToCart = (product: Product) => {
+    const existingItem = cart.find(item => item.id === product.id);
+    if (existingItem) {
+      setCart(cart.map(item => 
+        item.id === product.id 
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
+      ));
+    } else {
+      setCart([...cart, { ...product, quantity: 1 }]);
+    }
+  };
+
+  const updateCartQuantity = (productId: number, newQuantity: number) => {
+    if (newQuantity === 0) {
+      setCart(cart.filter(item => item.id !== productId));
+    } else {
+      setCart(cart.map(item => 
+        item.id === productId 
+          ? { ...item, quantity: newQuantity }
+          : item
+      ));
+    }
+  };
+
+  const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100">
-      {/* Menu Page Header */}
-      <div className="bg-gray-800 text-white p-2 text-center">
-        <h2>Menu Page v2(item)</h2>
-      </div>
+    <>
+      <Head title="Menu - Cempaka Cafe" />
       
-      {/* Navigation */}
-      <div className="bg-white shadow-md p-3 flex justify-between items-center">
-        <div className="flex items-center">
-          <img src="/api/placeholder/50/50" alt="Cafe Logo" className="h-8" />
-          <span className="text-green-600 font-script ml-2 text-xl">Cafe Cempaka</span>
-        </div>
-        <div className="flex space-x-2">
-          <button className="bg-teal-800 text-white px-3 py-1 text-sm rounded">Home</button>
-          <button className="bg-teal-800 text-white px-3 py-1 text-sm rounded">Menu</button>
-          <button className="bg-teal-800 text-white px-3 py-1 text-sm rounded">About</button>
-          <button className="bg-orange-400 text-white px-3 py-1 text-sm rounded">Cart</button>
-        </div>
-      </div>
-      
-      <div className="flex flex-1 relative">
-        {/* Main Content */}
-        <div className="flex-1 p-4 bg-yellow-50">
-          {/* Search Bar */}
-          <div className="bg-gray-200 p-3 mb-4 rounded">
-            <input 
-              type="text" 
-              placeholder="Search Bar" 
-              className="w-full p-2 rounded border-0"
-            />
-          </div>
-          
-          {/* Products Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
-            {products.map((product) => (
-              <div key={product.id} className="bg-white rounded-lg shadow-sm p-4 flex flex-col">
-                <div className="bg-gray-200 h-32 mb-2 flex items-center justify-center rounded">
-                  <p className="text-gray-500">Gambar Produk</p>
-                </div>
-                <div className="bg-gray-100 rounded-lg p-2 mt-auto">
-                  <p className="font-medium">{product.name}</p>
-                  <div className="flex justify-between items-center mt-1">
-                    <p className="text-gray-700">{product.price}</p>
-                    <p className="text-gray-500">Rating</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          {/* See More Button */}
-          <div className="text-center pb-4">
-            <button className="bg-gray-200 px-4 py-2 rounded">See more</button>
-          </div>
-          
-          {/* Additional Content */}
-          <div className="bg-gray-200 p-4 mb-4 rounded">
-            <p className="text-center text-gray-700 font-medium">some shit i guess</p>
-          </div>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
+        <Header 
+          cartCount={cartCount} 
+          onCartClick={() => setIsCartOpen(true)} 
+        />
         
-        {/* Detail Pemesanan Sidebar - Hidden on mobile unless toggled */}
-        <div className={`bg-white shadow-lg absolute top-0 right-0 h-full w-64 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 z-20 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-          <div className="p-4">
-            <h3 className="text-lg font-bold mb-4 text-center">Detail Pemesanan</h3>
-            <div className="space-y-2">
-              <p className="text-gray-700">Nama</p>
-              <p className="text-gray-700">Jumlah</p>
-              <p className="text-gray-700">Nama pemesan</p>
-              <p className="text-gray-700">Jenis pemesanan</p>
-              <p className="text-gray-700">Tanggal</p>
-              <p className="text-gray-700">Metode pembayaran</p>
-              <p className="text-gray-700">Harga</p>
-              <p className="text-gray-700">Pajak</p>
-              <div className="border-t pt-2 mt-4">
-                <p className="font-bold">Total Harga</p>
-              </div>
-              <div className="pt-4">
-                <button className="w-full bg-green-600 text-white rounded py-2">Order</button>
-              </div>
+        
+        <main className="container mx-auto px-4 py-8">
+          {/* Search & Category */}
+          <div className="mb-8">
+            <div className="bg-white rounded-2xl shadow-lg p-4 mb-4">
+              <input
+                type="text"
+                placeholder="Cari menu favorit..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full p-3 border-2 border-gray-100 rounded-xl focus:border-orange-400 focus:ring-0"
+              />
+            </div>
+            
+            <div className="flex space-x-4 overflow-x-auto pb-4">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`flex-shrink-0 px-6 py-3 rounded-full font-medium transition-all duration-200 ${
+                    selectedCategory === category
+                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg'
+                      : 'bg-white text-gray-700 shadow-md hover:shadow-lg'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
             </div>
           </div>
-        </div>
-        
-        {/* Toggle Sidebar Button - Visible only on mobile/tablet */}
-        <button 
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="fixed bottom-4 right-4 lg:hidden bg-green-600 text-white rounded-full p-3 shadow-lg z-30"
-        >
-          {isSidebarOpen ? (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          ) : (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h18v18H3V3z"></path>
-            </svg>
-          )}
-        </button>
+
+          <ProductGrid 
+            products={filteredProducts}
+            onAddToCart={addToCart}
+          />
+        </main>
+
+        <CartSidebar 
+          isOpen={isCartOpen}
+          onClose={() => setIsCartOpen(false)}
+          cart={cart}
+          onUpdateQuantity={updateCartQuantity}
+          total={cartTotal}
+        />
+
+        {/* Floating Cart Button */}
+        {cartCount > 0 && (
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="lg:hidden fixed bottom-6 right-6 bg-gradient-to-r from-orange-500 to-amber-500 text-white p-4 rounded-full shadow-2xl z-40"
+          >
+            🛒 {cartCount}
+          </button>
+        )}
       </div>
-      
-      {/* Footer */}
-      <div className="bg-gray-200 p-4 text-center">
-        <p>FOOTTER</p>
-      </div>
-    </div>
+    </>
   );
 };
 

@@ -158,7 +158,7 @@ const ContactUs = () => {
   };
 
   return (
-    <div className="w-full bg-amber-50 py-16">
+    <div id="contact" className="w-full bg-amber-50 py-16">
       <div className="max-w-6xl mx-auto px-6">
         <div className="bg-white rounded-2xl shadow-md overflow-hidden">
           <div className="flex flex-col md:flex-row">

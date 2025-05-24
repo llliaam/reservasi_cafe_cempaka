@@ -1,35 +1,59 @@
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
-import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-react';
+import { 
+    Home, 
+    Calendar, 
+    ShoppingBag, 
+    Heart,
+    Star,
+    Settings, 
+    HelpCircle,
+    LogOut,
+    User
+} from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Home',
-        href: '/',
-        icon: LayoutGrid,
-    },
-    {
         title: 'Dashboard',
         href: '/dashboard',
-        icon: LayoutGrid,
+        icon: Home,
+        isActive: true, // Sesuaikan dengan route aktif
+    },
+    {
+        title: 'Riwayat Reservasi',
+        href: '/riwayat-reservasi',
+        icon: Calendar,
+    },
+    {
+        title: 'Riwayat Pemesanan',
+        href: '/riwayat-pemesanan',
+        icon: ShoppingBag,
+    },
+    {
+        title: 'Menu Favorit',
+        href: '/menu-favorit',
+        icon: Heart,
+    },
+    {
+        title: 'Ulasan Saya',
+        href: '/ulasan',
+        icon: Star,
     },
 ];
 
-const footerNavItems: NavItem[] = [
+const accountNavItems: NavItem[] = [
     {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: Folder,
+        title: 'Pengaturan',
+        href: '/settings',
+        icon: Settings,
     },
     {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
+        title: 'Bantuan',
+        href: '/help',
+        icon: HelpCircle,
     },
 ];
 
@@ -41,7 +65,17 @@ export function AppSidebar() {
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
                             <Link href="/dashboard" prefetch>
-                                <AppLogo />
+                                <div className="flex items-center gap-2">
+                                    <AppLogo />
+                                    <div className="grid flex-1 text-left text-sm leading-tight">
+                                        <span className="truncate font-semibold">
+                                            Cemapaka Cafe
+                                        </span>
+                                        <span className="truncate text-xs text-muted-foreground">
+                                            Customer Portal
+                                        </span>
+                                    </div>
+                                </div>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -49,12 +83,57 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                {/* Main Navigation */}
+                <div className="px-3 py-2">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        Menu Utama
+                    </h4>
+                    <NavMain items={mainNavItems} />
+                </div>
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
-                <NavUser />
+                {/* User Profile Section */}
+                <div className="px-3 py-3 border-t border-border">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                            <User className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">
+                                John Doe
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                                john.doe@email.com
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Account Section - Moved here */}
+                    <div className="mb-4">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                            Akun
+                        </h4>
+                        <NavMain items={accountNavItems} />
+                    </div>
+
+                    {/* Logout Button */}
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild>
+                                <Link
+                                    href={route('logout')}
+                                    method="post"
+                                    as="button"
+                                    className="w-full flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                    <span>Logout</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </div>
             </SidebarFooter>
         </Sidebar>
     );

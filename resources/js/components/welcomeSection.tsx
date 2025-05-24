@@ -1,13 +1,13 @@
 import React, { useState } from "react";
-import { Link, usePage } from '@inertiajs/react';
-import { type SharedData } from '@/types';
+import { useNavigate } from 'react-router-dom';
+
 
 export default function ImageGallery() {
-  const { auth } = usePage<SharedData>().props;
   const thumbnails = ["cafe3.webp", "cafe_1.jpg", "cafe2.webp", "cafe.webp"];
   const [mainImage, setMainImage] = useState(thumbnails[0]);
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
 
   // Handle navigasi galeri
   const handlePrevious = () => {
@@ -52,7 +52,7 @@ export default function ImageGallery() {
 
 
   return (
-    <section className="bg-green-50 py-12 px-4 sm:px-6">
+    <section id="dashboard"className="bg-green-50 py-12 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto">
         <h2 className="text-2xl font-bold text-gray-800 mb-8 text-center">
           Galeri & Reservasi

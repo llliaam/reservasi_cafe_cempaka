@@ -113,7 +113,7 @@ const ReviewCardExample = () => {
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 bg-gray-100">
+    <div id="review" className="flex flex-col items-center justify-center p-6 bg-gray-100">
       <h2 className="text-2xl font-semibold mb-8 text-center text-gray-800">
         Ulasan Pelanggan Kami
       </h2>
