@@ -26,6 +26,44 @@ const MenuSelector: React.FC<MenuSelectorProps> = ({
   calculateMenuSubtotal,
   formatPrice
 }) => {
+  // Function to get correct menu image path
+  const getMenuImagePath = (imageFilename: string) => {
+    if (!imageFilename) {
+      // Fallback ke gambar default lokal
+      return "/images/poto_menu/default-menu.jpg";
+    }
+    
+    // Cek apakah sudah full URL (placeholder lama)
+    if (imageFilename.startsWith('http')) {
+      return imageFilename;
+    }
+    
+    // Return path ke folder poto_menu
+    return `/images/poto_menu/${imageFilename}`;
+  };
+
+  // Function untuk fallback gambar yang gagal load
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>, menuName: string) => {
+    const target = e.target as HTMLImageElement;
+    
+    // Coba fallback ke gambar default dulu
+    if (!target.src.includes('default-menu.jpg')) {
+      target.src = '/images/poto_menu/default-menu.jpg';
+      return;
+    }
+    
+    // Jika default-menu.jpg juga gagal, buat simple colored div
+    target.style.display = 'none';
+    const parent = target.parentElement;
+    if (parent && !parent.querySelector('.fallback-div')) {
+      const fallbackDiv = document.createElement('div');
+      fallbackDiv.className = 'fallback-div w-12 h-12 flex items-center justify-center bg-yellow-400 text-white font-bold text-xs rounded-md';
+      const initials = menuName.split(' ').map(word => word[0]).join('').substring(0, 2).toUpperCase();
+      fallbackDiv.textContent = initials || 'M';
+      parent.appendChild(fallbackDiv);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
       <div className="flex justify-between items-center mb-4">
@@ -46,9 +84,10 @@ const MenuSelector: React.FC<MenuSelectorProps> = ({
               <div className="flex items-center">
                 <div className="mr-3">
                   <img 
-                    src={`/images/${item.image}`} 
+                    src={getMenuImagePath(item.image)}
                     alt={item.name}
                     className="w-12 h-12 object-cover rounded-md"
+                    onError={(e) => handleImageError(e, item.name)}
                   />
                 </div>
                 <div>

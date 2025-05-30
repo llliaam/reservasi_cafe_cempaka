@@ -11,17 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('favorite_menus', function (Blueprint $table) {
+        Schema::create('review_helpfuls', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('menu_review_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('menu_id')->constrained()->onDelete('cascade');
             $table->timestamps();
             
-            // Prevent duplicate favorites
-            $table->unique(['user_id', 'menu_id']);
+            // Constraint: user hanya bisa mark helpful 1x per review
+            $table->unique(['menu_review_id', 'user_id']);
             
-            $table->index(['user_id']);
-            $table->index(['menu_id']);
+            // Index untuk performa
+            $table->index('menu_review_id');
+            $table->index('user_id');
         });
     }
 
@@ -30,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('favorite_menus');
+        Schema::dropIfExists('review_helpfuls');
     }
 };

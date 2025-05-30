@@ -4,392 +4,231 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class Reservation extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
         'user_id',
-        'table_id',
-        'reservation_number',
+        'customer_name',
+        'customer_phone',
+        'customer_email',
+        'special_requests',
+        'package_id',
         'reservation_date',
         'reservation_time',
-        'guest_count',
-        'duration',
-        'guest_name',
-        'guest_phone',
-        'guest_email',
+        'number_of_people',
+        'table_location',
+        'package_price',
+        'menu_subtotal',
+        'total_price',
+        'payment_method',
+        'proof_of_payment',
+        'additional_images',
+        'reservation_code',
         'status',
-        'special_request',
-        'notes',
-        'occasion',
-        'preferences',
-        'confirmed_at',
-        'reminder_sent_at',
-        'confirmation_code',
-        'deposit_amount',
-        'minimum_spend',
-        'deposit_status'
     ];
 
-    /**
-     * The attributes that should be cast.
-     */
     protected $casts = [
         'reservation_date' => 'date',
-        'reservation_time' => 'datetime',
-        'preferences' => 'array',
-        'confirmed_at' => 'datetime',
-        'reminder_sent_at' => 'datetime',
-        'deposit_amount' => 'decimal:2',
-        'minimum_spend' => 'decimal:2',
+        'reservation_time' => 'datetime:H:i',
+        'package_price' => 'decimal:2',
+        'menu_subtotal' => 'decimal:2',
+        'total_price' => 'decimal:2',
+        'additional_images' => 'array',
     ];
 
-    // =================== RELATIONSHIPS ===================
+    // Generate unique reservation code
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($reservation) {
+            $reservation->reservation_code = static::generateReservationCode();
+        });
+    }
 
-    /**
-     * Get the user that owns the reservation
-     */
-    public function user()
+    // Relationship dengan User
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Get the table for this reservation
-     */
-    public function table()
+    // TAMBAHAN: Relationship dengan ReservationPackage
+    public function package(): BelongsTo
     {
-        return $this->belongsTo(Table::class);
+        return $this->belongsTo(ReservationPackage::class, 'package_id');
     }
 
-    // =================== SCOPES ===================
+    // Relationship dengan Menu Items
+    public function menuItems(): HasMany
+    {
+        return $this->hasMany(ReservationMenuItem::class);
+    }
 
-    /**
-     * Scope for reservations by status
-     */
+    // Generate kode reservasi unik
+    public static function generateReservationCode(): string
+    {
+        do {
+            $code = 'RSV-' . date('Ymd') . '-' . strtoupper(Str::random(4));
+        } while (static::where('reservation_code', $code)->exists());
+        
+        return $code;
+    }
+
+    // Get URL untuk bukti pembayaran
+    public function getProofOfPaymentUrlAttribute(): ?string
+    {
+        if (!$this->proof_of_payment) {
+            return null;
+        }
+        
+        return Storage::disk('public')->url('reservations/payments/' . $this->proof_of_payment);
+    }
+
+    // Get URLs untuk gambar tambahan
+    public function getAdditionalImageUrlsAttribute(): array
+    {
+        if (!$this->additional_images) {
+            return [];
+        }
+        
+        return collect($this->additional_images)->map(function ($fileName) {
+            return Storage::disk('public')->url('reservations/additional/' . $fileName);
+        })->toArray();
+    }
+
+    // Delete gambar saat reservasi dihapus
+    public function deleteImages(): void
+    {
+        // Hapus bukti pembayaran
+        if ($this->proof_of_payment) {
+            Storage::disk('public')->delete('reservations/payments/' . $this->proof_of_payment);
+        }
+        
+        // Hapus gambar tambahan
+        if ($this->additional_images) {
+            foreach ($this->additional_images as $fileName) {
+                Storage::disk('public')->delete('reservations/additional/' . $fileName);
+            }
+        }
+    }
+
+    // Override delete method
+    public function delete()
+    {
+        $this->deleteImages();
+        return parent::delete();
+    }
+
+    // Accessor untuk format tanggal Indonesia
+    public function getFormattedDateAttribute(): string
+    {
+        return $this->reservation_date->format('d F Y');
+    }
+
+    // Accessor untuk format waktu
+    public function getFormattedTimeAttribute(): string
+    {
+        return $this->reservation_time->format('H:i');
+    }
+
+    // Accessor untuk format harga
+    public function getFormattedTotalPriceAttribute(): string
+    {
+        return 'Rp ' . number_format($this->total_price, 0, ',', '.');
+    }
+
+    // Get payment method label
+    public function getPaymentMethodLabelAttribute(): string
+    {
+        $labels = [
+            'transfer' => 'Transfer Bank',
+            'bca' => 'BCA Mobile',
+            'mandiri' => 'Mandiri Online',
+            'bni' => 'BNI Mobile',
+            'bri' => 'BRI Mobile',
+            'gopay' => 'GoPay',
+            'ovo' => 'OVO',
+            'dana' => 'DANA',
+            'shopeepay' => 'ShopeePay',
+            'pay-later' => 'Bayar di Tempat',
+        ];
+
+        return $labels[$this->payment_method] ?? $this->payment_method;
+    }
+
+    // Check if payment method requires confirmation
+    public function requiresPaymentConfirmation(): bool
+    {
+        $methodsRequiringConfirmation = [
+            'transfer', 'bca', 'mandiri', 'bni', 'bri', 
+            'gopay', 'ovo', 'dana', 'shopeepay'
+        ];
+
+        return in_array($this->payment_method, $methodsRequiringConfirmation);
+    }
+
+    // Scope untuk filter berdasarkan status
     public function scopeByStatus($query, $status)
     {
         return $query->where('status', $status);
     }
 
-    /**
-     * Scope for confirmed reservations
-     */
-    public function scopeConfirmed($query)
+    // Scope untuk filter berdasarkan tanggal
+    public function scopeByDate($query, $date)
     {
-        return $query->where('status', 'confirmed');
+        return $query->whereDate('reservation_date', $date);
     }
 
-    /**
-     * Scope for pending reservations
-     */
-    public function scopePending($query)
+    // UPDATED: Method untuk mendapatkan nama paket dari database
+    public function getPackageName(): string
     {
-        return $query->where('status', 'pending');
-    }
-
-    /**
-     * Scope for upcoming reservations
-     */
-    public function scopeUpcoming($query)
-    {
-        return $query->where('reservation_date', '>=', Carbon::today())
-                    ->orderBy('reservation_date')
-                    ->orderBy('reservation_time');
-    }
-
-    /**
-     * Scope for past reservations
-     */
-    public function scopePast($query)
-    {
-        return $query->where('reservation_date', '<', Carbon::today())
-                    ->orderBy('reservation_date', 'desc')
-                    ->orderBy('reservation_time', 'desc');
-    }
-
-    /**
-     * Scope for today's reservations
-     */
-    public function scopeToday($query)
-    {
-        return $query->where('reservation_date', Carbon::today())
-                    ->orderBy('reservation_time');
-    }
-
-    /**
-     * Scope for reservations by date range
-     */
-    public function scopeDateRange($query, $startDate, $endDate)
-    {
-        return $query->whereBetween('reservation_date', [$startDate, $endDate]);
-    }
-
-    // =================== ACCESSORS ===================
-
-    /**
-     * Get formatted reservation number
-     */
-    public function getFormattedReservationNumberAttribute()
-    {
-        return $this->reservation_number ?: 'RSV-' . str_pad($this->id, 7, '0', STR_PAD_LEFT);
-    }
-
-    /**
-     * Get formatted reservation date
-     */
-    public function getFormattedDateAttribute()
-    {
-        return $this->reservation_date->format('d M Y');
-    }
-
-    /**
-     * Get formatted reservation time
-     */
-    public function getFormattedTimeAttribute()
-    {
-        return $this->reservation_time->format('H:i');
-    }
-
-    /**
-     * Get status text in Indonesian
-     */
-    public function getStatusTextAttribute()
-    {
-        return match($this->status) {
-            'pending' => 'Menunggu Konfirmasi',
-            'confirmed' => 'Dikonfirmasi',
-            'seated' => 'Sudah Tiba',
-            'completed' => 'Selesai',
-            'cancelled' => 'Dibatalkan',
-            'no_show' => 'Tidak Hadir',
-            default => ucfirst($this->status)
-        };
-    }
-
-    /**
-     * Get status color for UI
-     */
-    public function getStatusColorAttribute()
-    {
-        return match($this->status) {
-            'pending' => 'yellow',
-            'confirmed' => 'blue',
-            'seated' => 'green',
-            'completed' => 'green',
-            'cancelled' => 'red',
-            'no_show' => 'red',
-            default => 'gray'
-        };
-    }
-
-    /**
-     * Check if reservation can be cancelled
-     */
-    public function getCanBeCancelledAttribute()
-    {
-        if (!in_array($this->status, ['pending', 'confirmed'])) {
-            return false;
+        // Coba dari relasi package dulu
+        if ($this->package) {
+            return $this->package->name;
         }
 
-        // Can cancel if reservation is at least 2 hours away
-        $reservationDateTime = Carbon::parse($this->reservation_date->format('Y-m-d') . ' ' . $this->reservation_time->format('H:i:s'));
-        return $reservationDateTime->diffInHours(now()) >= 2;
-    }
-
-    /**
-     * Check if reservation can be modified
-     */
-    public function getCanBeModifiedAttribute()
-    {
-        if (!in_array($this->status, ['pending', 'confirmed'])) {
-            return false;
-        }
-
-        // Can modify if reservation is at least 4 hours away
-        $reservationDateTime = Carbon::parse($this->reservation_date->format('Y-m-d') . ' ' . $this->reservation_time->format('H:i:s'));
-        return $reservationDateTime->diffInHours(now()) >= 4;
-    }
-
-    /**
-     * Get end time of reservation
-     */
-    public function getEndTimeAttribute()
-    {
-        return $this->reservation_time->addMinutes($this->duration);
-    }
-
-    /**
-     * Get preferences as formatted string
-     */
-    public function getPreferencesStringAttribute()
-    {
-        return is_array($this->preferences) ? implode(', ', $this->preferences) : '';
-    }
-
-    /**
-     * Get formatted deposit amount
-     */
-    public function getFormattedDepositAttribute()
-    {
-        return $this->deposit_amount > 0 ? 
-               'Rp ' . number_format($this->deposit_amount, 0, ',', '.') : 
-               '';
-    }
-
-    // =================== HELPER METHODS ===================
-
-    /**
-     * Generate reservation number
-     */
-    public static function generateReservationNumber()
-    {
-        $today = Carbon::today();
-        $lastReservation = self::whereDate('created_at', $today)
-                              ->orderBy('id', 'desc')
-                              ->first();
-        
-        $sequence = $lastReservation ? (int)substr($lastReservation->reservation_number, -3) + 1 : 1;
-        
-        return 'RSV-' . $today->format('Ymd') . '-' . str_pad($sequence, 3, '0', STR_PAD_LEFT);
-    }
-
-    /**
-     * Generate confirmation code
-     */
-    public static function generateConfirmationCode()
-    {
-        return strtoupper(substr(md5(uniqid()), 0, 8));
-    }
-
-    /**
-     * Confirm reservation
-     */
-    public function confirm()
-    {
-        $this->update([
-            'status' => 'confirmed',
-            'confirmed_at' => now(),
-            'confirmation_code' => self::generateConfirmationCode()
-        ]);
-
-        // Mark table as reserved if assigned
-        if ($this->table) {
-            $this->table->markAsReserved();
-        }
-    }
-
-    /**
-     * Cancel reservation
-     */
-    public function cancel($reason = null)
-    {
-        if (!$this->can_be_cancelled) {
-            return false;
-        }
-
-        $this->update([
-            'status' => 'cancelled',
-            'notes' => $this->notes . ($reason ? "\nReason: " . $reason : '')
-        ]);
-
-        // Mark table as available if assigned
-        if ($this->table) {
-            $this->table->markAsAvailable();
-        }
-
-        return true;
-    }
-
-    /**
-     * Mark as seated
-     */
-    public function markAsSeated()
-    {
-        $this->update(['status' => 'seated']);
-
-        // Mark table as occupied
-        if ($this->table) {
-            $this->table->markAsOccupied();
-        }
-    }
-
-    /**
-     * Mark as completed
-     */
-    public function markAsCompleted()
-    {
-        $this->update(['status' => 'completed']);
-
-        // Mark table as available
-        if ($this->table) {
-            $this->table->markAsAvailable();
-        }
-    }
-
-    /**
-     * Mark as no show
-     */
-    public function markAsNoShow()
-    {
-        $this->update(['status' => 'no_show']);
-
-        // Mark table as available
-        if ($this->table) {
-            $this->table->markAsAvailable();
-        }
-    }
-
-    /**
-     * Send reminder
-     */
-    public function sendReminder()
-    {
-        // Implementation for sending reminder notification
-        $this->update(['reminder_sent_at' => now()]);
-    }
-
-    /**
-     * Get reservation summary for display
-     */
-    public function getSummary()
-    {
-        return [
-            'id' => $this->formatted_reservation_number,
-            'date' => $this->formatted_date,
-            'time' => $this->formatted_time,
-            'guests' => $this->guest_count,
-            'table' => $this->table ? $this->table->display_name : 'Akan ditentukan',
-            'status' => $this->status_text,
-            'status_color' => $this->status_color,
-            'guest_name' => $this->guest_name,
-            'guest_phone' => $this->guest_phone,
+        // Fallback ke hardcoded jika tidak ada
+        $packages = [
+            1 => 'Paket Romantis (2 Orang)',
+            2 => 'Paket Keluarga (4 Orang)',
+            3 => 'Paket Gathering (8 Orang)',
         ];
+
+        return $packages[$this->package_id] ?? 'Paket Tidak Dikenal';
     }
 
-    // =================== BOOT METHOD ===================
-
-    /**
-     * Boot the model
-     */
-    protected static function boot()
+    // Method untuk mendapatkan total item menu
+    public function getTotalMenuItems(): int
     {
-        parent::boot();
+        return $this->menuItems->sum('quantity');
+    }
 
-        static::creating(function ($reservation) {
-            if (!$reservation->reservation_number) {
-                $reservation->reservation_number = self::generateReservationNumber();
-            }
-            
-            if (!$reservation->duration) {
-                $reservation->duration = 120; // Default 2 hours
-            }
-        });
+    // Check if reservation has images
+    public function hasImages(): bool
+    {
+        return $this->proof_of_payment || !empty($this->additional_images);
+    }
+
+    // Get all image URLs
+    public function getAllImageUrls(): array
+    {
+        $urls = [];
+        
+        if ($this->proof_of_payment_url) {
+            $urls['proof_of_payment'] = $this->proof_of_payment_url;
+        }
+        
+        if (!empty($this->additional_image_urls)) {
+            $urls['additional_images'] = $this->additional_image_urls;
+        }
+        
+        return $urls;
     }
 }

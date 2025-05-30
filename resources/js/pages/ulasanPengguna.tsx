@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
+import { Head, router, Link } from '@inertiajs/react';
 import { 
     Star, 
     Calendar,
@@ -10,7 +10,12 @@ import {
     Filter,
     MessageCircle,
     ThumbsUp,
-    Eye
+    Eye,
+    ChevronLeft,
+    ChevronRight,
+    Plus,
+    Award,
+    CheckCircle
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -21,67 +26,69 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
     {
         title: 'Ulasan Saya',
-        href: '/ulasan',
+        href: '/reviews',
     },
 ];
 
-// Sample data ulasan
-const myReviews = [
-    {
-        id: 1,
-        orderId: 'ORD-2025-001',
-        menuName: 'Nasi Goreng Special',
-        rating: 5,
-        comment: 'Sangat enak! Porsi besar dan bumbu meresap sempurna. Pelayanan juga ramah dan cepat.',
-        date: '2025-05-24',
-        helpful: 12,
-        response: {
-            text: 'Terima kasih atas ulasan positifnya! Kami senang Anda menyukai Nasi Goreng Special kami.',
-            date: '2025-05-25',
-            author: 'Cemapaka Cafe Team'
-        }
-    },
-    {
-        id: 2,
-        orderId: 'ORD-2025-002',
-        menuName: 'Mie Ayam Bakso',
-        rating: 4,
-        comment: 'Rasa mie ayamnya enak, baksonya juga kenyal. Cuma kuahnya agak asin menurut saya.',
-        date: '2025-05-20',
-        helpful: 8,
-        response: null
-    },
-    {
-        id: 3,
-        orderId: 'ORD-2025-004',
-        menuName: 'Gado-gado',
-        rating: 5,
-        comment: 'Gado-gado terenak yang pernah saya coba! Sayurannya segar dan bumbu kacangnya pas banget.',
-        date: '2025-05-15',
-        helpful: 15,
-        response: {
-            text: 'Wah, terima kasih banyak! Kami memang selalu menggunakan sayuran segar setiap hari.',
-            date: '2025-05-16',
-            author: 'Chef Cemapaka'
-        }
-    },
-    {
-        id: 4,
-        orderId: 'ORD-2025-005',
-        menuName: 'Es Campur',
-        rating: 3,
-        comment: 'Es campurnya biasa saja, tidak terlalu istimewa. Mungkin bisa ditambah variasi toppingnya.',
-        date: '2025-05-12',
-        helpful: 3,
-        response: {
-            text: 'Terima kasih atas sarannya! Kami akan pertimbangkan untuk menambah variasi topping es campur.',
-            date: '2025-05-13',
-            author: 'Cemapaka Cafe Team'
-        }
-    }
-];
+// Types untuk data dari ReviewController->index()
+interface Review {
+    id: number;
+    orderId: string;
+    menuName: string;
+    menuItems: string[];
+    rating: number;
+    comment: string | null;
+    date: string;
+    helpful: number;
+    response: {
+        text: string;
+        date: string;
+        author: string;
+    } | null;
+    canEdit: boolean;
+    orderDate: string;
+    totalAmount: number;
+    isVerified: boolean;
+    isFeatured: boolean;
+}
 
-const formatDate = (dateString) => {
+interface ReviewStats {
+    totalReviews: number;
+    averageRating: number;
+    totalHelpful: number;
+    reviewsWithResponse: number;
+    ratingDistribution: {
+        1: number;
+        2: number;
+        3: number;
+        4: number;
+        5: number;
+    };
+}
+
+interface PaginatedReviews {
+    data: Review[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    links: Array<{
+        url: string | null;
+        label: string;
+        active: boolean;
+    }>;
+}
+
+interface Props {
+    reviews: PaginatedReviews;
+    stats: ReviewStats;
+    filters: {
+        rating: string;
+        search: string;
+    };
+}
+
+const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('id-ID', {
         day: 'numeric',
         month: 'long',
@@ -89,7 +96,15 @@ const formatDate = (dateString) => {
     });
 };
 
-const renderStars = (rating) => {
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0
+    }).format(amount);
+};
+
+const renderStars = (rating: number) => {
     return [...Array(5)].map((_, index) => (
         <Star
             key={index}
@@ -102,39 +117,100 @@ const renderStars = (rating) => {
     ));
 };
 
-export default function UlasanSaya() {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [ratingFilter, setRatingFilter] = useState('all');
+export default function UlasanSaya({ reviews, stats, filters }: Props) {
+    const [searchTerm, setSearchTerm] = useState(filters.search);
+    const [ratingFilter, setRatingFilter] = useState(filters.rating);
+    
+    // Handle search & filter dengan Inertia router
+    const handleFilterSubmit = () => {
+        router.get(route('reviews.index'), {
+            search: searchTerm || undefined,
+            rating: ratingFilter !== 'all' ? ratingFilter : undefined,
+        }, {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    };
 
-    const filteredReviews = myReviews.filter(review => {
-        const matchesSearch = review.menuName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            review.comment.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesRating = ratingFilter === 'all' || review.rating === parseInt(ratingFilter);
-        return matchesSearch && matchesRating;
-    });
+    const handleRatingFilterChange = (rating: string) => {
+        setRatingFilter(rating);
+        router.get(route('reviews.index'), {
+            search: searchTerm || undefined,
+            rating: rating !== 'all' ? rating : undefined,
+        }, {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    };
 
-    const totalReviews = myReviews.length;
-    const averageRating = myReviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews;
-    const totalHelpful = myReviews.reduce((sum, review) => sum + review.helpful, 0);
-    const reviewsWithResponse = myReviews.filter(review => review.response).length;
+    const handlePageChange = (url: string) => {
+        router.visit(url, {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    };
+
+    const handleEditReview = (reviewId: number) => {
+        router.get(route('reviews.edit', reviewId));
+    };
+
+    const handleDeleteReview = (reviewId: number) => {
+        if (confirm('Apakah Anda yakin ingin menghapus ulasan ini?')) {
+            router.delete(route('reviews.destroy', reviewId), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    // Flash message akan ditampilkan otomatis dari controller
+                }
+            });
+        }
+    };
+
+    const handleMarkHelpful = (reviewId: number) => {
+        router.post(route('reviews.mark-helpful', reviewId), {}, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                // Flash message akan ditampilkan otomatis dari controller
+            }
+        });
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Ulasan Saya" />
             
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+                {/* Header Actions */}
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                            Ulasan Saya
+                        </h1>
+                        <p className="text-gray-600 dark:text-gray-400 mt-1">
+                            Kelola dan lihat semua ulasan yang pernah Anda berikan
+                        </p>
+                    </div>
+                    <Link
+                        href={route('reviews.create')}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Buat Ulasan
+                    </Link>
+                </div>
+
                 {/* Stats Cards */}
-                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+                <div className="grid auto-rows-min gap-4 md:grid-cols-4">
                     {/* Total Ulasan */}
                     <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20 rounded-xl border border-purple-200/50 dark:border-purple-800/50 p-6">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Total Ulasan</p>
                                 <p className="text-3xl font-bold text-purple-900 dark:text-purple-100 mt-1">
-                                    {totalReviews}
+                                    {stats.totalReviews}
                                 </p>
                                 <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">
-                                    {reviewsWithResponse} mendapat respon
+                                    {stats.reviewsWithResponse} mendapat respon
                                 </p>
                             </div>
                             <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
@@ -150,12 +226,12 @@ export default function UlasanSaya() {
                                 <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Rating Rata-rata</p>
                                 <div className="flex items-center gap-2 mt-1">
                                     <p className="text-3xl font-bold text-amber-900 dark:text-amber-100">
-                                        {averageRating.toFixed(1)}
+                                        {stats.averageRating.toFixed(1)}
                                     </p>
                                     <Star className="w-5 h-5 text-amber-500 fill-current" />
                                 </div>
                                 <div className="flex gap-1 mt-1">
-                                    {renderStars(Math.round(averageRating))}
+                                    {renderStars(Math.round(stats.averageRating))}
                                 </div>
                             </div>
                             <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center">
@@ -170,10 +246,10 @@ export default function UlasanSaya() {
                             <div>
                                 <p className="text-sm font-medium text-green-600 dark:text-green-400">Total Helpful</p>
                                 <p className="text-3xl font-bold text-green-900 dark:text-green-100 mt-1">
-                                    {totalHelpful}
+                                    {stats.totalHelpful}
                                 </p>
                                 <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">
-                                    Rata-rata {Math.round(totalHelpful / totalReviews)} per ulasan
+                                    {stats.totalReviews > 0 ? `Rata-rata ${Math.round(stats.totalHelpful / stats.totalReviews)} per ulasan` : 'Belum ada ulasan'}
                                 </p>
                             </div>
                             <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
@@ -181,7 +257,57 @@ export default function UlasanSaya() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Achievement */}
+                    <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 rounded-xl border border-blue-200/50 dark:border-blue-800/50 p-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Achievement</p>
+                                <p className="text-lg font-bold text-blue-900 dark:text-blue-100 mt-1">
+                                    {stats.totalReviews >= 10 ? 'Expert Reviewer' : 
+                                     stats.totalReviews >= 5 ? 'Active Reviewer' : 
+                                     stats.totalReviews >= 1 ? 'New Reviewer' : 'No Reviews'}
+                                </p>
+                                <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">
+                                    {stats.totalReviews < 10 && `${10 - stats.totalReviews} lagi untuk level berikutnya`}
+                                </p>
+                            </div>
+                            <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                                <Award className="w-6 h-6 text-white" />
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                {/* Rating Distribution */}
+                {stats.totalReviews > 0 && (
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                            Distribusi Rating
+                        </h3>
+                        <div className="space-y-2">
+                            {[5, 4, 3, 2, 1].map((rating) => (
+                                <div key={rating} className="flex items-center gap-3">
+                                    <div className="flex items-center gap-1 w-16">
+                                        <span className="text-sm text-gray-600 dark:text-gray-400">{rating}</span>
+                                        <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                                    </div>
+                                    <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                        <div 
+                                            className="bg-yellow-400 h-2 rounded-full transition-all duration-300"
+                                            style={{ 
+                                                width: `${stats.totalReviews > 0 ? (stats.ratingDistribution[rating as keyof typeof stats.ratingDistribution] / stats.totalReviews * 100) : 0}%` 
+                                            }}
+                                        />
+                                    </div>
+                                    <span className="text-sm text-gray-600 dark:text-gray-400 w-8">
+                                        {stats.ratingDistribution[rating as keyof typeof stats.ratingDistribution]}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Main Content */}
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl flex-1 flex flex-col min-h-[70vh]">
@@ -190,10 +316,10 @@ export default function UlasanSaya() {
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                                    Ulasan Saya
+                                    Daftar Ulasan
                                 </h2>
                                 <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
-                                    Semua ulasan yang pernah Anda berikan
+                                    Menampilkan {reviews.total} ulasan
                                 </p>
                             </div>
                         </div>
@@ -207,6 +333,7 @@ export default function UlasanSaya() {
                                     placeholder="Cari berdasarkan nama menu atau ulasan..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleFilterSubmit()}
                                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"
                                 />
                             </div>
@@ -214,7 +341,7 @@ export default function UlasanSaya() {
                                 <Filter className="w-4 h-4 text-gray-500" />
                                 <select
                                     value={ratingFilter}
-                                    onChange={(e) => setRatingFilter(e.target.value)}
+                                    onChange={(e) => handleRatingFilterChange(e.target.value)}
                                     className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"
                                 >
                                     <option value="all">Semua Rating</option>
@@ -225,21 +352,36 @@ export default function UlasanSaya() {
                                     <option value="1">1 Bintang</option>
                                 </select>
                             </div>
+                            <button
+                                onClick={handleFilterSubmit}
+                                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                            >
+                                Cari
+                            </button>
                         </div>
                     </div>
 
                     {/* Reviews List */}
                     <div className="flex-1 overflow-auto">
-                        {filteredReviews.length === 0 ? (
+                        {reviews.data.length === 0 ? (
                             <div className="text-center py-12">
                                 <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                <p className="text-gray-500 dark:text-gray-400">
+                                <p className="text-gray-500 dark:text-gray-400 mb-4">
                                     {searchTerm || ratingFilter !== 'all' ? 'Tidak ada ulasan yang sesuai dengan filter' : 'Belum ada ulasan yang diberikan'}
                                 </p>
+                                {!searchTerm && ratingFilter === 'all' && (
+                                    <Link
+                                        href={route('reviews.create')}
+                                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        Buat Ulasan Pertama
+                                    </Link>
+                                )}
                             </div>
                         ) : (
                             <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {filteredReviews.map((review) => (
+                                {reviews.data.map((review) => (
                                     <div key={review.id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                         <div className="flex items-start justify-between mb-4">
                                             <div className="flex-1">
@@ -250,6 +392,23 @@ export default function UlasanSaya() {
                                                     <span className="text-sm text-gray-500 dark:text-gray-400">
                                                         ({review.orderId})
                                                     </span>
+                                                    {review.menuItems.length > 1 && (
+                                                        <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
+                                                            +{review.menuItems.length - 1} item lainnya
+                                                        </span>
+                                                    )}
+                                                    {review.isFeatured && (
+                                                        <span className="inline-flex items-center gap-1 text-xs bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 px-2 py-1 rounded">
+                                                            <Award className="w-3 h-3" />
+                                                            Featured
+                                                        </span>
+                                                    )}
+                                                    {review.isVerified && (
+                                                        <span className="inline-flex items-center gap-1 text-xs bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded">
+                                                            <CheckCircle className="w-3 h-3" />
+                                                            Verified
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 
                                                 <div className="flex items-center gap-2 mb-3">
@@ -264,32 +423,52 @@ export default function UlasanSaya() {
                                                         {formatDate(review.date)}
                                                     </div>
                                                 </div>
+
+                                                {/* Order Details */}
+                                                <div className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                                                    <span>Pesanan: {formatDate(review.orderDate)}</span>
+                                                    <span className="mx-2">•</span>
+                                                    <span>Total: {formatCurrency(review.totalAmount)}</span>
+                                                </div>
                                             </div>
                                             
-                                            <div className="flex items-center gap-2">
-                                                <button className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:text-purple-700 border border-purple-200 hover:border-purple-300 rounded-lg transition-colors">
-                                                    <Edit className="w-4 h-4" />
-                                                    Edit
-                                                </button>
-                                                <button className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-lg transition-colors">
-                                                    <Trash2 className="w-4 h-4" />
-                                                    Hapus
-                                                </button>
-                                            </div>
+                                            {review.canEdit && (
+                                                <div className="flex items-center gap-2">
+                                                    <button 
+                                                        onClick={() => handleEditReview(review.id)}
+                                                        className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:text-purple-700 border border-purple-200 hover:border-purple-300 rounded-lg transition-colors"
+                                                    >
+                                                        <Edit className="w-4 h-4" />
+                                                        Edit
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDeleteReview(review.id)}
+                                                        className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-lg transition-colors"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                        Hapus
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                         
-                                        <div className="mb-4">
-                                            <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                                                {review.comment}
-                                            </p>
-                                        </div>
+                                        {review.comment && (
+                                            <div className="mb-4">
+                                                <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                                                    {review.comment}
+                                                </p>
+                                            </div>
+                                        )}
                                         
                                         <div className="flex items-center justify-between mb-4">
                                             <div className="flex items-center gap-4">
-                                                <div className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
+                                                <button
+                                                    onClick={() => handleMarkHelpful(review.id)}
+                                                    className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-purple-600 transition-colors"
+                                                >
                                                     <ThumbsUp className="w-4 h-4" />
                                                     <span>{review.helpful} orang merasa terbantu</span>
-                                                </div>
+                                                </button>
                                             </div>
                                         </div>
                                         
@@ -319,6 +498,63 @@ export default function UlasanSaya() {
                             </div>
                         )}
                     </div>
+
+                    {/* Pagination */}
+                    {reviews.last_page > 1 && (
+                        <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                    <span>
+                                        Menampilkan {((reviews.current_page - 1) * reviews.per_page) + 1} - {Math.min(reviews.current_page * reviews.per_page, reviews.total)} dari {reviews.total} ulasan
+                                    </span>
+                                </div>
+                                
+                                <div className="flex items-center gap-1">
+                                    {reviews.links.map((link, index) => {
+                                        if (link.label.includes('Previous')) {
+                                            return (
+                                                <button
+                                                    key={index}
+                                                    onClick={() => link.url && handlePageChange(link.url)}
+                                                    disabled={!link.url}
+                                                    className="p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    <ChevronLeft className="w-4 h-4" />
+                                                </button>
+                                            );
+                                        }
+                                        
+                                        if (link.label.includes('Next')) {
+                                            return (
+                                                <button
+                                                    key={index}
+                                                    onClick={() => link.url && handlePageChange(link.url)}
+                                                    disabled={!link.url}
+                                                    className="p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    <ChevronRight className="w-4 h-4" />
+                                                </button>
+                                            );
+                                        }
+                                        
+                                        return (
+                                            <button
+                                                key={index}
+                                                onClick={() => link.url && handlePageChange(link.url)}
+                                                className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                                                    link.active
+                                                        ? 'bg-purple-600 text-white'
+                                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-700'
+                                                }`}
+                                            >
+                                                {link.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </AppLayout>

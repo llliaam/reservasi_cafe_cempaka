@@ -44,7 +44,7 @@ const Navbar = () => {
         >
             <div className="flex justify-between items-center">
                 <h1 className="text-xl font-bold text-gray-800 hover:text-yellow-500 cursor-pointer">
-                    Cemapaka Cafe & Resto
+                    Cempaka Cafe & Resto
                 </h1>
 
                 {/* Burger button for mobile */}
@@ -151,7 +151,7 @@ const Navbar = () => {
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M8 11v6h8v-6H8z" />
                                             </svg>
-                                            <span>Riwayat Pemesanan</span>
+                                            <span>Dashboard</span>
                                         </div>
                                     </Link>
                                     

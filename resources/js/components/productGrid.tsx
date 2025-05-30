@@ -1,5 +1,6 @@
-// components/ProductGrid.tsx
 import React, { useState } from 'react';
+import { usePage, router } from '@inertiajs/react';
+import { Star, Eye, Heart, ShoppingCart } from 'lucide-react';
 
 interface Product {
   id: number;
@@ -9,16 +10,25 @@ interface Product {
   category: string;
   image: string;
   rating: number;
+  review_count?: number;
   isPopular?: boolean;
+  description?: string;
 }
 
 interface ProductGridProps {
   products: Product[];
   onAddToCart: (product: Product) => void;
+  onShowDetail?: (product: Product) => void;
 }
 
-const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToCart }) => {
-  const [favorites, setFavorites] = useState<number[]>([]);
+const ProductGrid: React.FC<ProductGridProps> = ({ 
+  products, 
+  onAddToCart,
+  onShowDetail 
+}) => {
+  const { auth, favoriteIds } = usePage<any>().props;
+  const [favorites, setFavorites] = useState<number[]>(favoriteIds || []);
+  const [isLoading, setIsLoading] = useState(false);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -29,10 +39,70 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToCart }) => {
   };
 
   const toggleFavorite = (productId: number) => {
+    if (!auth?.user) {
+      alert('Silakan login untuk menambahkan menu ke favorit');
+      return;
+    }
+
+    if (isLoading) return;
+
+    setIsLoading(true);
+    
+    // Optimistically update UI
+    const isCurrentlyFavorited = favorites.includes(productId);
     setFavorites(prev => 
-      prev.includes(productId)
+      isCurrentlyFavorited
         ? prev.filter(id => id !== productId)
         : [...prev, productId]
+    );
+
+    // Submit form using Inertia.js
+    router.post(route('favorites.toggle', productId), {}, {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        // Success - UI already updated optimistically
+        const product = products.find(p => p.id === productId);
+        const message = !isCurrentlyFavorited 
+          ? `${product?.name} ditambahkan ke favorit` 
+          : `${product?.name} dihapus dari favorit`;
+        
+        console.log(message);
+      },
+      onError: (errors) => {
+        // Revert optimistic update on error
+        setFavorites(prev => 
+          isCurrentlyFavorited
+            ? [...prev, productId]
+            : prev.filter(id => id !== productId)
+        );
+        console.error('Failed to toggle favorite:', errors);
+      },
+      onFinish: () => {
+        setIsLoading(false);
+      }
+    });
+  };
+
+  const renderStars = (rating: number, reviewCount?: number) => {
+    return (
+      <div className="flex items-center gap-1">
+        <div className="flex">
+          {[...Array(5)].map((_, index) => (
+            <Star
+              key={index}
+              className={`w-4 h-4 ${
+                index < Math.floor(rating)
+                  ? 'text-yellow-400 fill-current'
+                  : 'text-gray-300'
+              }`}
+            />
+          ))}
+        </div>
+        <span className="text-sm text-gray-600 ml-1">
+          ({reviewCount || 0})
+        </span>
+      </div>
     );
   };
 
@@ -61,47 +131,79 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToCart }) => {
             {/* Image */}
             <div className="relative">
               <img
-                src={product.image}
+                src={product.image || `https://via.placeholder.com/300x200/fbbf24/ffffff?text=${encodeURIComponent(product.name)}`}
                 alt={product.name}
                 className="w-full h-48 object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = `https://via.placeholder.com/300x200/fbbf24/ffffff?text=${encodeURIComponent(product.name)}`;
+                }}
               />
               
               {/* Badges */}
               {product.isPopular && (
-                <span className="absolute top-3 left-3 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                <span className="absolute top-3 left-3 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-3 py-1 rounded-full font-semibold">
                   🔥 Popular
                 </span>
               )}
               
-              {/* Favorite Button */}
-              <button
-                onClick={() => toggleFavorite(product.id)}
-                className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-sm transition-all duration-200 ${
-                  favorites.includes(product.id) 
-                    ? 'bg-red-500 text-white' 
-                    : 'bg-white/80 text-gray-600 hover:bg-red-50'
-                }`}
-              >
-                {favorites.includes(product.id) ? '❤️' : '🤍'}
-              </button>
+              {/* Action Buttons */}
+              <div className="absolute top-3 right-3 flex flex-col gap-2">
+                {/* Favorite Button */}
+                <button
+                  onClick={() => toggleFavorite(product.id)}
+                  disabled={isLoading}
+                  className={`p-2 rounded-full backdrop-blur-sm transition-all duration-200 ${
+                    favorites.includes(product.id) 
+                      ? 'bg-red-500 text-white shadow-lg' 
+                      : 'bg-white/80 text-gray-600 hover:bg-red-50'
+                  } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title={favorites.includes(product.id) ? 'Hapus dari favorit' : 'Tambah ke favorit'}
+                >
+                  {isLoading ? (
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <Heart className={`w-4 h-4 ${favorites.includes(product.id) ? 'fill-current' : ''}`} />
+                  )}
+                </button>
+
+                {/* Detail Button */}
+                {onShowDetail && (
+                  <button
+                    onClick={() => onShowDetail(product)}
+                    className="p-2 rounded-full bg-white/80 text-gray-600 hover:bg-gray-100 backdrop-blur-sm transition-all duration-200"
+                    title="Lihat detail"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Content */}
             <div className="p-4">
-              <h3 className="font-bold text-lg text-gray-800 mb-2">
+              <h3 className="font-bold text-lg text-gray-800 mb-2 line-clamp-2">
                 {product.name}
               </h3>
 
+              {/* Category */}
+              <p className="text-sm text-gray-500 mb-2">{product.category}</p>
+
               {/* Rating */}
-              <div className="flex items-center space-x-2 mb-3">
-                <span className="text-yellow-400">⭐</span>
-                <span className="text-sm font-medium text-gray-700">{product.rating}</span>
-                <span className="text-sm text-gray-500">(120 reviews)</span>
+              <div className="mb-3">
+                {renderStars(product.rating, product.review_count)}
               </div>
 
-              {/* Price and Add Button */}
+              {/* Description */}
+              {product.description && (
+                <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                  {product.description}
+                </p>
+              )}
+
+              {/* Price and Order Button */}
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1">
                   <span className="text-xl font-bold text-gray-800">
                     {formatPrice(product.price)}
                   </span>
@@ -111,23 +213,41 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToCart }) => {
                         {formatPrice(product.originalPrice)}
                       </span>
                       <span className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full font-semibold">
-                        -17%
+                        -{Math.round((1 - product.price / product.originalPrice) * 100)}%
                       </span>
                     </div>
                   )}
                 </div>
 
+                {/* Order Button */}
                 <button
                   onClick={() => onAddToCart(product)}
-                  className="bg-gradient-to-r from-orange-500 to-amber-500 text-white p-3 rounded-full font-semibold hover:shadow-lg transform hover:scale-110 transition-all duration-200"
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2 rounded-xl font-semibold hover:from-orange-600 hover:to-amber-600 hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+                  title={`Pesan ${product.name}`}
                 >
-                  ➕
+                  <ShoppingCart className="w-4 h-4" />
+                  Order
                 </button>
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Show favorites count if user is logged in */}
+      {auth?.user && favorites.length > 0 && (
+        <div className="mt-8 text-center">
+          <p className="text-gray-600">
+            Anda memiliki <span className="font-semibold text-orange-600">{favorites.length}</span> menu favorit
+          </p>
+          <a
+            href="/my-favorites"
+            className="mt-2 text-orange-600 hover:text-orange-700 font-medium underline"
+          >
+            Lihat semua favorit →
+          </a>
+        </div>
+      )}
     </div>
   );
 };

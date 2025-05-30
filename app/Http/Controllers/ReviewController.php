@@ -2,7 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Order;
+use App\Models\UserReview;
+use App\Models\MenuItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ReviewController extends Controller
@@ -12,247 +17,473 @@ class ReviewController extends Controller
      */
     public function index(Request $request)
     {
-        $user = auth()->user();
+        $user = Auth::user();
         
-        // Query orders yang sudah memiliki review
-        $query = $user->orders()
-            ->with(['orderItems.menu'])
-            ->whereNotNull('rating')
-            ->orderBy('updated_at', 'desc');
+        $query = UserReview::with([
+            'order.orderItems.menuItem',
+            'menuItem',
+            'adminResponder'
+        ])->where('user_id', $user->id);
 
-        // Filter berdasarkan rating jika ada
-        if ($request->has('rating') && $request->rating !== 'all') {
+        // Filter by rating
+        if ($request->filled('rating') && $request->rating !== 'all') {
             $query->where('rating', $request->rating);
         }
 
-        // Search berdasarkan nama menu atau review
-        if ($request->has('search') && !empty($request->search)) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('review', 'like', "%{$search}%")
-                  ->orWhereHas('orderItems.menu', function($menuQuery) use ($search) {
-                      $menuQuery->where('name', 'like', "%{$search}%");
-                  });
+        // Search by menu name or comment
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->whereHas('menuItem', function ($menuQuery) use ($searchTerm) {
+                    $menuQuery->where('name', 'like', "%{$searchTerm}%");
+                })->orWhere('comment', 'like', "%{$searchTerm}%");
             });
         }
 
-        $reviews = $query->paginate(10);
+        $reviews = $query->latest('reviewed_at')->paginate(10);
 
-        // Transform data untuk frontend
-        $reviews->getCollection()->transform(function ($order) {
-            // Ambil nama menu utama (yang pertama) untuk simplifikasi
-            $mainMenu = $order->orderItems->first()->menu ?? null;
+        // Transform reviews for frontend
+        $transformedReviews = $reviews->through(function ($review) {
+            $orderItems = $review->order->orderItems ?? collect();
             
             return [
-                'id' => $order->id,
-                'orderId' => 'ORD-' . date('Y') . '-' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
-                'menuName' => $mainMenu ? $mainMenu->name : 'Multiple Items',
-                'menuItems' => $order->orderItems->map(function($item) {
-                    return $item->menu->name;
-                }),
-                'rating' => $order->rating,
-                'comment' => $order->review,
-                'date' => $order->updated_at->toDateString(),
-                'helpful' => $order->helpful_count ?? 0,
-                'response' => $order->admin_response ? [
-                    'text' => $order->admin_response,
-                    'date' => $order->admin_response_date ? $order->admin_response_date->toDateString() : null,
-                    'author' => 'Cemapaka Cafe Team'
+                'id' => $review->id,
+                'orderId' => $review->order->order_code ?? 'N/A',
+                'menuName' => $review->menuItem->name ?? 'Menu tidak ditemukan',
+                'menuItems' => $orderItems->pluck('menuItem.name')->toArray(),
+                'rating' => $review->rating,
+                'comment' => $review->comment,
+                'date' => $review->reviewed_at->format('Y-m-d'),
+                'helpful' => $review->helpful_count,
+                'response' => $review->admin_response ? [
+                    'text' => $review->admin_response,
+                    'date' => $review->admin_response_date->format('Y-m-d'),
+                    'author' => $review->adminResponder->name ?? 'Admin Team'
                 ] : null,
-                'canEdit' => $order->updated_at->diffInDays(now()) <= 7, // Bisa edit dalam 7 hari
-                'orderDate' => $order->created_at->toDateString(),
-                'totalAmount' => $order->total_amount,
+                'canEdit' => $review->can_edit,
+                'orderDate' => $review->order->order_time->format('Y-m-d'),
+                'totalAmount' => $review->order->total_amount,
+                'isVerified' => $review->is_verified,
+                'isFeatured' => $review->is_featured,
             ];
         });
 
-        // Statistics
-        $allReviews = $user->orders()->whereNotNull('rating')->get();
+        // Get statistics
         $stats = [
-            'totalReviews' => $allReviews->count(),
-            'averageRating' => $allReviews->avg('rating') ?? 0,
-            'totalHelpful' => $allReviews->sum('helpful_count') ?? 0,
-            'reviewsWithResponse' => $allReviews->whereNotNull('admin_response')->count(),
-            'ratingDistribution' => [
-                5 => $allReviews->where('rating', 5)->count(),
-                4 => $allReviews->where('rating', 4)->count(),
-                3 => $allReviews->where('rating', 3)->count(),
-                2 => $allReviews->where('rating', 2)->count(),
-                1 => $allReviews->where('rating', 1)->count(),
-            ]
+            'totalReviews' => $user->reviews()->count(),
+            'averageRating' => round($user->reviews()->avg('rating') ?? 0, 1),
+            'totalHelpful' => $user->reviews()->sum('helpful_count'),
+            'reviewsWithResponse' => $user->reviews()->whereNotNull('admin_response')->count(),
+            'ratingDistribution' => UserReview::getRatingDistribution($user->id)
         ];
 
         return Inertia::render('ulasanPengguna', [
-            'reviews' => $reviews,
+            'reviews' => $transformedReviews,
             'stats' => $stats,
             'filters' => [
                 'rating' => $request->rating ?? 'all',
-                'search' => $request->search ?? '',
+                'search' => $request->search ?? ''
             ]
         ]);
     }
 
     /**
-     * Store a new review
+     * Store a new review - using session flash for feedback
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $user = Auth::user();
+        
+        $request->validate([
             'order_id' => 'required|exists:orders,id',
-            'rating' => 'required|integer|min:1|max:5',
-            'comment' => 'nullable|string|max:1000',
+            'menu_item_id' => 'required|exists:menu_items,id',
+            'rating' => 'required|integer|between:1,5',
+            'comment' => 'nullable|string|max:1000'
         ]);
 
-        $user = auth()->user();
-        $order = $user->orders()->findOrFail($validated['order_id']);
+        // Verify order belongs to user and can be reviewed
+        $order = Order::where('id', $request->order_id)
+                      ->where('user_id', $user->id)
+                      ->first();
 
-        // Cek apakah order sudah completed dan belum ada review
-        if ($order->status !== 'completed') {
-            return back()->with('error', 'Hanya pesanan yang sudah selesai yang bisa direview.');
+        if (!$order) {
+            return redirect()->back()
+                           ->withErrors(['order' => 'Pesanan tidak ditemukan']);
         }
 
-        if ($order->rating) {
-            return back()->with('error', 'Pesanan ini sudah memiliki review.');
+        if (!$order->canBeReviewed()) {
+            return redirect()->back()
+                           ->withErrors(['order' => 'Pesanan ini tidak dapat direview']);
         }
 
-        $order->update([
-            'rating' => $validated['rating'],
-            'review' => $validated['comment'],
-        ]);
+        // Check if review already exists
+        $existingReview = UserReview::where('user_id', $user->id)
+                                   ->where('order_id', $request->order_id)
+                                   ->first();
 
-        return back()->with('success', 'Review berhasil ditambahkan!');
+        if ($existingReview) {
+            return redirect()->back()
+                           ->withErrors(['review' => 'Anda sudah memberikan ulasan untuk pesanan ini']);
+        }
+
+        // Verify menu item exists in the order
+        $orderHasMenuItem = $order->orderItems()
+                                  ->where('menu_item_id', $request->menu_item_id)
+                                  ->exists();
+
+        if (!$orderHasMenuItem) {
+            return redirect()->back()
+                           ->withErrors(['menu_item' => 'Menu item tidak ditemukan dalam pesanan ini']);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Create review
+            $review = UserReview::create([
+                'user_id' => $user->id,
+                'order_id' => $request->order_id,
+                'menu_item_id' => $request->menu_item_id,
+                'rating' => $request->rating,
+                'comment' => $request->comment,
+                'reviewed_at' => now()
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('reviews.index')
+                           ->with('success', 'Ulasan berhasil disimpan');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            
+            return redirect()->back()
+                           ->withErrors(['review' => 'Gagal menyimpan ulasan'])
+                           ->withInput();
+        }
     }
 
     /**
      * Update an existing review
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, UserReview $review)
     {
-        $validated = $request->validate([
-            'rating' => 'required|integer|min:1|max:5',
-            'comment' => 'nullable|string|max:1000',
-        ]);
+        $user = Auth::user();
 
-        $user = auth()->user();
-        $order = $user->orders()->findOrFail($id);
-
-        // Cek apakah review bisa diedit (dalam 7 hari)
-        if (!$order->rating || $order->updated_at->diffInDays(now()) > 7) {
-            return back()->with('error', 'Review tidak dapat diubah atau sudah melewati batas waktu.');
+        // Check if review belongs to user
+        if ($review->user_id !== $user->id) {
+            abort(403, 'Unauthorized access to review');
         }
 
-        $order->update([
-            'rating' => $validated['rating'],
-            'review' => $validated['comment'],
+        // Check if review can still be edited
+        if (!$review->canBeEdited()) {
+            return redirect()->back()
+                           ->withErrors(['review' => 'Ulasan ini tidak dapat diubah lagi']);
+        }
+
+        $request->validate([
+            'rating' => 'required|integer|between:1,5',
+            'comment' => 'nullable|string|max:1000'
         ]);
 
-        return back()->with('success', 'Review berhasil diperbarui!');
+        try {
+            $review->update([
+                'rating' => $request->rating,
+                'comment' => $request->comment
+            ]);
+
+            return redirect()->route('reviews.index')
+                           ->with('success', 'Ulasan berhasil diperbarui');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                           ->withErrors(['review' => 'Gagal memperbarui ulasan'])
+                           ->withInput();
+        }
     }
 
     /**
      * Delete a review
      */
-    public function destroy($id)
+    public function destroy(UserReview $review)
     {
-        $user = auth()->user();
-        $order = $user->orders()->findOrFail($id);
+        $user = Auth::user();
 
-        // Cek apakah review bisa dihapus (dalam 7 hari)
-        if (!$order->rating || $order->updated_at->diffInDays(now()) > 7) {
-            return back()->with('error', 'Review tidak dapat dihapus atau sudah melewati batas waktu.');
+        // Check if review belongs to user
+        if ($review->user_id !== $user->id) {
+            abort(403, 'Unauthorized access to review');
         }
 
-        $order->update([
-            'rating' => null,
-            'review' => null,
-        ]);
+        // Check if review can still be deleted
+        if (!$review->canBeDeleted()) {
+            return redirect()->back()
+                           ->withErrors(['review' => 'Ulasan ini tidak dapat dihapus lagi']);
+        }
 
-        return back()->with('success', 'Review berhasil dihapus!');
+        try {
+            $review->delete();
+
+            return redirect()->route('reviews.index')
+                           ->with('success', 'Ulasan berhasil dihapus');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                           ->withErrors(['review' => 'Gagal menghapus ulasan']);
+        }
     }
 
     /**
      * Mark review as helpful
      */
-    public function markHelpful(Request $request, $id)
+    public function markHelpful(UserReview $review)
     {
-        $user = auth()->user();
-        $order = $user->orders()->findOrFail($id);
+        $user = Auth::user();
 
-        if (!$order->rating) {
-            return response()->json(['error' => 'Review tidak ditemukan'], 404);
+        // Prevent users from marking their own reviews as helpful
+        if ($review->user_id === $user->id) {
+            return redirect()->back()
+                           ->withErrors(['helpful' => 'Anda tidak dapat menandai ulasan sendiri sebagai membantu']);
         }
 
-        // Logic untuk menandai sebagai helpful
-        // Bisa menggunakan tabel terpisah untuk tracking siapa yang menandai helpful
-        
-        $order->increment('helpful_count');
+        try {
+            $review->incrementHelpful();
 
-        return response()->json([
-            'message' => 'Review ditandai sebagai helpful',
-            'helpful_count' => $order->helpful_count
+            return redirect()->back()
+                           ->with('success', 'Terima kasih atas feedback Anda');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                           ->withErrors(['helpful' => 'Gagal memproses feedback']);
+        }
+    }
+
+    /**
+     * Create review form with all necessary data
+     */
+    public function create(Request $request)
+    {
+        $user = Auth::user();
+        $orderId = $request->get('order_id');
+        
+        $selectedOrder = null;
+        if ($orderId) {
+            $selectedOrder = Order::with(['orderItems.menuItem'])
+                          ->where('id', $orderId)
+                          ->where('user_id', $user->id)
+                          ->first();
+                          
+            if (!$selectedOrder || !$selectedOrder->canBeReviewed()) {
+                return redirect()->route('orders.history')
+                               ->with('error', 'Pesanan tidak dapat direview');
+            }
+        }
+
+        $reviewableOrders = Order::with(['orderItems.menuItem'])
+                                ->where('user_id', $user->id)
+                                ->where('status', Order::STATUS_COMPLETED)
+                                ->whereDoesntHave('userReview')
+                                ->latest('completed_at')
+                                ->take(10)
+                                ->get();
+
+        return Inertia::render('Reviews/Create', [
+            'selectedOrder' => $selectedOrder ? [
+                'id' => $selectedOrder->id,
+                'order_code' => $selectedOrder->order_code,
+                'order_date' => $selectedOrder->order_time->format('d M Y'),
+                'total_amount' => $selectedOrder->formatted_total,
+                'items' => $selectedOrder->orderItems->map(function ($item) {
+                    return [
+                        'id' => $item->menu_item_id,
+                        'name' => $item->menuItem->name,
+                        'quantity' => $item->quantity
+                    ];
+                })
+            ] : null,
+            'reviewableOrders' => $reviewableOrders->map(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'order_code' => $order->order_code,
+                    'order_date' => $order->order_time->format('d M Y'),
+                    'total_amount' => $order->formatted_total,
+                    'items' => $order->orderItems->map(function ($item) {
+                        return [
+                            'id' => $item->menu_item_id,
+                            'name' => $item->menuItem->name,
+                            'quantity' => $item->quantity
+                        ];
+                    })
+                ];
+            })
         ]);
     }
 
     /**
-     * Get orders that can be reviewed
+     * Edit review form
      */
-    public function getReviewableOrders()
+    public function edit(UserReview $review)
     {
-        $user = auth()->user();
-        
-        $orders = $user->orders()
-            ->with(['orderItems.menu'])
-            ->where('status', 'completed')
-            ->whereNull('rating')
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $user = Auth::user();
 
-        $reviewableOrders = $orders->map(function ($order) {
-            return [
-                'id' => $order->id,
-                'orderId' => 'ORD-' . date('Y') . '-' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
-                'date' => $order->created_at->toDateString(),
-                'items' => $order->orderItems->map(function($item) {
-                    return [
-                        'name' => $item->menu->name,
-                        'quantity' => $item->quantity,
-                    ];
-                }),
-                'total' => $order->total_amount,
-            ];
-        });
+        if ($review->user_id !== $user->id) {
+            abort(403);
+        }
 
-        return response()->json($reviewableOrders);
+        if (!$review->canBeEdited()) {
+            return redirect()->route('reviews.index')
+                           ->with('error', 'Ulasan ini tidak dapat diubah lagi');
+        }
+
+        $review->load(['order.orderItems.menuItem', 'menuItem']);
+
+        return Inertia::render('Reviews/Edit', [
+            'review' => [
+                'id' => $review->id,
+                'rating' => $review->rating,
+                'comment' => $review->comment,
+                'menu_item_id' => $review->menu_item_id,
+                'order' => [
+                    'id' => $review->order->id,
+                    'order_code' => $review->order->order_code,
+                    'order_date' => $review->order->order_time->format('d M Y'),
+                    'items' => $review->order->orderItems->map(function ($item) {
+                        return [
+                            'id' => $item->menu_item_id,
+                            'name' => $item->menuItem->name,
+                            'quantity' => $item->quantity
+                        ];
+                    })
+                ]
+            ]
+        ]);
     }
 
     /**
-     * Get review statistics for dashboard
+     * Get menu reviews (for public display) - for MenuReviews component
      */
-    public function getReviewStats()
+    public function getMenuReviews(MenuItem $menuItem)
     {
-        $user = auth()->user();
-        
-        $reviews = $user->orders()->whereNotNull('rating')->get();
-        
+        $reviews = UserReview::with(['user', 'order'])
+                           ->where('menu_item_id', $menuItem->id)
+                           ->where('is_verified', true)
+                           ->latest('reviewed_at')
+                           ->paginate(10);
+
+        $transformedReviews = $reviews->through(function ($review) {
+            return [
+                'id' => $review->id,
+                'rating' => $review->rating,
+                'comment' => $review->comment,
+                'reviewer_name' => $review->user->name,
+                'reviewed_at' => $review->reviewed_at->format('d M Y'),
+                'helpful_count' => $review->helpful_count,
+                'is_featured' => $review->is_featured,
+                'admin_response' => $review->admin_response ? [
+                    'text' => $review->admin_response,
+                    'date' => $review->admin_response_date->format('d M Y'),
+                    'author' => $review->adminResponder->name ?? 'Admin Team'
+                ] : null
+            ];
+        });
+
         $stats = [
-            'total_reviews' => $reviews->count(),
-            'average_rating' => $reviews->avg('rating') ?? 0,
-            'rating_distribution' => [
-                5 => $reviews->where('rating', 5)->count(),
-                4 => $reviews->where('rating', 4)->count(),
-                3 => $reviews->where('rating', 3)->count(),
-                2 => $reviews->where('rating', 2)->count(),
-                1 => $reviews->where('rating', 1)->count(),
-            ],
-            'recent_reviews' => $reviews->take(3)->map(function($order) {
-                return [
-                    'rating' => $order->rating,
-                    'comment' => $order->review,
-                    'date' => $order->updated_at->toDateString(),
-                    'menu' => $order->orderItems->first()->menu->name ?? 'Multiple Items'
-                ];
-            })
+            'total_reviews' => UserReview::where('menu_item_id', $menuItem->id)->count(),
+            'average_rating' => UserReview::where('menu_item_id', $menuItem->id)->avg('rating') ?? 0,
+            'rating_distribution' => []
         ];
 
-        return response()->json($stats);
+        // Calculate rating distribution
+        for ($i = 1; $i <= 5; $i++) {
+            $stats['rating_distribution'][$i] = UserReview::where('menu_item_id', $menuItem->id)
+                                                         ->where('rating', $i)
+                                                         ->count();
+        }
+
+        return Inertia::render('MenuReviews', [
+            'reviews' => $transformedReviews,
+            'stats' => $stats,
+            'menuItem' => [
+                'id' => $menuItem->id,
+                'name' => $menuItem->name
+            ]
+        ]);
+    }
+
+    /**
+     * Get reviewable orders for dropdown/selection
+     */
+    public function getReviewableOrders()
+    {
+        $user = Auth::user();
+        
+        $orders = Order::with(['orderItems.menuItem'])
+                      ->where('user_id', $user->id)
+                      ->where('status', Order::STATUS_COMPLETED)
+                      ->whereDoesntHave('userReview')
+                      ->latest('completed_at')
+                      ->get();
+
+        return Inertia::render('Reviews/ReviewableOrders', [
+            'orders' => $orders->map(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'order_code' => $order->order_code,
+                    'order_date' => $order->order_time->format('Y-m-d'),
+                    'completed_date' => $order->completed_at->format('Y-m-d'),
+                    'total_amount' => $order->total_amount,
+                    'can_review_until' => $order->completed_at->addDays(7)->format('Y-m-d'),
+                    'items' => $order->orderItems->map(function ($item) {
+                        return [
+                            'id' => $item->menu_item_id,
+                            'name' => $item->menuItem->name,
+                            'quantity' => $item->quantity,
+                            'price' => $item->price
+                        ];
+                    })
+                ];
+            })
+        ]);
+    }
+
+    /**
+     * Admin methods
+     */
+    public function addAdminResponse(Request $request, $id)
+    {
+        $request->validate([
+            'response' => 'required|string|max:1000'
+        ]);
+
+        $review = UserReview::findOrFail($id);
+        $review->addAdminResponse($request->response);
+
+        return redirect()->back()
+                       ->with('success', 'Response admin berhasil ditambahkan');
+    }
+
+    public function removeAdminResponse($id)
+    {
+        $review = UserReview::findOrFail($id);
+        $review->removeAdminResponse();
+
+        return redirect()->back()
+                       ->with('success', 'Response admin berhasil dihapus');
+    }
+
+    public function markAsFeatured($id)
+    {
+        $review = UserReview::findOrFail($id);
+        $review->markAsFeatured();
+
+        return redirect()->back()
+                       ->with('success', 'Review berhasil ditandai sebagai featured');
+    }
+
+    public function markAsVerified($id)
+    {
+        $review = UserReview::findOrFail($id);
+        $review->markAsVerified();
+
+        return redirect()->back()
+                       ->with('success', 'Review berhasil diverifikasi');
     }
 }
