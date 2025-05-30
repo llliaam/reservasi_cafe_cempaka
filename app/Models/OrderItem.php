@@ -4,164 +4,80 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrderItem extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
         'order_id',
-        'menu_id',
-        'menu_name',
-        'menu_price',
+        'menu_item_id',
+        'menu_item_name',
+        'menu_item_price',
         'quantity',
-        'price',
-        'total_price',
+        'subtotal',
         'special_instructions',
-        'customizations',
-        'status'
+        'modifications'
     ];
 
-    /**
-     * The attributes that should be cast.
-     */
     protected $casts = [
-        'menu_price' => 'decimal:2',
-        'price' => 'decimal:2',
-        'total_price' => 'decimal:2',
-        'customizations' => 'array',
+        'menu_item_price' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+        'quantity' => 'integer',
+        'modifications' => 'array'
     ];
 
-    // =================== RELATIONSHIPS ===================
-
     /**
-     * Get the order that owns the order item
-     */
-    public function order()
-    {
-        return $this->belongsTo(Order::class);
-    }
-
-    /**
-     * Get the menu that this order item refers to
-     */
-    public function menu()
-    {
-        return $this->belongsTo(Menu::class);
-    }
-
-    // =================== SCOPES ===================
-
-    /**
-     * Scope for items by status
-     */
-    public function scopeByStatus($query, $status)
-    {
-        return $query->where('status', $status);
-    }
-
-    /**
-     * Scope for pending items
-     */
-    public function scopePending($query)
-    {
-        return $query->where('status', 'pending');
-    }
-
-    /**
-     * Scope for ready items
-     */
-    public function scopeReady($query)
-    {
-        return $query->where('status', 'ready');
-    }
-
-    // =================== ACCESSORS ===================
-
-    /**
-     * Get formatted price
-     */
-    public function getFormattedPriceAttribute()
-    {
-        return 'Rp ' . number_format($this->price, 0, ',', '.');
-    }
-
-    /**
-     * Get formatted total price
-     */
-    public function getFormattedTotalPriceAttribute()
-    {
-        return 'Rp ' . number_format($this->total_price, 0, ',', '.');
-    }
-
-    /**
-     * Get status text in Indonesian
-     */
-    public function getStatusTextAttribute()
-    {
-        return match($this->status) {
-            'pending' => 'Menunggu',
-            'preparing' => 'Sedang Diproses',
-            'ready' => 'Siap',
-            'served' => 'Disajikan',
-            default => ucfirst($this->status)
-        };
-    }
-
-    /**
-     * Get customizations as formatted string
-     */
-    public function getCustomizationsStringAttribute()
-    {
-        return is_array($this->customizations) ? implode(', ', $this->customizations) : '';
-    }
-
-    // =================== HELPER METHODS ===================
-
-    /**
-     * Calculate total price based on quantity and price
-     */
-    public function calculateTotalPrice()
-    {
-        $this->total_price = $this->quantity * $this->price;
-        $this->save();
-    }
-
-    /**
-     * Update status
-     */
-    public function updateStatus($status)
-    {
-        $this->update(['status' => $status]);
-    }
-
-    // =================== BOOT METHOD ===================
-
-    /**
-     * Boot the model
+     * Calculate subtotal automatically before saving
      */
     protected static function boot()
     {
         parent::boot();
 
-        static::creating(function ($orderItem) {
-            // Auto-calculate total price
-            $orderItem->total_price = $orderItem->quantity * $orderItem->price;
+        static::saving(function ($orderItem) {
+            $orderItem->subtotal = $orderItem->menu_item_price * $orderItem->quantity;
         });
+    }
 
-        static::updating(function ($orderItem) {
-            // Recalculate total price if quantity or price changes
-            if ($orderItem->isDirty(['quantity', 'price'])) {
-                $orderItem->total_price = $orderItem->quantity * $orderItem->price;
-            }
-        });
+    /**
+     * Relasi dengan Order
+     */
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
 
-        static::saved(function ($orderItem) {
-            // Update order total when order item is saved
-            $orderItem->order->calculateTotal();
-        });
+    /**
+     * Relasi dengan MenuItem
+     */
+    public function menuItem(): BelongsTo
+    {
+        return $this->belongsTo(MenuItem::class);
+    }
+
+    /**
+     * Alias untuk menuItem() - untuk kompatibilitas dengan kode yang menggunakan menu()
+     * INI YANG DITAMBAHKAN UNTUK MENGATASI ERROR
+     */
+    public function menu(): BelongsTo
+    {
+        return $this->belongsTo(MenuItem::class, 'menu_item_id');
+    }
+
+    /**
+     * Get formatted price
+     */
+    public function getFormattedPriceAttribute(): string
+    {
+        return 'Rp ' . number_format($this->menu_item_price, 0, ',', '.');
+    }
+
+    /**
+     * Get formatted subtotal
+     */
+    public function getFormattedSubtotalAttribute(): string
+    {
+        return 'Rp ' . number_format($this->subtotal, 0, ',', '.');
     }
 }

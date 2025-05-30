@@ -11,15 +11,24 @@ import {
     Settings, 
     HelpCircle,
     LogOut,
-    User
+    User,
+    LayoutDashboard
 } from 'lucide-react';
 import AppLogo from './app-logo';
+import { usePage } from '@inertiajs/react';
+
+type PageProps = {
+  user: {
+    name: string;
+    email: string;
+  } | null ;
+};
 
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
         href: '/dashboard',
-        icon: Home,
+        icon: LayoutDashboard,
         isActive: true, // Sesuaikan dengan route aktif
     },
     {
@@ -42,6 +51,12 @@ const mainNavItems: NavItem[] = [
         href: '/ulasan',
         icon: Star,
     },
+    {
+        title: 'Home',
+        href: '/',
+        icon: Home,
+        isActive: true, // Sesuaikan dengan route aktif
+    },
 ];
 
 const accountNavItems: NavItem[] = [
@@ -58,6 +73,7 @@ const accountNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const {user} = usePage<PageProps>().props;
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -101,10 +117,10 @@ export function AppSidebar() {
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">
-                                John Doe
+                                {user?.name ?? 'Guest'}
                             </p>
                             <p className="text-xs text-muted-foreground truncate">
-                                john.doe@email.com
+                                {user?.email ?? '-'}
                             </p>
                         </div>
                     </div>

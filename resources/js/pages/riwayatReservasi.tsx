@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { 
     Calendar, 
     Clock, 
@@ -13,7 +13,10 @@ import {
     CheckCircle,
     AlertCircle,
     Search,
-    Filter
+    Filter,
+    Mail,
+    CreditCard,
+    Package
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -24,63 +27,57 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
     {
         title: 'Riwayat Reservasi',
-        href: '/riwayat-reservasi',
+        href: '/reservations',
     },
 ];
 
-// Sample data reservasi
-const reservationHistory = [
-    {
-        id: 'RSV-2025-001',
-        date: '2025-05-28',
-        time: '19:00',
-        guests: 4,
-        table: 'Meja 12',
-        name: 'William Benediktus',
-        phone: '081234567890',
-        status: 'confirmed',
-        specialRequest: 'Meja dekat jendela',
-        createdAt: '2025-05-20'
-    },
-    {
-        id: 'RSV-2025-002',
-        date: '2025-05-25',
-        time: '12:30',
-        guests: 2,
-        table: 'Meja 5',
-        name: 'William Benediktus',
-        phone: '081234567890',
-        status: 'completed',
-        specialRequest: '',
-        createdAt: '2025-05-18'
-    },
-    {
-        id: 'RSV-2025-003',
-        date: '2025-05-22',
-        time: '20:00',
-        guests: 6,
-        table: 'Meja 15',
-        name: 'William Benediktus',
-        phone: '081234567890',
-        status: 'cancelled',
-        specialRequest: 'Acara ulang tahun',
-        createdAt: '2025-05-15'
-    },
-    {
-        id: 'RSV-2025-004',
-        date: '2025-05-20',
-        time: '18:30',
-        guests: 3,
-        table: 'Meja 8',
-        name: 'William Benediktus',
-        phone: '081234567890',
-        status: 'completed',
-        specialRequest: '',
-        createdAt: '2025-05-12'
-    }
-];
+// Interface untuk data dari ReservationController->index()
+interface MenuItem {
+    name: string;
+    price: number;
+    quantity: number;
+    subtotal: number;
+}
 
-const getStatusColor = (status) => {
+interface Reservation {
+    id: string; // reservation_code
+    date: string;
+    time: string;
+    guests: number;
+    table: string;
+    name: string;
+    phone: string;
+    email: string;
+    status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+    specialRequest?: string;
+    createdAt: string;
+    packageName?: string;
+    packagePrice?: number;
+    menuSubtotal?: number;
+    totalPrice?: number;
+    paymentMethod?: string;
+    paymentMethodLabel?: string;
+    menuItems?: MenuItem[];
+    proofOfPaymentUrl?: string;
+    additionalImageUrls?: string[];
+}
+
+interface ReservationStats {
+    totalReservations: number;
+    confirmedCount: number;
+    completedCount: number;
+    cancelledCount: number;
+    pendingCount: number;
+    totalGuests: number;
+    averageGuests: number;
+}
+
+interface RiwayatReservasiProps {
+    reservations: Reservation[];
+    stats: ReservationStats;
+}
+
+const getStatusColor = (status: string) => {
     switch (status) {
         case 'confirmed':
             return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
@@ -95,7 +92,7 @@ const getStatusColor = (status) => {
     }
 };
 
-const getStatusText = (status) => {
+const getStatusText = (status: string) => {
     switch (status) {
         case 'confirmed':
             return 'Dikonfirmasi';
@@ -110,7 +107,7 @@ const getStatusText = (status) => {
     }
 };
 
-const getStatusIcon = (status) => {
+const getStatusIcon = (status: string) => {
     switch (status) {
         case 'confirmed':
             return <CheckCircle className="w-4 h-4" />;
@@ -125,7 +122,7 @@ const getStatusIcon = (status) => {
     }
 };
 
-const formatDate = (dateString) => {
+const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('id-ID', {
         day: 'numeric',
         month: 'long',
@@ -133,20 +130,75 @@ const formatDate = (dateString) => {
     });
 };
 
-export default function RiwayatReservasi() {
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount);
+};
+
+export default function RiwayatReservasi({ reservations = [], stats }: RiwayatReservasiProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [cancellingIds, setCancellingIds] = useState(new Set<string>());
+    const [localReservations, setLocalReservations] = useState(reservations);
 
-    const filteredReservations = reservationHistory.filter(reservation => {
+    // Handle cancel reservation using Inertia form submission
+    const handleCancelReservation = async (reservationId: string) => {
+        if (!confirm('Apakah Anda yakin ingin membatalkan reservasi ini?')) {
+            return;
+        }
+
+        // Add to cancelling set to show loading state
+        setCancellingIds(prev => new Set([...prev, reservationId]));
+
+        try {
+            // Send DELETE request to destroy method (which handles cancellation)
+            router.delete(route('reservations.destroy', reservationId), {
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    // Update local state immediately for better UX
+                    setLocalReservations(prev => 
+                        prev.map(reservation => 
+                            reservation.id === reservationId 
+                                ? { ...reservation, status: 'cancelled' as const }
+                                : reservation
+                        )
+                    );
+                },
+                onError: (errors) => {
+                    console.error('Cancel error:', errors);
+                },
+                onFinish: () => {
+                    // Remove from cancelling set
+                    setCancellingIds(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(reservationId);
+                        return newSet;
+                    });
+                }
+            });
+        } catch (error) {
+            console.error('Error cancelling reservation:', error);
+            setCancellingIds(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(reservationId);
+                return newSet;
+            });
+        }
+    };
+
+    // Filter reservations based on search and status
+    const filteredReservations = localReservations.filter(reservation => {
         const matchesSearch = reservation.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            reservation.name.toLowerCase().includes(searchTerm.toLowerCase());
+                            reservation.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            reservation.phone.includes(searchTerm);
         const matchesStatus = statusFilter === 'all' || reservation.status === statusFilter;
         return matchesSearch && matchesStatus;
     });
-
-    const confirmedCount = reservationHistory.filter(r => r.status === 'confirmed').length;
-    const completedCount = reservationHistory.filter(r => r.status === 'completed').length;
-    const totalGuests = reservationHistory.reduce((sum, r) => sum + r.guests, 0);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -161,10 +213,10 @@ export default function RiwayatReservasi() {
                             <div>
                                 <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Total Reservasi</p>
                                 <p className="text-3xl font-bold text-purple-900 dark:text-purple-100 mt-1">
-                                    {reservationHistory.length}
+                                    {stats.totalReservations}
                                 </p>
                                 <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">
-                                    {confirmedCount} aktif
+                                    {stats.confirmedCount} aktif
                                 </p>
                             </div>
                             <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
@@ -179,10 +231,10 @@ export default function RiwayatReservasi() {
                             <div>
                                 <p className="text-sm font-medium text-green-600 dark:text-green-400">Selesai</p>
                                 <p className="text-3xl font-bold text-green-900 dark:text-green-100 mt-1">
-                                    {completedCount}
+                                    {stats.completedCount}
                                 </p>
                                 <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">
-                                    {Math.round((completedCount / reservationHistory.length) * 100)}% dari total
+                                    {stats.totalReservations > 0 ? Math.round((stats.completedCount / stats.totalReservations) * 100) : 0}% dari total
                                 </p>
                             </div>
                             <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
@@ -197,10 +249,10 @@ export default function RiwayatReservasi() {
                             <div>
                                 <p className="text-sm font-medium text-orange-600 dark:text-orange-400">Total Tamu</p>
                                 <p className="text-3xl font-bold text-orange-900 dark:text-orange-100 mt-1">
-                                    {totalGuests}
+                                    {stats.totalGuests}
                                 </p>
                                 <p className="text-xs text-orange-600/70 dark:text-orange-400/70 mt-1">
-                                    Rata-rata {Math.round(totalGuests / reservationHistory.length)} orang
+                                    Rata-rata {stats.averageGuests} orang
                                 </p>
                             </div>
                             <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center">
@@ -225,10 +277,13 @@ export default function RiwayatReservasi() {
                             </div>
                             
                             <div className="flex items-center gap-3">
-                                <button className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
+                                <Link 
+                                    href={route('reservations.create')}
+                                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+                                >
                                     <Calendar className="w-4 h-4" />
                                     Buat Reservasi
-                                </button>
+                                </Link>
                             </div>
                         </div>
 
@@ -238,7 +293,7 @@ export default function RiwayatReservasi() {
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <input
                                     type="text"
-                                    placeholder="Cari berdasarkan ID reservasi atau nama..."
+                                    placeholder="Cari berdasarkan ID reservasi, nama, atau nomor telepon..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"
@@ -266,9 +321,18 @@ export default function RiwayatReservasi() {
                         {filteredReservations.length === 0 ? (
                             <div className="text-center py-12">
                                 <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                <p className="text-gray-500 dark:text-gray-400">
+                                <p className="text-gray-500 dark:text-gray-400 text-lg mb-2">
                                     {searchTerm || statusFilter !== 'all' ? 'Tidak ada reservasi yang sesuai dengan filter' : 'Belum ada riwayat reservasi'}
                                 </p>
+                                {!searchTerm && statusFilter === 'all' && (
+                                    <Link 
+                                        href={route('reservations.create')}
+                                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-purple-600 hover:text-purple-700 border border-purple-200 hover:border-purple-300 rounded-lg transition-colors mt-4"
+                                    >
+                                        <Calendar className="w-4 h-4" />
+                                        Buat Reservasi Pertama
+                                    </Link>
+                                )}
                             </div>
                         ) : (
                             <div className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -286,7 +350,7 @@ export default function RiwayatReservasi() {
                                                     </span>
                                                 </div>
                                                 
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                                                     <div className="space-y-2">
                                                         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                                                             <Calendar className="w-4 h-4" />
@@ -310,13 +374,58 @@ export default function RiwayatReservasi() {
                                                             <Phone className="w-4 h-4" />
                                                             <span>{reservation.phone}</span>
                                                         </div>
-                                                        {reservation.specialRequest && (
+                                                        {reservation.email && (
+                                                            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                                                <Mail className="w-4 h-4" />
+                                                                <span>{reservation.email}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        {reservation.packageName && (
+                                                            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                                                <Package className="w-4 h-4" />
+                                                                <span>{reservation.packageName}</span>
+                                                            </div>
+                                                        )}
+                                                        {reservation.totalPrice && (
+                                                            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                                                <CreditCard className="w-4 h-4" />
+                                                                <span className="font-medium">{formatCurrency(reservation.totalPrice)}</span>
+                                                            </div>
+                                                        )}
+                                                        {reservation.paymentMethodLabel && (
                                                             <div className="text-sm text-gray-600 dark:text-gray-400">
-                                                                <span className="font-medium">Permintaan khusus:</span> {reservation.specialRequest}
+                                                                <span className="font-medium">Pembayaran:</span> {reservation.paymentMethodLabel}
                                                             </div>
                                                         )}
                                                     </div>
                                                 </div>
+
+                                                {reservation.specialRequest && (
+                                                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                                        <div className="text-sm text-blue-800 dark:text-blue-400">
+                                                            <span className="font-medium">Permintaan khusus:</span> {reservation.specialRequest}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Menu Items Summary */}
+                                                {reservation.menuItems && reservation.menuItems.length > 0 && (
+                                                    <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                                        <div className="text-sm text-gray-700 dark:text-gray-300">
+                                                            <span className="font-medium">Menu tambahan:</span>
+                                                            <div className="mt-1 space-y-1">
+                                                                {reservation.menuItems.map((item, index) => (
+                                                                    <div key={index} className="flex justify-between">
+                                                                        <span>{item.name} x{item.quantity}</span>
+                                                                        <span>{formatCurrency(item.subtotal)}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 
                                                 <div className="flex items-center justify-between">
                                                     <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -324,14 +433,34 @@ export default function RiwayatReservasi() {
                                                     </p>
                                                     
                                                     <div className="flex items-center gap-2">
-                                                        <button className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:text-purple-700 border border-purple-200 hover:border-purple-300 rounded-lg transition-colors">
+                                                        <Link 
+                                                            href={route('reservations.show', reservation.id)}
+                                                            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:text-purple-700 border border-purple-200 hover:border-purple-300 rounded-lg transition-colors"
+                                                        >
                                                             <Eye className="w-4 h-4" />
                                                             Detail
-                                                        </button>
-                                                        {reservation.status === 'confirmed' && (
-                                                            <button className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 rounded-lg transition-colors">
+                                                        </Link>
+                                                        {reservation.status === 'pending' && (
+                                                            <Link 
+                                                                href={route('reservations.edit', reservation.id)}
+                                                                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 rounded-lg transition-colors"
+                                                            >
                                                                 <Edit className="w-4 h-4" />
                                                                 Edit
+                                                            </Link>
+                                                        )}
+                                                        {(reservation.status === 'pending' || reservation.status === 'confirmed') && (
+                                                            <button 
+                                                                onClick={() => handleCancelReservation(reservation.id)}
+                                                                disabled={cancellingIds.has(reservation.id)}
+                                                                className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm border rounded-lg transition-colors ${
+                                                                    cancellingIds.has(reservation.id)
+                                                                        ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                                                        : 'text-red-600 hover:text-red-700 border-red-200 hover:border-red-300'
+                                                                }`}
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                                {cancellingIds.has(reservation.id) ? 'Membatalkan...' : 'Batalkan'}
                                                             </button>
                                                         )}
                                                     </div>

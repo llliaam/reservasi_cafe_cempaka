@@ -11,15 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('categories', function (Blueprint $table) {
+        Schema::create('reservation_packages', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('slug')->unique();
+            $table->decimal('price', 10, 2);
+            $table->string('image')->nullable(); // Nama file gambar saja
             $table->text('description')->nullable();
-            $table->string('image_url')->nullable();
+            $table->json('includes')->nullable(); // Array of included items
+            $table->string('duration');
+            $table->integer('max_people')->default(2);
             $table->boolean('is_active')->default(true);
-            $table->integer('sort_order')->default(0);
             $table->timestamps();
+            
+            // Index
+            $table->index('is_active');
         });
     }
 
@@ -28,6 +33,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('categories');
+        Schema::dropIfExists('reservation_packages');
     }
 };

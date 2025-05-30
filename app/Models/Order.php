@@ -4,339 +4,747 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class Order extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
         'user_id',
-        'table_id',
-        'order_number',
-        'type',
-        'status',
+        'order_code',
+        'customer_name',
+        'customer_phone',
+        'customer_email',
+        'order_type',
+        'delivery_address',
+        'notes',
         'subtotal',
-        'tax_amount',
-        'service_charge',
-        'discount_amount',
+        'delivery_fee',
+        'service_fee',
         'total_amount',
         'payment_method',
         'payment_status',
-        'notes',
-        'special_requests',
-        'customer_name',
-        'customer_phone',
-        'delivery_address',
+        'payment_proof',
+        'status',
+        'order_time',
+        'estimated_ready_time',
+        'completed_at',
         'rating',
         'review',
-        'helpful_count',
-        'admin_response',
-        'admin_response_date',
-        'confirmed_at',
-        'ready_at',
-        'completed_at'
+        'reviewed_at'
     ];
 
-    /**
-     * The attributes that should be cast.
-     */
     protected $casts = [
         'subtotal' => 'decimal:2',
-        'tax_amount' => 'decimal:2',
-        'service_charge' => 'decimal:2',
-        'discount_amount' => 'decimal:2',
+        'delivery_fee' => 'decimal:2',
+        'service_fee' => 'decimal:2',
         'total_amount' => 'decimal:2',
-        'confirmed_at' => 'datetime',
-        'ready_at' => 'datetime',
+        'order_time' => 'datetime',
+        'estimated_ready_time' => 'datetime',
         'completed_at' => 'datetime',
-        'admin_response_date' => 'datetime',
+        'reviewed_at' => 'datetime',
+        'rating' => 'integer'
     ];
 
-    // =================== RELATIONSHIPS ===================
+    /**
+     * Constants for order statuses
+     */
+    const STATUS_PENDING = 'pending';
+    const STATUS_CONFIRMED = 'confirmed';
+    const STATUS_PREPARING = 'preparing';
+    const STATUS_READY = 'ready';
+    const STATUS_COMPLETED = 'completed';
+    const STATUS_CANCELLED = 'cancelled';
 
     /**
-     * Get the user that owns the order
+     * Constants for order types
      */
-    public function user()
+    const TYPE_DINE_IN = 'dine_in';
+    const TYPE_TAKEAWAY = 'takeaway';
+    const TYPE_DELIVERY = 'delivery';
+
+    /**
+     * Constants for payment statuses
+     */
+    const PAYMENT_PENDING = 'pending';
+    const PAYMENT_PAID = 'paid';
+    const PAYMENT_FAILED = 'failed';
+
+    /**
+     * Generate unique order code
+     */
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($order) {
+            if (!$order->order_code) {
+                $order->order_code = static::generateOrderCode();
+            }
+            if (!$order->order_time) {
+                $order->order_time = now();
+            }
+        });
+
+        static::updated(function ($order) {
+            // Auto set completed_at when status changes to completed
+            if ($order->isDirty('status') && $order->status === self::STATUS_COMPLETED && !$order->completed_at) {
+                $order->completed_at = now();
+                $order->saveQuietly(); // Avoid infinite loop
+            }
+        });
+    }
+
+    /**
+     * Generate kode order unik
+     */
+    public static function generateOrderCode(): string
+    {
+        do {
+            $code = 'ORD-' . date('Ymd') . '-' . strtoupper(Str::random(4));
+        } while (static::where('order_code', $code)->exists());
+        
+        return $code;
+    }
+
+    // ==================== RELATIONSHIPS ====================
+
+    /**
+     * Relasi dengan User (Customer)
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
     /**
-     * Get the table for this order (if dine-in)
+     * Alternative relationship name for customer
      */
-    public function table()
+    public function customer(): BelongsTo
     {
-        return $this->belongsTo(Table::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     /**
-     * Get all order items for this order
+     * Relasi dengan Order Items
      */
-    public function orderItems()
+    public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);
     }
 
-    // =================== SCOPES ===================
+    /**
+     * Alternative relationship name for items
+     */
+    public function items(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
 
     /**
-     * Scope for orders by status
+     * Relasi dengan UserReview (jika menggunakan tabel terpisah)
      */
-    public function scopeByStatus($query, $status)
+    public function userReview(): HasOne
+    {
+        return $this->hasOne(UserReview::class);
+    }
+
+    /**
+     * Alternative relationship name for review
+     */
+    public function review(): HasOne
+    {
+        return $this->hasOne(UserReview::class);
+    }
+
+    /**
+     * Relasi dengan Payment (jika ada tabel payment terpisah)
+     */
+    public function payment(): HasOne
+    {
+        return $this->hasOne(Payment::class);
+    }
+
+    /**
+     * Relasi dengan multiple payments (untuk partial payments)
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Relasi dengan Order Tracking/History
+     */
+    public function orderTracking(): HasMany
+    {
+        return $this->hasMany(OrderTracking::class);
+    }
+
+    /**
+     * Alternative relationship name for tracking
+     */
+    public function trackingHistory(): HasMany
+    {
+        return $this->hasMany(OrderTracking::class)->orderBy('created_at', 'asc');
+    }
+
+    /**
+     * Relasi dengan Delivery (jika ada tabel delivery terpisah)
+     */
+    public function delivery(): HasOne
+    {
+        return $this->hasOne(Delivery::class);
+    }
+
+    /**
+     * Relasi dengan Driver (melalui delivery)
+     */
+    public function driver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'driver_id');
+    }
+
+    /**
+     * Relasi dengan Table (jika dine-in)
+     */
+    public function table(): BelongsTo
+    {
+        return $this->belongsTo(RestaurantTable::class, 'table_id');
+    }
+
+    /**
+     * Relasi dengan Coupon/Discount (jika ada sistem discount)
+     */
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
+    }
+
+    /**
+     * Relasi dengan Order Discounts
+     */
+    public function discounts(): HasMany
+    {
+        return $this->hasMany(OrderDiscount::class);
+    }
+
+    /**
+     * Relasi dengan Notifications (polymorphic)
+     */
+    public function notifications(): MorphMany
+    {
+        return $this->morphMany(Notification::class, 'notifiable');
+    }
+
+    /**
+     * Relasi dengan Activities/Logs (polymorphic)
+     */
+    public function activities(): MorphMany
+    {
+        return $this->morphMany(Activity::class, 'subject');
+    }
+
+    /**
+     * Relasi dengan Files/Attachments (polymorphic) - untuk payment proof, etc
+     */
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable');
+    }
+
+    /**
+     * Get payment proof file
+     */
+    public function paymentProofFile(): HasOne
+    {
+        return $this->hasOne(Attachment::class, 'attachable_id')
+                    ->where('attachable_type', self::class)
+                    ->where('type', 'payment_proof');
+    }
+
+    // ==================== SCOPES ====================
+
+    /**
+     * Scope untuk filter berdasarkan status
+     */
+    public function scopeByStatus(Builder $query, $status): Builder
     {
         return $query->where('status', $status);
     }
 
     /**
-     * Scope for completed orders
+     * Scope untuk multiple statuses
      */
-    public function scopeCompleted($query)
+    public function scopeByStatuses(Builder $query, array $statuses): Builder
     {
-        return $query->where('status', 'completed');
+        return $query->whereIn('status', $statuses);
     }
 
     /**
-     * Scope for pending orders
+     * Scope untuk filter berdasarkan order type
      */
-    public function scopePending($query)
+    public function scopeByOrderType(Builder $query, $type): Builder
     {
-        return $query->where('status', 'pending');
+        return $query->where('order_type', $type);
     }
 
     /**
-     * Scope for orders by type
+     * Scope untuk filter berdasarkan payment status
      */
-    public function scopeByType($query, $type)
+    public function scopeByPaymentStatus(Builder $query, $status): Builder
     {
-        return $query->where('type', $type);
+        return $query->where('payment_status', $status);
     }
 
     /**
-     * Scope for dine-in orders
+     * Scope untuk order hari ini
      */
-    public function scopeDineIn($query)
+    public function scopeToday(Builder $query): Builder
     {
-        return $query->where('type', 'dine-in');
+        return $query->whereDate('order_time', today());
     }
 
     /**
-     * Scope for takeaway orders
+     * Scope untuk order dalam range tanggal
      */
-    public function scopeTakeaway($query)
+    public function scopeDateRange(Builder $query, $startDate, $endDate): Builder
     {
-        return $query->where('type', 'takeaway');
+        return $query->whereBetween('order_time', [$startDate, $endDate]);
     }
 
     /**
-     * Scope for orders with reviews
+     * Scope untuk order yang sudah selesai
      */
-    public function scopeWithReviews($query)
+    public function scopeCompleted(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_COMPLETED);
+    }
+
+    /**
+     * Scope untuk order yang aktif (belum selesai/cancel)
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNotIn('status', [self::STATUS_COMPLETED, self::STATUS_CANCELLED]);
+    }
+
+    /**
+     * Scope untuk order yang bisa direview
+     */
+    public function scopeReviewable(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_COMPLETED)
+                    ->whereNull('rating');
+    }
+
+    /**
+     * Scope untuk order dengan review
+     */
+    public function scopeWithReview(Builder $query): Builder
     {
         return $query->whereNotNull('rating');
     }
 
     /**
-     * Scope for orders by date range
+     * Scope untuk order delivery
      */
-    public function scopeDateRange($query, $startDate, $endDate)
+    public function scopeDelivery(Builder $query): Builder
     {
-        return $query->whereBetween('created_at', [$startDate, $endDate]);
+        return $query->where('order_type', self::TYPE_DELIVERY);
     }
 
     /**
-     * Scope for today's orders
+     * Scope untuk order dine-in
      */
-    public function scopeToday($query)
+    public function scopeDineIn(Builder $query): Builder
     {
-        return $query->whereDate('created_at', Carbon::today());
+        return $query->where('order_type', self::TYPE_DINE_IN);
     }
 
     /**
-     * Scope for this month's orders
+     * Scope untuk order takeaway
      */
-    public function scopeThisMonth($query)
+    public function scopeTakeaway(Builder $query): Builder
     {
-        return $query->whereMonth('created_at', Carbon::now()->month)
-                    ->whereYear('created_at', Carbon::now()->year);
+        return $query->where('order_type', self::TYPE_TAKEAWAY);
     }
 
-    // =================== ACCESSORS ===================
+    /**
+     * Scope dengan eager loading relationships yang sering digunakan
+     */
+    public function scopeWithCommonRelations(Builder $query): Builder
+    {
+        return $query->with(['user', 'orderItems.menuItem', 'userReview']);
+    }
+
+    // ==================== ACCESSORS & MUTATORS ====================
 
     /**
      * Get formatted total amount
      */
-    public function getFormattedTotalAttribute()
+    public function getFormattedTotalAttribute(): string
     {
         return 'Rp ' . number_format($this->total_amount, 0, ',', '.');
     }
 
     /**
-     * Get formatted order number
+     * Get formatted subtotal
      */
-    public function getFormattedOrderNumberAttribute()
+    public function getFormattedSubtotalAttribute(): string
     {
-        return $this->order_number ?: 'ORD-' . date('Y') . '-' . str_pad($this->id, 3, '0', STR_PAD_LEFT);
+        return 'Rp ' . number_format($this->subtotal, 0, ',', '.');
     }
 
     /**
-     * Get status badge color
+     * Get formatted delivery fee
      */
-    public function getStatusColorAttribute()
+    public function getFormattedDeliveryFeeAttribute(): string
     {
-        return match($this->status) {
-            'pending' => 'yellow',
-            'confirmed' => 'blue',
-            'preparing' => 'orange',
-            'ready' => 'purple',
-            'completed' => 'green',
-            'cancelled' => 'red',
-            default => 'gray'
-        };
+        return 'Rp ' . number_format($this->delivery_fee, 0, ',', '.');
     }
 
     /**
-     * Get status text in Indonesian
+     * Get order type label
      */
-    public function getStatusTextAttribute()
+    public function getOrderTypeLabelAttribute(): string
     {
-        return match($this->status) {
-            'pending' => 'Menunggu',
-            'confirmed' => 'Dikonfirmasi',
-            'preparing' => 'Sedang Diproses',
-            'ready' => 'Siap',
-            'completed' => 'Selesai',
-            'cancelled' => 'Dibatalkan',
-            default => ucfirst($this->status)
-        };
+        $labels = [
+            self::TYPE_DINE_IN => 'Makan di Tempat',
+            self::TYPE_TAKEAWAY => 'Bawa Pulang',
+            self::TYPE_DELIVERY => 'Delivery'
+        ];
+
+        return $labels[$this->order_type] ?? $this->order_type;
+    }
+
+    /**
+     * Get status label
+     */
+    public function getStatusLabelAttribute(): string
+    {
+        $labels = [
+            self::STATUS_PENDING => 'Menunggu Konfirmasi',
+            self::STATUS_CONFIRMED => 'Dikonfirmasi',
+            self::STATUS_PREPARING => 'Sedang Diproses',
+            self::STATUS_READY => 'Siap Diambil',
+            self::STATUS_COMPLETED => 'Selesai',
+            self::STATUS_CANCELLED => 'Dibatalkan'
+        ];
+
+        return $labels[$this->status] ?? $this->status;
+    }
+
+    /**
+     * Get payment status label
+     */
+    public function getPaymentStatusLabelAttribute(): string
+    {
+        $labels = [
+            self::PAYMENT_PENDING => 'Belum Bayar',
+            self::PAYMENT_PAID => 'Sudah Bayar',
+            self::PAYMENT_FAILED => 'Gagal Bayar'
+        ];
+
+        return $labels[$this->payment_status] ?? $this->payment_status;
+    }
+
+    /**
+     * Get status color for UI
+     */
+    public function getStatusColorAttribute(): string
+    {
+        $colors = [
+            self::STATUS_PENDING => 'yellow',
+            self::STATUS_CONFIRMED => 'blue',
+            self::STATUS_PREPARING => 'orange',
+            self::STATUS_READY => 'green',
+            self::STATUS_COMPLETED => 'gray',
+            self::STATUS_CANCELLED => 'red'
+        ];
+
+        return $colors[$this->status] ?? 'gray';
+    }
+
+    /**
+     * Get total items count
+     */
+    public function getTotalItemsAttribute(): int
+    {
+        return $this->orderItems->sum('quantity');
+    }
+
+    /**
+     * Get main menu name (first item)
+     */
+    public function getMainMenuNameAttribute(): ?string
+    {
+        return $this->orderItems->first()?->menuItem?->name;
+    }
+
+    /**
+     * Get order duration (from order to completion)
+     */
+    public function getOrderDurationAttribute(): ?int
+    {
+        if (!$this->completed_at) {
+            return null;
+        }
+        
+        return $this->order_time->diffInMinutes($this->completed_at);
+    }
+
+    /**
+     * Get estimated remaining time
+     */
+    public function getEstimatedRemainingTimeAttribute(): ?int
+    {
+        if (!$this->estimated_ready_time || $this->status === self::STATUS_COMPLETED) {
+            return null;
+        }
+        
+        $remaining = now()->diffInMinutes($this->estimated_ready_time, false);
+        return max(0, $remaining);
+    }
+
+    /**
+     * Check if order is overdue
+     */
+    public function getIsOverdueAttribute(): bool
+    {
+        return $this->estimated_ready_time && 
+               now()->isAfter($this->estimated_ready_time) && 
+               $this->status !== self::STATUS_COMPLETED;
+    }
+
+    /**
+     * Get short order code (last 4 characters)
+     */
+    public function getShortCodeAttribute(): string
+    {
+        return substr($this->order_code, -4);
+    }
+
+    // ==================== HELPER METHODS ====================
+
+    /**
+     * Check if order can be cancelled
+     */
+    public function canBeCancelled(): bool
+    {
+        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_CONFIRMED]);
     }
 
     /**
      * Check if order can be reviewed
      */
-    public function getCanBeReviewedAttribute()
+    public function canBeReviewed(): bool
     {
-        return $this->status === 'completed' && is_null($this->rating);
+        return $this->status === self::STATUS_COMPLETED && !$this->rating && !$this->userReview;
     }
 
     /**
-     * Check if order can be cancelled
+     * Check if order has review
      */
-    public function getCanBeCancelledAttribute()
+    public function hasReview(): bool
     {
-        return in_array($this->status, ['pending', 'confirmed']);
-    }
-
-    // =================== HELPER METHODS ===================
-
-    /**
-     * Generate order number
-     */
-    public static function generateOrderNumber()
-    {
-        $today = Carbon::today();
-        $lastOrder = self::whereDate('created_at', $today)
-                        ->orderBy('id', 'desc')
-                        ->first();
-        
-        $sequence = $lastOrder ? (int)substr($lastOrder->order_number, -3) + 1 : 1;
-        
-        return 'ORD-' . $today->format('Ymd') . '-' . str_pad($sequence, 3, '0', STR_PAD_LEFT);
+        return $this->rating || $this->userReview;
     }
 
     /**
-     * Calculate total amount
+     * Check if order is paid
      */
-    public function calculateTotal()
+    public function isPaid(): bool
     {
-        $subtotal = $this->orderItems->sum('total_price');
-        $tax = $subtotal * 0.1; // 10% tax
-        $service = $this->type === 'dine-in' ? $subtotal * 0.05 : 0; // 5% service charge for dine-in
-        
-        $this->update([
-            'subtotal' => $subtotal,
-            'tax_amount' => $tax,
-            'service_charge' => $service,
-            'total_amount' => $subtotal + $tax + $service - $this->discount_amount
-        ]);
+        return $this->payment_status === self::PAYMENT_PAID;
     }
 
     /**
-     * Update status
+     * Check if order needs payment
      */
-    public function updateStatus($status)
+    public function needsPayment(): bool
     {
-        $this->update(['status' => $status]);
+        return $this->payment_status === self::PAYMENT_PENDING;
+    }
+
+    /**
+     * Check if order is delivery
+     */
+    public function isDelivery(): bool
+    {
+        return $this->order_type === self::TYPE_DELIVERY;
+    }
+
+    /**
+     * Check if order is dine-in
+     */
+    public function isDineIn(): bool
+    {
+        return $this->order_type === self::TYPE_DINE_IN;
+    }
+
+    /**
+     * Check if order is takeaway
+     */
+    public function isTakeaway(): bool
+    {
+        return $this->order_type === self::TYPE_TAKEAWAY;
+    }
+
+    /**
+     * Calculate estimated ready time
+     */
+    public function calculateEstimatedTime(): void
+    {
+        $totalItems = $this->total_items;
+        $baseTime = 15; // 15 minutes base time
+        $additionalTime = max(0, ($totalItems - 1) * 3); // 3 minutes per additional item
         
-        // Set timestamp based on status
-        switch($status) {
-            case 'confirmed':
-                $this->update(['confirmed_at' => now()]);
-                break;
-            case 'ready':
-                $this->update(['ready_at' => now()]);
-                break;
-            case 'completed':
-                $this->update(['completed_at' => now()]);
-                break;
+        // Add extra time for delivery orders
+        if ($this->isDelivery()) {
+            $additionalTime += 10; // Extra 10 minutes for delivery prep
+        }
+        
+        $this->estimated_ready_time = $this->order_time->addMinutes($baseTime + $additionalTime);
+        $this->save();
+    }
+
+    /**
+     * Update order status
+     */
+    public function updateStatus(string $status, string $notes = null): bool
+    {
+        $oldStatus = $this->status;
+        $this->status = $status;
+        
+        if ($status === self::STATUS_COMPLETED && !$this->completed_at) {
+            $this->completed_at = now();
+        }
+        
+        $result = $this->save();
+        
+        // Log status change
+        if ($result && $oldStatus !== $status) {
+            $this->logStatusChange($oldStatus, $status, $notes);
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Log status change to tracking history
+     */
+    protected function logStatusChange(string $oldStatus, string $newStatus, string $notes = null): void
+    {
+        if (class_exists('App\Models\OrderTracking')) {
+            $this->orderTracking()->create([
+                'status' => $newStatus,
+                'notes' => $notes,
+                'changed_by' => auth()->id(),
+                'changed_at' => now(),
+            ]);
         }
     }
 
     /**
-     * Add review to order
+     * Cancel order
      */
-    public function addReview($rating, $review = null)
+    public function cancel(string $reason = null): bool
     {
-        if ($this->status !== 'completed' || !is_null($this->rating)) {
+        if (!$this->canBeCancelled()) {
             return false;
         }
+        
+        return $this->updateStatus(self::STATUS_CANCELLED, $reason);
+    }
 
-        $this->update([
-            'rating' => $rating,
-            'review' => $review
-        ]);
-
-        // Update menu average ratings
-        foreach ($this->orderItems as $item) {
-            $item->menu->updateAverageRating();
-        }
-
-        return true;
+    /**
+     * Complete order
+     */
+    public function complete(): bool
+    {
+        return $this->updateStatus(self::STATUS_COMPLETED);
     }
 
     /**
      * Get order summary for display
      */
-    public function getSummary()
+    public function getSummary(): array
     {
         return [
-            'id' => $this->formatted_order_number,
-            'date' => $this->created_at->format('d M Y'),
-            'time' => $this->created_at->format('H:i'),
-            'items_count' => $this->orderItems->count(),
+            'code' => $this->order_code,
+            'short_code' => $this->short_code,
+            'customer' => $this->customer_name,
+            'type' => $this->order_type_label,
+            'status' => $this->status_label,
+            'payment_status' => $this->payment_status_label,
             'total' => $this->formatted_total,
-            'status' => $this->status_text,
-            'status_color' => $this->status_color,
+            'items_count' => $this->total_items,
+            'order_time' => $this->order_time->format('d/m/Y H:i'),
+            'estimated_ready' => $this->estimated_ready_time?->format('H:i'),
+            'is_overdue' => $this->is_overdue,
         ];
     }
 
-    // =================== BOOT METHOD ===================
+    /**
+     * Get order items summary
+     */
+    public function getItemsSummary(): array
+    {
+        return $this->orderItems->map(function ($item) {
+            return [
+                'name' => $item->menuItem->name,
+                'quantity' => $item->quantity,
+                'price' => $item->formatted_price,
+                'subtotal' => $item->formatted_subtotal,
+                'notes' => $item->notes,
+            ];
+        })->toArray();
+    }
 
     /**
-     * Boot the model
+     * Static method to get all possible statuses
      */
-    protected static function boot()
+    public static function getAllStatuses(): array
     {
-        parent::boot();
+        return [
+            self::STATUS_PENDING,
+            self::STATUS_CONFIRMED,
+            self::STATUS_PREPARING,
+            self::STATUS_READY,
+            self::STATUS_COMPLETED,
+            self::STATUS_CANCELLED,
+        ];
+    }
 
-        static::creating(function ($order) {
-            if (!$order->order_number) {
-                $order->order_number = self::generateOrderNumber();
-            }
-        });
+    /**
+     * Static method to get all order types
+     */
+    public static function getAllOrderTypes(): array
+    {
+        return [
+            self::TYPE_DINE_IN,
+            self::TYPE_TAKEAWAY,
+            self::TYPE_DELIVERY,
+        ];
+    }
+
+    /**
+     * Static method to get all payment statuses
+     */
+    public static function getAllPaymentStatuses(): array
+    {
+        return [
+            self::PAYMENT_PENDING,
+            self::PAYMENT_PAID,
+            self::PAYMENT_FAILED,
+        ];
     }
 }

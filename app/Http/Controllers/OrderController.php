@@ -2,187 +2,423 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\MenuItem;
+use App\Models\UserReview;
 use Illuminate\Http\Request;
+use App\Models\MenuCategory;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Carbon\Carbon;
 
 class OrderController extends Controller
 {
     /**
-     * Display a listing of user's orders
+     * Display the order menu page with all necessary data
      */
-    public function index(Request $request)
+    public function index()
     {
-        $user = auth()->user();
-        
-        // Query orders dengan relasi dan filtering
-        $query = $user->orders()
-            ->with(['orderItems.menu', 'table'])
-            ->orderBy('created_at', 'desc');
+        // Load all menu items with categories and reviews in one query
+        $menuItems = MenuItem::with(['category'])
+                           ->where('is_available', true)
+                           ->orderBy('sort_order')
+                           ->orderBy('name')
+                           ->get();
 
-        // Filter berdasarkan status jika ada
-        if ($request->has('status') && $request->status !== 'all') {
-            $query->where('status', $request->status);
-        }
+        // Get categories
+        $categories = MenuCategory::whereHas('menuItems', function ($query) {
+            $query->where('is_available', true);
+        })->orderBy('sort_order')->orderBy('name')->get();
 
-        // Search berdasarkan ID order atau nama menu
-        if ($request->has('search') && !empty($request->search)) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('id', 'like', "%{$search}%")
-                  ->orWhereHas('orderItems.menu', function($menuQuery) use ($search) {
-                      $menuQuery->where('name', 'like', "%{$search}%");
-                  });
-            });
-        }
+        // Transform menu items with review stats
+        $transformedItems = $menuItems->map(function ($item) {
+            $reviewStats = UserReview::where('menu_item_id', $item->id)
+                                   ->where('is_verified', true)
+                                   ->selectRaw('COUNT(*) as review_count, AVG(rating) as average_rating')
+                                   ->first();
 
-        $orders = $query->paginate(10);
-
-        // Transform data untuk frontend
-        $orders->getCollection()->transform(function ($order) {
             return [
-                'id' => 'ORD-' . date('Y') . '-' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
-                'date' => $order->created_at->toDateString(),
-                'time' => $order->created_at->format('H:i'),
-                'items' => $order->orderItems->map(function ($item) {
-                    return [
-                        'name' => $item->menu->name,
-                        'quantity' => $item->quantity,
-                        'price' => $item->price,
-                    ];
-                }),
-                'total' => $order->total_amount,
-                'status' => $order->status,
-                'type' => $order->type, // 'dine-in' atau 'takeaway'
-                'table' => $order->table ? $order->table->name : null,
-                'rating' => $order->rating,
-                'review' => $order->review,
-                'paymentMethod' => $order->payment_method,
-                'notes' => $order->notes,
+                'id' => $item->id,
+                'name' => $item->name,
+                'price' => $item->price,
+                'image' => $item->image_url,
+                'description' => $item->description ?? '',
+                'category' => $item->category->name ?? 'Uncategorized',
+                'rating' => round($reviewStats->average_rating ?? 4.5, 1),
+                'review_count' => $reviewStats->review_count ?? 0,
+                'isPopular' => $item->is_featured ?? false
             ];
         });
 
-        // Statistics
-        $completedOrders = $user->orders()->where('status', 'completed')->get();
-        $stats = [
-            'total' => $user->orders()->count(),
-            'completed' => $completedOrders->count(),
-            'cancelled' => $user->orders()->where('status', 'cancelled')->count(),
-            'totalSpent' => $completedOrders->sum('total_amount'),
-            'averageRating' => $completedOrders->where('rating', '>', 0)->avg('rating') ?? 0,
-            'dineInCount' => $user->orders()->where('type', 'dine-in')->count(),
-        ];
+        // Transform categories
+        $transformedCategories = $categories->map(function ($category) {
+            return [
+                'id' => $category->id,
+                'name' => $category->name,
+                'slug' => $category->slug
+            ];
+        });
 
-        return Inertia::render('riwayatPemesanan', [
-            'orders' => $orders,
-            'stats' => $stats,
-            'filters' => [
-                'status' => $request->status ?? 'all',
-                'search' => $request->search ?? '',
+        // Get user favorites if authenticated
+        $favoriteIds = [];
+        if (Auth::check()) {
+            $favoriteIds = Auth::user()->favoriteMenus()->pluck('menu_item_id')->toArray();
+        }
+
+        return Inertia::render('menuPage', [
+            'menuItems' => $transformedItems,
+            'categories' => $transformedCategories,
+            'favoriteIds' => $favoriteIds,
+            'auth' => [
+                'user' => Auth::user()
             ]
         ]);
     }
 
     /**
-     * Display the specified order
+     * Display order history
      */
-    public function show($id)
+    public function history(Request $request)
     {
-        $order = auth()->user()->orders()
-            ->with(['orderItems.menu', 'table'])
-            ->findOrFail($id);
+        $user = Auth::user();
+        
+        $query = Order::with([
+            'orderItems.menuItem',
+            'userReview'
+        ])->where('user_id', $user->id);
 
-        return Inertia::render('Order/Show', [
-            'order' => [
-                'id' => 'ORD-' . date('Y') . '-' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
-                'date' => $order->created_at->toDateString(),
-                'time' => $order->created_at->format('H:i'),
+        // Apply filters
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('order_type')) {
+            $query->where('order_type', $request->order_type);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('order_time', '>=', $request->date_from);
+        }
+        
+        if ($request->filled('date_to')) {
+            $query->whereDate('order_time', '<=', $request->date_to);
+        }
+
+        $orders = $query->latest('order_time')->paginate(10);
+
+        // Transform orders for frontend
+        $transformedOrders = $orders->through(function ($order) {
+            $review = $order->userReview;
+            
+            return [
+                'id' => $order->id,
+                'order_code' => $order->order_code,
+                'order_date' => $order->order_time->format('Y-m-d H:i:s'),
+                'status' => $order->status,
+                'order_type' => $order->order_type,
+                'total_amount' => $order->total_amount,
                 'items' => $order->orderItems->map(function ($item) {
                     return [
-                        'name' => $item->menu->name,
+                        'id' => $item->id,
+                        'menu_item_id' => $item->menu_item_id,
+                        'menu_name' => $item->menuItem->name ?? 'Menu tidak ditemukan',
                         'quantity' => $item->quantity,
                         'price' => $item->price,
-                        'subtotal' => $item->quantity * $item->price,
+                        'subtotal' => $item->subtotal,
+                        'special_instructions' => $item->special_instructions
                     ];
-                }),
-                'total' => $order->total_amount,
-                'status' => $order->status,
-                'type' => $order->type,
-                'table' => $order->table ? $order->table->name : null,
-                'rating' => $order->rating,
-                'review' => $order->review,
-                'paymentMethod' => $order->payment_method,
-                'notes' => $order->notes,
-                'createdAt' => $order->created_at,
-                'updatedAt' => $order->updated_at,
+                })->toArray(),
+                'can_be_reviewed' => $order->canBeReviewed(),
+                'has_review' => $order->hasReview(),
+                'review' => $review ? [
+                    'id' => $review->id,
+                    'rating' => $review->rating,
+                    'comment' => $review->comment,
+                    'reviewed_at' => $review->reviewed_at->format('Y-m-d H:i:s'),
+                    'can_edit' => $review->can_edit
+                ] : null
+            ];
+        });
+
+        return Inertia::render('riwayatPemesanan', [
+            'orders' => $transformedOrders,
+            'filters' => [
+                'status' => $request->status,
+                'order_type' => $request->order_type,
+                'date_from' => $request->date_from,
+                'date_to' => $request->date_to
             ]
         ]);
     }
 
     /**
-     * Add rating and review to completed order
+     * Show order details
      */
-    public function addReview(Request $request, $id)
+    public function show(Order $order)
     {
-        $order = auth()->user()->orders()->findOrFail($id);
+        $user = Auth::user();
 
-        // Hanya bisa review jika order sudah completed dan belum ada review
-        if ($order->status !== 'completed' || $order->rating) {
-            return back()->with('error', 'Order tidak dapat direview.');
+        // Check if order belongs to user
+        if ($order->user_id !== $user->id) {
+            abort(403, 'Unauthorized access to order');
         }
 
-        $validated = $request->validate([
-            'rating' => 'required|integer|min:1|max:5',
-            'review' => 'nullable|string|max:1000',
+        $order->load([
+            'orderItems.menuItem',
+            'userReview.adminResponder'
         ]);
 
-        $order->update([
-            'rating' => $validated['rating'],
-            'review' => $validated['review'],
-        ]);
+        $transformedOrder = [
+            'id' => $order->id,
+            'order_code' => $order->order_code,
+            'order_date' => $order->order_time->format('Y-m-d H:i:s'),
+            'status' => $order->status,
+            'status_label' => $order->status_label,
+            'order_type' => $order->order_type,
+            'order_type_label' => $order->order_type_label,
+            'customer_name' => $order->customer_name,
+            'customer_phone' => $order->customer_phone,
+            'customer_email' => $order->customer_email,
+            'delivery_address' => $order->delivery_address,
+            'notes' => $order->notes,
+            'subtotal' => $order->subtotal,
+            'delivery_fee' => $order->delivery_fee,
+            'service_fee' => $order->service_fee,
+            'total_amount' => $order->total_amount,
+            'payment_method' => $order->payment_method,
+            'payment_status' => $order->payment_status,
+            'estimated_ready_time' => $order->estimated_ready_time?->format('Y-m-d H:i:s'),
+            'completed_at' => $order->completed_at?->format('Y-m-d H:i:s'),
+            'items' => $order->orderItems->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'menu_item_id' => $item->menu_item_id,
+                    'menu_name' => $item->menuItem->name ?? 'Menu tidak ditemukan',
+                    'menu_image' => $item->menuItem->image_url ?? null,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'subtotal' => $item->subtotal,
+                    'special_instructions' => $item->special_instructions
+                ];
+            })->toArray(),
+            'can_be_reviewed' => $order->canBeReviewed(),
+            'has_review' => $order->hasReview(),
+            'can_be_cancelled' => $order->canBeCancelled(),
+            'review' => $order->userReview ? [
+                'id' => $order->userReview->id,
+                'rating' => $order->userReview->rating,
+                'comment' => $order->userReview->comment,
+                'reviewed_at' => $order->userReview->reviewed_at->format('Y-m-d H:i:s'),
+                'can_edit' => $order->userReview->can_edit,
+                'helpful_count' => $order->userReview->helpful_count,
+                'is_verified' => $order->userReview->is_verified,
+                'is_featured' => $order->userReview->is_featured,
+                'admin_response' => $order->userReview->admin_response ? [
+                    'text' => $order->userReview->admin_response,
+                    'date' => $order->userReview->admin_response_date->format('Y-m-d H:i:s'),
+                    'author' => $order->userReview->adminResponder->name ?? 'Admin Team'
+                ] : null
+            ] : null
+        ];
 
-        return back()->with('success', 'Review berhasil ditambahkan!');
+        return Inertia::render('Orders/Show', [
+            'order' => $transformedOrder
+        ]);
     }
 
     /**
-     * Update rating and review
+     * Store a new order - using session flash for feedback
      */
-    public function updateReview(Request $request, $id)
+    public function store(Request $request)
     {
-        $order = auth()->user()->orders()->findOrFail($id);
-
-        if ($order->status !== 'completed' || !$order->rating) {
-            return back()->with('error', 'Review tidak dapat diubah.');
-        }
-
-        $validated = $request->validate([
-            'rating' => 'required|integer|min:1|max:5',
-            'review' => 'nullable|string|max:1000',
-        ]);
-
-        $order->update([
-            'rating' => $validated['rating'],
-            'review' => $validated['review'],
-        ]);
-
-        return back()->with('success', 'Review berhasil diperbarui!');
-    }
-
-    /**
-     * Export orders to CSV/Excel
-     */
-    public function export(Request $request)
-    {
-        $user = auth()->user();
-        $orders = $user->orders()
-            ->with(['orderItems.menu'])
-            ->when($request->status !== 'all', function($query) use ($request) {
-                return $query->where('status', $request->status);
-            })
-            ->get();
-
-        // Logic untuk export CSV/Excel
-        // Bisa menggunakan package seperti Laravel Excel
+        $user = Auth::user();
         
-        return response()->json(['message' => 'Export functionality to be implemented']);
+        $request->validate([
+            'customer_name' => 'required|string|max:255',
+            'customer_phone' => 'required|string|max:20',
+            'customer_email' => 'required|email|max:255',
+            'order_type' => 'required|in:dine_in,takeaway,delivery',
+            'delivery_address' => 'required_if:order_type,delivery|nullable|string|max:500',
+            'notes' => 'nullable|string|max:500',
+            'cart_items' => 'required|array|min:1',
+            'cart_items.*.id' => 'required|exists:menu_items,id',
+            'cart_items.*.quantity' => 'required|integer|min:1',
+            'cart_items.*.special_instructions' => 'nullable|string|max:255',
+            'subtotal' => 'required|numeric|min:0',
+            'delivery_fee' => 'required|numeric|min:0',
+            'service_fee' => 'required|numeric|min:0',
+            'total_amount' => 'required|numeric|min:0',
+            'payment_method' => 'required|string'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Create order
+            $order = Order::create([
+                'user_id' => $user->id,
+                'customer_name' => $request->customer_name,
+                'customer_phone' => $request->customer_phone,
+                'customer_email' => $request->customer_email,
+                'order_type' => $request->order_type,
+                'delivery_address' => $request->delivery_address,
+                'notes' => $request->notes,
+                'subtotal' => $request->subtotal,
+                'delivery_fee' => $request->delivery_fee,
+                'service_fee' => $request->service_fee,
+                'total_amount' => $request->total_amount,
+                'payment_method' => $request->payment_method,
+                'payment_status' => Order::PAYMENT_PENDING,
+                'status' => Order::STATUS_PENDING
+            ]);
+
+            // Create order items
+            foreach ($request->cart_items as $cartItem) {
+                $menuItem = MenuItem::find($cartItem['id']);
+                
+                if (!$menuItem || !$menuItem->is_available) {
+                    $itemName = $menuItem && $menuItem->name ? $menuItem->name : 'Unknown';
+                    throw ValidationException::withMessages([
+                        'cart_items' => "Menu item '{$itemName}' is not available"
+                    ]);
+                }   
+
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'menu_item_id' => $menuItem->id,
+                    'quantity' => $cartItem['quantity'],
+                    'price' => $menuItem->price,
+                    'subtotal' => $menuItem->price * $cartItem['quantity'],
+                    'special_instructions' => $cartItem['special_instructions'] ?? null
+                ]);
+            }
+
+            // Calculate and set estimated ready time
+            $order->calculateEstimatedTime();
+
+            DB::commit();
+
+            $estimatedTime = $order->estimated_ready_time->format('H:i');
+
+            return redirect()->route('orders.show', $order)
+                           ->with('success', "Pesanan berhasil dibuat! Kode Pesanan: {$order->order_code}. Estimasi siap: {$estimatedTime}");
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            
+            return redirect()->back()
+                           ->withErrors(['order' => $e->getMessage()])
+                           ->withInput();
+        }
+    }
+
+    /**
+     * Cancel an order
+     */
+    public function cancel(Order $order, Request $request)
+    {
+        $user = Auth::user();
+
+        // Check if order belongs to user
+        if ($order->user_id !== $user->id) {
+            abort(403, 'Unauthorized access to order');
+        }
+
+        if (!$order->canBeCancelled()) {
+            return redirect()->back()
+                           ->withErrors(['cancel' => 'Pesanan ini tidak dapat dibatalkan']);
+        }
+
+        $request->validate([
+            'reason' => 'nullable|string|max:500'
+        ]);
+
+        try {
+            $order->cancel($request->reason);
+
+            return redirect()->route('orders.index')
+                           ->with('success', 'Pesanan berhasil dibatalkan');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                           ->withErrors(['cancel' => 'Gagal membatalkan pesanan']);
+        }
+    }
+
+    /**
+     * Track order status
+     */
+    public function trackOrder(Order $order)
+    {
+        $user = Auth::user();
+
+        // Check if order belongs to user
+        if ($order->user_id !== $user->id) {
+            abort(403, 'Unauthorized access to order');
+        }
+
+        $trackingInfo = [
+            'order_code' => $order->order_code,
+            'status' => $order->status,
+            'status_label' => $order->status_label,
+            'order_time' => $order->order_time->format('Y-m-d H:i:s'),
+            'estimated_ready_time' => $order->estimated_ready_time?->format('Y-m-d H:i:s'),
+            'completed_at' => $order->completed_at?->format('Y-m-d H:i:s'),
+            'estimated_remaining_time' => $order->estimated_remaining_time,
+            'is_overdue' => $order->is_overdue,
+            'order_duration' => $order->order_duration,
+            'progress_percentage' => $this->calculateProgressPercentage($order->status)
+        ];
+
+        return Inertia::render('Orders/Track', [
+            'tracking' => $trackingInfo,
+            'order' => $order
+        ]);
+    }
+
+    /**
+     * Calculate progress percentage based on status
+     */
+    private function calculateProgressPercentage(string $status): int
+    {
+        $statusProgress = [
+            Order::STATUS_PENDING => 10,
+            Order::STATUS_CONFIRMED => 25,
+            Order::STATUS_PREPARING => 50,
+            Order::STATUS_READY => 75,
+            Order::STATUS_COMPLETED => 100,
+            Order::STATUS_CANCELLED => 0
+        ];
+
+        return $statusProgress[$status] ?? 0;
+    }
+
+    /**
+     * Admin methods
+     */
+    public function adminIndex()
+    {
+        $orders = Order::with(['user', 'orderItems.menuItem'])
+                      ->latest('order_time')
+                      ->paginate(20);
+
+        return Inertia::render('Admin/Orders/Index', [
+            'orders' => $orders
+        ]);
+    }
+
+    public function updateStatus(Request $request, Order $order)
+    {
+        $validated = $request->validate([
+            'status' => 'required|in:pending,confirmed,preparing,ready,completed,cancelled'
+        ]);
+
+        $oldStatus = $order->status;
+        $order->updateStatus($validated['status']);
+
+        return redirect()->back()
+                       ->with('success', "Status pesanan {$order->order_code} berhasil diperbarui dari {$oldStatus} ke {$validated['status']}");
     }
 }

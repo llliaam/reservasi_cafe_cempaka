@@ -25,6 +25,43 @@ const PackageSelector: React.FC<PackageSelectorProps> = ({
 }) => {
   const selectedPackage = packages.find(pkg => pkg.id === selectedPackageId);
 
+  // Function to get correct image path
+  const getImagePath = (imageFilename: string) => {
+    if (!imageFilename) {
+      // Fallback ke gambar default lokal
+      return "/images/paket_reservasi/default-package.jpg";
+    }
+    
+    // Cek apakah sudah full URL (placeholder lama)
+    if (imageFilename.startsWith('http')) {
+      return imageFilename;
+    }
+    
+    // Return path ke folder paket_reservasi
+    return `/images/paket_reservasi/${imageFilename}`;
+  };
+
+  // Function untuk fallback gambar yang gagal load
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>, packageName: string) => {
+    const target = e.target as HTMLImageElement;
+    
+    // Coba fallback ke gambar default dulu
+    if (!target.src.includes('default-package.jpg')) {
+      target.src = '/images/paket_reservasi/default-package.jpg';
+      return;
+    }
+    
+    // Jika default-package.jpg juga gagal, buat simple colored div
+    target.style.display = 'none';
+    const parent = target.parentElement;
+    if (parent && !parent.querySelector('.fallback-div')) {
+      const fallbackDiv = document.createElement('div');
+      fallbackDiv.className = 'fallback-div w-full h-full flex items-center justify-center bg-green-400 text-white font-semibold text-sm';
+      fallbackDiv.textContent = packageName.length > 20 ? packageName.substring(0, 17) + '...' : packageName;
+      parent.appendChild(fallbackDiv);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
       <h2 className="text-xl font-bold text-gray-800 mb-4">Pilih Paket Reservasi</h2>
@@ -40,11 +77,12 @@ const PackageSelector: React.FC<PackageSelectorProps> = ({
             }`}
             onClick={() => onPackageSelect(pkg.id)}
           >
-            <div className="h-32 bg-gray-200">
+            <div className="h-32 bg-gray-200 relative">
               <img 
-                src={`/images/${pkg.image}`} 
+                src={getImagePath(pkg.image)} 
                 alt={pkg.name}
                 className="w-full h-full object-cover"
+                onError={(e) => handleImageError(e, pkg.name)}
               />
             </div>
             <div className="p-3">

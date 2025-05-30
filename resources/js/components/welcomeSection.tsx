@@ -1,13 +1,79 @@
-import React, { useState } from "react";
-import { useNavigate } from 'react-router-dom';
-
+import React, { useState, useEffect } from "react";
 
 export default function ImageGallery() {
   const thumbnails = ["cafe3.webp", "cafe_1.jpg", "cafe2.webp", "cafe.webp"];
   const [mainImage, setMainImage] = useState(thumbnails[0]);
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("18:00");
+  const [availableTimes, setAvailableTimes] = useState([]);
+
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Get current hour
+  const getCurrentHour = () => {
+    return new Date().getHours();
+  };
+
+  // All available time slots
+  const allTimeSlots = [
+    { value: "10:00", label: "10:00" },
+    { value: "11:00", label: "11:00" },
+    { value: "12:00", label: "12:00" },
+    { value: "13:00", label: "13:00" },
+    { value: "14:00", label: "14:00" },
+    { value: "15:00", label: "15:00" },
+    { value: "16:00", label: "16:00" },
+    { value: "17:00", label: "17:00" },
+    { value: "18:00", label: "18:00" },
+    { value: "19:00", label: "19:00" },
+    { value: "20:00", label: "20:00" },
+    { value: "21:00", label: "21:00" },
+    { value: "22:00", label: "22:00" }
+  ];
+
+  // Update available times based on selected date
+  useEffect(() => {
+    const updateAvailableTimes = () => {
+      const today = getTodayDate();
+      const currentHour = getCurrentHour();
+
+      if (selectedDate === today) {
+        // If today, only show times after current hour
+        const filteredTimes = allTimeSlots.filter(timeSlot => {
+          const timeHour = parseInt(timeSlot.value.split(':')[0]);
+          return timeHour > currentHour;
+        });
+        setAvailableTimes(filteredTimes);
+
+        // If current selected time is not available, set to first available time
+        const isCurrentTimeAvailable = filteredTimes.some(time => time.value === selectedTime);
+        if (!isCurrentTimeAvailable && filteredTimes.length > 0) {
+          setSelectedTime(filteredTimes[0].value);
+        }
+      } else {
+        // If future date, show all time slots
+        setAvailableTimes(allTimeSlots);
+      }
+    };
+
+    if (selectedDate) {
+      updateAvailableTimes();
+    }
+  }, [selectedDate, selectedTime]);
+
+  // Set default date to today on component mount
+  useEffect(() => {
+    setSelectedDate(getTodayDate());
+  }, []);
 
   // Handle navigasi galeri
   const handlePrevious = () => {
@@ -22,37 +88,74 @@ export default function ImageGallery() {
     setMainImage(thumbnails[nextIndex]);
   };
 
-  // Handle submit reservasi sederhana
- const handleReservation = (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
+  // Handle date change
+  const handleDateChange = (e) => {
+    const newDate = e.target.value;
+    setSelectedDate(newDate);
+  };
 
-  // Ambil value dari form dengan casting agar tidak error
-  const people = (document.getElementById('people') as HTMLInputElement)?.value;
-  const date = (document.getElementById('date') as HTMLInputElement)?.value;
-  const time = (document.getElementById('time') as HTMLInputElement)?.value;
+  // Handle time change
+  const handleTimeChange = (e) => {
+    setSelectedTime(e.target.value);
+  };
 
-  // Validasi sederhana
-  if (!date) {
-    setFormError("Pilih tanggal reservasi");
-    return;
-  }
+  // Handle submit reservasi dengan pass data ke halaman reservasi
+  const handleReservation = (e) => {
+    e.preventDefault();
 
-  setFormError("");
-  setIsSubmitting(true);
+    // Validasi
+    if (!selectedDate) {
+      setFormError("Pilih tanggal reservasi");
+      return;
+    }
 
-  // Simulasi pengiriman data
-  setTimeout(() => {
-    console.log('Reservation submitted:', { people, date, time });
-    setIsSubmitting(false);
+    if (!selectedTime) {
+      setFormError("Pilih jam reservasi");
+      return;
+    }
 
-    // Langsung redirect ke halaman reservation
-    window.location.href = '/reservation';
-  }, 1000);
-};
+    // Validasi tanggal tidak boleh sebelum hari ini
+    const today = getTodayDate();
+    if (selectedDate < today) {
+      setFormError("Tanggal reservasi tidak boleh sebelum hari ini");
+      return;
+    }
 
+    // Validasi jam jika hari ini
+    if (selectedDate === today) {
+      const currentHour = getCurrentHour();
+      const selectedHour = parseInt(selectedTime.split(':')[0]);
+      
+      if (selectedHour <= currentHour) {
+        setFormError("Jam reservasi sudah berlalu. Pilih jam yang lebih nanti.");
+        return;
+      }
+    }
+
+    setFormError("");
+    setIsSubmitting(true);
+
+    // Simulasi pengiriman data
+    setTimeout(() => {
+      console.log('Reservation data:', { 
+        date: selectedDate, 
+        time: selectedTime 
+      });
+      
+      setIsSubmitting(false);
+
+      // Redirect ke halaman reservation dengan query parameters
+      const params = new URLSearchParams({
+        date: selectedDate,
+        time: selectedTime
+      });
+      
+      window.location.href = `/reservation?${params.toString()}`;
+    }, 1000);
+  };
 
   return (
-    <section id="dashboard"className="bg-green-50 py-12 px-4 sm:px-6">
+    <section id="dashboard" className="bg-green-50 py-12 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto">
         <h2 className="text-2xl font-bold text-gray-800 mb-8 text-center">
           Galeri & Reservasi
@@ -122,68 +225,79 @@ export default function ImageGallery() {
               <h3 className="text-xl font-bold text-center">Reservasi Sekarang</h3>
               
               {formError && (
-                <div className="p-2 bg-red-100 text-red-700 text-sm rounded-md" role="alert">
-                  {formError}
+                <div className="p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded-md" role="alert">
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    {formError}
+                  </div>
                 </div>
               )}
-
-              {/* Jumlah Orang */}
-              <div>
-                <label htmlFor="people" className="block text-sm font-medium text-gray-700 mb-1">
-                  Jumlah orang
-                </label>
-                <select 
-                  id="people" 
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                >
-                  <option value="1">1 Orang</option>
-                  <option value="2">2 Orang</option>
-                  <option value="4">4 Orang</option>
-                  <option value="6">6 Orang</option>
-                  <option value="8+">8+ Orang</option>
-                </select>
-              </div>
 
               {/* Tanggal */}
               <div>
                 <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
-                  Pilih tanggal
+                  Pilih tanggal *
                 </label>
                 <input
                   type="date"
                   id="date"
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  value={selectedDate}
+                  onChange={handleDateChange}
+                  min={getTodayDate()}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all"
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Minimal reservasi untuk hari ini
+                </p>
               </div>
 
               {/* Jam */}
               <div>
                 <label htmlFor="time" className="block text-sm font-medium text-gray-700 mb-1">
-                  Pilih jam
+                  Pilih jam *
                 </label>
                 <select 
-                  id="time" 
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  id="time"
+                  value={selectedTime}
+                  onChange={handleTimeChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all"
+                  required
                 >
-                  <option value="12:00">12:00</option>
-                  <option value="15:00">15:00</option>
-                  <option value="16:00">16:00</option>
-                  <option value="17:00">17:00</option>
-                  <option value="18:00">18:00</option>
-                  <option value="19:00">19:00</option>
-                  <option value="20:00">20:00</option>
+                  {availableTimes.length > 0 ? (
+                    availableTimes.map((timeSlot) => (
+                      <option key={timeSlot.value} value={timeSlot.value}>
+                        {timeSlot.label}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">Tidak ada jam tersedia</option>
+                  )}
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {selectedDate === getTodayDate() 
+                    ? "Hanya jam setelah sekarang yang tersedia" 
+                    : "Semua jam tersedia"}
+                </p>
               </div>
+
+              {/* Info Paket
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Info:</strong> Pilih paket dan jumlah orang di halaman berikutnya
+                </p>
+              </div> */}
 
               {/* Submit button */}
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || availableTimes.length === 0}
                 className={`w-full py-3 rounded-lg font-semibold transition-all ${
-                  isSubmitting
+                  isSubmitting || availableTimes.length === 0
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-yellow-500 hover:bg-yellow-600 active:bg-yellow-700 text-white'
+                    : 'bg-yellow-500 hover:bg-yellow-600 active:bg-yellow-700 text-white shadow-md hover:shadow-lg'
                 }`}
               >
                 {isSubmitting ? (
@@ -192,16 +306,18 @@ export default function ImageGallery() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Proses...
+                    Memproses...
                   </span>
+                ) : availableTimes.length === 0 ? (
+                  "Tidak Ada Jam Tersedia"
                 ) : (
-                  "Reservasi"
+                  "Lanjut ke Reservasi"
                 )}
               </button>
               
               {/* Info bantuan */}
               <p className="text-xs text-gray-500 text-center mt-3">
-                Informasi lebih lanjut dan detail menu akan tersedia di halaman berikutnya
+                Detail paket, menu, dan pembayaran akan tersedia di halaman berikutnya
               </p>
             </form>
             
@@ -216,6 +332,20 @@ export default function ImageGallery() {
               <p className="text-sm text-gray-600 ml-7">
                 Sen-Jum: 10:00 - 22:00<br />
                 Sab-Min: 09:00 - 23:00
+              </p>
+            </div>
+
+            {/* Current Time Info */}
+            <div className="mt-2 bg-green-100 p-3 rounded-lg">
+              <p className="text-xs text-green-800 text-center">
+                Waktu sekarang: {new Date().toLocaleString('id-ID', { 
+                  weekday: 'short', 
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
               </p>
             </div>
           </div>

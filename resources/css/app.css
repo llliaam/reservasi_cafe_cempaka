@@ -157,3 +157,291 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Slide in dari kanan */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+/* Progress bar animation untuk auto close */
+@keyframes shrink-width {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.animate-shrink-width {
+  animation: shrink-width linear;
+}
+
+/* ========================================
+   BACKDROP FIX - COMPREHENSIVE SOLUTION
+   ======================================== */
+
+/* Menu Popup Backdrop - Custom class untuk MenuPopup */
+.menu-popup-backdrop {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  backdrop-filter: blur(2px) !important;
+  -webkit-backdrop-filter: blur(2px) !important;
+}
+
+/* General backdrop classes */
+.backdrop-light {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.backdrop-medium {
+  background-color: rgba(0, 0, 0, 0.2) !important;
+}
+
+.backdrop-normal {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Fix untuk modal/popup dengan backdrop hitam */
+.modal-backdrop,
+.popup-backdrop,
+.overlay-backdrop {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+  backdrop-filter: blur(2px) !important;
+}
+
+/* Ensure body doesn't get dark overlay */
+body.modal-open {
+  overflow: hidden;
+}
+
+/* Fix untuk Tailwind backdrop classes - COMPREHENSIVE */
+.bg-black.bg-opacity-50 {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.bg-black.bg-opacity-40 {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+.bg-black.bg-opacity-30 {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.bg-black.bg-opacity-20 {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+.bg-black.bg-opacity-10 {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Fix untuk Tailwind slash notation */
+.bg-black\/50 {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.bg-black\/40 {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+.bg-black\/30 {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.bg-black\/20 {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+.bg-black\/10 {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Fix untuk gray variants */
+.bg-gray-900.bg-opacity-50 {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.bg-gray-900\/50 {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Force override untuk elemen fixed dengan backdrop behavior */
+.fixed.inset-0:not(.menu-popup-content):not(.modal-content):not(.popup-content) {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  backdrop-filter: blur(2px) !important;
+  -webkit-backdrop-filter: blur(2px) !important;
+}
+
+/* Specific override untuk kombinasi class yang sering digunakan */
+.fixed.inset-0.bg-black.bg-opacity-50,
+.fixed.inset-0.bg-black.bg-opacity-10,
+.fixed.inset-0.backdrop-blur-sm {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Override untuk inline styles */
+.fixed.inset-0[style*="background-color: rgba(0, 0, 0"],
+.fixed.inset-0[style*="backgroundColor: rgba(0, 0, 0"] {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Alternative: Use white backdrop with opacity */
+.backdrop-white {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(3px) !important;
+}
+
+/* Fix z-index issues */
+.modal-container,
+.popup-container {
+  z-index: 9999 !important;
+}
+
+/* Ensure backdrop doesn't interfere with content visibility */
+.backdrop-safe {
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.02) 0%,
+    rgba(0, 0, 0, 0.05) 50%,
+    rgba(0, 0, 0, 0.02) 100%
+  ) !important;
+}
+
+/* For glass effect instead of dark backdrop */
+.backdrop-glass {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(10px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(180%) !important;
+}
+
+/* ========================================
+   MENU POPUP SPECIFIC ANIMATIONS
+   ======================================== */
+
+/* Animation untuk menu popup */
+@keyframes menu-popup-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-menu-popup-enter {
+  animation: menu-popup-enter 0.2s ease-out;
+}
+
+/* ========================================
+   LIBRARY OVERRIDES
+   ======================================== */
+
+/* React Modal */
+.ReactModal__Overlay {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  backdrop-filter: blur(3px) !important;
+}
+
+/* Headless UI */
+.headlessui-dialog-overlay {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Radix UI */
+[data-radix-dialog-overlay] {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  backdrop-filter: blur(2px) !important;
+}
+
+/* Chakra UI */
+.chakra-modal__overlay {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Material UI */
+.MuiBackdrop-root {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Bootstrap Modal */
+.modal-backdrop.show {
+  opacity: 0.05 !important;
+}
+
+/* ========================================
+   DARK MODE OVERRIDES
+   ======================================== */
+
+.dark .modal-backdrop,
+.dark .popup-backdrop,
+.dark .overlay-backdrop,
+.dark .menu-popup-backdrop {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+  backdrop-filter: blur(3px) !important;
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+.backdrop-ultra-light {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+  backdrop-filter: blur(1px) !important;
+}
+
+.backdrop-very-light {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  backdrop-filter: blur(2px) !important;
+}
+
+.backdrop-light-safe {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  backdrop-filter: blur(2px) !important;
+}
+
+/* For debugging - add this class to see which element is the backdrop */
+.debug-backdrop {
+  border: 2px solid red !important;
+  box-shadow: 0 0 10px red !important;
+}
+
+/* Emergency transparent override */
+.force-transparent {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Line clamp utility for description text */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ========================================
+   RESPONSIVE ADJUSTMENTS
+   ======================================== */
+
+@media (max-width: 768px) {
+  .menu-popup-backdrop,
+  .modal-backdrop,
+  .popup-backdrop {
+    background-color: rgba(0, 0, 0, 0.03) !important;
+    backdrop-filter: blur(1px) !important;
+  }
+}
