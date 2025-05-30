@@ -31,6 +31,11 @@ Route::get('/dashboardAdmin', function () {
     return Inertia::render('adminDashboard');
 })->name('adminDashboard');
 
+Route::get('/staffPage', function () {
+        return Inertia::render(component: 'staff/staffPage');
+    })->name('StaffPage');
+
+
 /*
 |--------------------------------------------------------------------------
 | Authentication Required Routes
@@ -38,10 +43,10 @@ Route::get('/dashboardAdmin', function () {
 */
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    
+
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    
+
     // ===== ORDER MANAGEMENT =====
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
     Route::get('/orders', [OrderController::class, 'history'])->name('orders.index');
@@ -49,7 +54,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     Route::get('/orders/{order}/track', [OrderController::class, 'trackOrder'])->name('orders.track');
-    
+
     // ===== RESERVATION MANAGEMENT =====
     Route::get('/reservation', [ReservationController::class, 'create'])->name('reservation');
     Route::get('/reservations', [ReservationController::class, 'index'])->name('reservations.index');
@@ -59,13 +64,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reservations/{reservation}/edit', [ReservationController::class, 'edit'])->name('reservations.edit');
     Route::put('/reservations/{reservation}', [ReservationController::class, 'update'])->name('reservations.update');
     Route::delete('/reservations/{reservation}', [ReservationController::class, 'destroy'])->name('reservations.destroy');
-    
+
     // ===== FAVORITES MANAGEMENT =====
     Route::get('/my-favorites', [FavoriteMenuController::class, 'index'])->name('favorites.index');
     Route::post('/favorites/{menuItem}/toggle', [FavoriteMenuController::class, 'toggle'])->name('favorites.toggle');
     Route::delete('/favorites/{menuItem}', [FavoriteMenuController::class, 'remove'])->name('favorites.remove');
     Route::delete('/favorites/clear', [FavoriteMenuController::class, 'clear'])->name('favorites.clear');
-    
+
     // ===== REVIEW MANAGEMENT =====
     Route::prefix('reviews')->name('reviews.')->group(function () {
         Route::get('/', [ReviewController::class, 'index'])->name('index');
@@ -76,16 +81,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/{review}', [ReviewController::class, 'destroy'])->name('destroy');
         Route::post('/{review}/helpful', [ReviewController::class, 'markHelpful'])->name('mark-helpful');
     });
-    
+
     // ===== MENU SEARCH & FILTER (Web-based) =====
     Route::get('/menu/search', [MenuItemController::class, 'search'])->name('menu.search');
     Route::get('/menu/category/{category}', [MenuItemController::class, 'byCategory'])->name('menu.category');
-    
+
     // ===== IMAGE HANDLING =====
     Route::post('/reservations/{reservation}/images', [ReservationController::class, 'uploadImages'])->name('reservations.upload-images');
     Route::delete('/reservations/{reservation}/images/{filename}', [ReservationController::class, 'deleteImage'])->name('reservations.delete-image');
     Route::get('/reservations/{reservation}/images/{filename}', [ReservationController::class, 'getImage'])->name('reservations.get-image');
-    
+
     // ===== ADMIN ROUTES =====
     Route::middleware(['auth','admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/reservations', [ReservationController::class, 'adminIndex'])->name('reservations.index');
@@ -97,13 +102,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/reviews/{id}/featured', [ReviewController::class, 'markAsFeatured'])->name('reviews.mark-featured');
         Route::patch('/reviews/{id}/verified', [ReviewController::class, 'markAsVerified'])->name('reviews.mark-verified');
     });
-    
+
     // ===== LEGACY ROUTES (Backward Compatibility) =====
     Route::get('/riwayat-pemesanan', [OrderController::class, 'history'])->name('riwayat-pemesanan');
     Route::get('/riwayat-reservasi', [ReservationController::class, 'index'])->name('riwayat-reservasi');
     Route::get('/menu-favorit', [FavoriteMenuController::class, 'index'])->name('menu-favorit');
     Route::get('/ulasan', [ReviewController::class, 'index'])->name('ulasan');
-    
+
+    // ==== PAPI ====
+    // Staff Page
 });
 
 /*
