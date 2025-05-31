@@ -18,6 +18,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'role',
         'password',
         'phone',
         'date_of_birth',
@@ -52,6 +53,38 @@ class User extends Authenticatable
             'preferences' => 'array',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Check if user is admin
+     */
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    /**
+     * Check if user is staff
+     */
+    public function isStaff(): bool
+    {
+        return $this->role === 'staff';
+    }
+
+    /**
+     * Check if user is customer
+     */
+    public function isCustomer(): bool
+    {
+        return $this->role === 'customer';
+    }
+
+    /**
+     * Check if user has admin or staff role
+     */
+    public function hasManagementAccess(): bool
+    {
+        return in_array($this->role, ['admin', 'staff']);
     }
 
     /**
@@ -275,5 +308,37 @@ class User extends Authenticatable
     public function scopeActive($query)
     {
         return $query->whereNotNull('email_verified_at');
+    }
+
+    /**
+     * Scope for admins
+     */
+    public function scopeAdmins($query)
+    {
+        return $query->where('role', 'admin');
+    }
+
+    /**
+     * Scope for staff
+     */
+    public function scopeStaff($query)
+    {
+        return $query->where('role', 'staff');
+    }
+
+    /**
+     * Scope for customers
+     */
+    public function scopeCustomers($query)
+    {
+        return $query->where('role', 'customer');
+    }
+
+    /**
+     * Scope for management (admin + staff)
+     */
+    public function scopeManagement($query)
+    {
+        return $query->whereIn('role', ['admin', 'staff']);
     }
 }
