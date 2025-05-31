@@ -1,6 +1,6 @@
 // MenuPage.tsx - Refactored without API calls, using props and form submissions
 import React, { useState } from 'react';
-import { Head, usePage, useForm } from '@inertiajs/react';
+import { Head, usePage, useForm, router } from '@inertiajs/react';
 import { type SharedData } from '@/types';
 import Header from '@/components/header';
 import ProductGrid from '@/components/productGrid';
@@ -48,6 +48,48 @@ const MenuPage: React.FC = () => {
   const [showProductDetail, setShowProductDetail] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [orderType, setOrderType] = useState<'dine_in' | 'takeaway' | 'delivery'>('dine_in');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+const [successOrderData, setSuccessOrderData] = useState<{
+  orderCode: string;
+  estimatedTime?: string;
+  paymentMethod: string;
+  total: number;
+} | null>(null);
+
+  // Function to get correct menu image path
+  const getMenuImagePath = (imageFilename: string) => {
+    if (!imageFilename) {
+      return "/images/poto_menu/default-menu.jpg";
+    }
+    
+    if (imageFilename.startsWith('http')) {
+      return imageFilename;
+    }
+    
+    return `/images/poto_menu/${imageFilename}`;
+  };
+
+  // Function untuk fallback gambar yang gagal load
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>, menuName: string) => {
+    const target = e.target as HTMLImageElement;
+    
+    // Coba fallback ke gambar default dulu
+    if (!target.src.includes('default-menu.jpg')) {
+      target.src = '/images/poto_menu/default-menu.jpg';
+      return;
+    }
+    
+    // Jika default-menu.jpg juga gagal, buat simple colored div
+    target.style.display = 'none';
+    const parent = target.parentElement;
+    if (parent && !parent.querySelector('.fallback-div')) {
+      const fallbackDiv = document.createElement('div');
+      fallbackDiv.className = 'fallback-div absolute inset-0 flex items-center justify-center bg-yellow-400 text-white font-bold text-lg';
+      const initials = menuName.split(' ').map(word => word[0]).join('').substring(0, 2).toUpperCase();
+      fallbackDiv.textContent = initials || 'M';
+      parent.appendChild(fallbackDiv);
+    }
+  };
 
   // Form for order submission
   const { data, setData, post, processing, errors, reset } = useForm({
@@ -139,48 +181,97 @@ const MenuPage: React.FC = () => {
   };
 
   // Handle order submission
-  const handleSubmitOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validation
-    if (!data.customer_name || !data.customer_phone || !data.customer_email) {
-      alert('Mohon lengkapi semua informasi pelanggan yang diperlukan.');
-      return;
+  // Updated handleSubmitOrder function di menuPage.tsx
+
+const handleSubmitOrder = (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  // Validation
+  if (!data.customer_name || !data.customer_phone || !data.customer_email) {
+    alert('Mohon lengkapi semua informasi pelanggan yang diperlukan.');
+    return;
+  }
+
+  if (orderType === 'delivery' && !data.delivery_address) {
+    alert('Mohon masukkan alamat pengiriman untuk pesanan delivery.');
+    return;
+  }
+
+  if (cart.length === 0) {
+    alert('Keranjang masih kosong. Silakan pilih menu terlebih dahulu.');
+    return;
+  }
+
+  // Validation untuk payment proof jika bukan cash
+  if (data.payment_method !== 'cash' && !data.payment_proof) {
+    alert('Mohon upload bukti pembayaran untuk metode pembayaran online.');
+    return;
+  }
+
+  // Prepare FormData untuk file upload
+  const formData = new FormData();
+  
+  // Add basic order data
+  formData.append('customer_name', data.customer_name);
+  formData.append('customer_phone', data.customer_phone);
+  formData.append('customer_email', data.customer_email);
+  formData.append('order_type', orderType);
+  formData.append('delivery_address', data.delivery_address || '');
+  formData.append('notes', data.notes || '');
+  formData.append('subtotal', cartTotal.toString());
+  formData.append('delivery_fee', deliveryFee.toString());
+  formData.append('service_fee', serviceFee.toString());
+  formData.append('total_amount', totalAmount.toString());
+  formData.append('payment_method', data.payment_method);
+
+  // Add cart items
+  cart.forEach((item, index) => {
+    formData.append(`cart_items[${index}][id]`, item.id.toString());
+    formData.append(`cart_items[${index}][quantity]`, item.quantity.toString());
+    formData.append(`cart_items[${index}][special_instructions]`, item.special_instructions || '');
+  });
+
+  // Add payment proof if exists
+  if (data.payment_proof) {
+    formData.append('payment_proof', data.payment_proof);
+  }
+
+  console.log('Submitting order with payment...');
+
+  // Submit menggunakan router.post dengan FormData
+  router.post('/orders', formData, {
+    forceFormData: true,
+    onStart: () => {
+      console.log('Starting order submission...');
+    },
+    onSuccess: (page) => {
+      console.log('Order success:', page);
+      
+      // Set success data untuk modal
+      setSuccessOrderData({
+        orderCode: 'ORD-' + Date.now(), // Fallback, seharusnya dari response
+        estimatedTime: '20-30 menit', // Fallback, seharusnya dari response
+        paymentMethod: data.payment_method,
+        total: totalAmount
+      });
+      
+      // Reset form dan tutup checkout
+      setCart([]);
+      setShowCheckout(false);
+      setIsCartOpen(false);
+      reset();
+      
+      // Show success modal
+      setShowSuccessModal(true);
+    },
+    onError: (errors) => {
+      console.log('Order errors:', errors);
+    },
+    onFinish: () => {
+      console.log('Order submission finished');
     }
-
-    if (orderType === 'delivery' && !data.delivery_address) {
-      alert('Mohon masukkan alamat pengiriman untuk pesanan delivery.');
-      return;
-    }
-
-    // Update form data
-    setData({
-      ...data,
-      order_type: orderType,
-      cart_items: cart.map(item => ({
-        id: item.id,
-        quantity: item.quantity,
-        special_instructions: item.special_instructions || null
-      })),
-      subtotal: cartTotal,
-      delivery_fee: deliveryFee,
-      service_fee: serviceFee,
-      total_amount: totalAmount
-    });
-
-    // Submit form
-    post('/orders', {
-      onSuccess: () => {
-        setCart([]);
-        setShowCheckout(false);
-        setIsCartOpen(false);
-        reset();
-      },
-      onError: () => {
-        // Errors will be shown via Laravel validation
-      }
-    });
-  };
+  });
+};
 
   const renderStars = (rating: number, reviewCount?: number) => {
     return (
@@ -292,11 +383,12 @@ const MenuPage: React.FC = () => {
               <div className="p-6">
                 {/* Product Info */}
                 <div className="grid md:grid-cols-2 gap-8 mb-8">
-                  <div>
+                  <div className="relative">
                     <img
-                      src={selectedProduct.image || `https://via.placeholder.com/400x300/fbbf24/ffffff?text=${encodeURIComponent(selectedProduct.name)}`}
+                      src={getMenuImagePath(selectedProduct.image)}
                       alt={selectedProduct.name}
                       className="w-full h-64 object-cover rounded-xl"
+                      onError={(e) => handleImageError(e, selectedProduct.name)}
                     />
                   </div>
                   
@@ -352,158 +444,361 @@ const MenuPage: React.FC = () => {
         />
 
         {/* Checkout Modal */}
-        {showCheckout && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold">Checkout</h2>
-                  <button 
-                    onClick={() => setShowCheckout(false)}
-                    className="text-gray-500 hover:text-gray-700"
-                  >
-                    ✕
-                  </button>
-                </div>
+        // Update bagian Checkout Modal di menuPage.tsx
 
-                <form onSubmit={handleSubmitOrder} className="space-y-4">
-                  {/* Show validation errors */}
-                  {errors.order && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                      {errors.order}
-                    </div>
-                  )}
+{/* Checkout Modal */}
+{showCheckout && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Checkout</h2>
+          <button 
+            onClick={() => setShowCheckout(false)}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            ✕
+          </button>
+        </div>
 
-                  {/* Order Type */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Tipe Pesanan</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {['dine_in', 'takeaway', 'delivery'].map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => {
-                            setOrderType(type as any);
-                            setData('order_type', type);
-                          }}
-                          className={`p-2 text-xs rounded-lg border ${
-                            orderType === type 
-                              ? 'bg-orange-500 text-white border-orange-500' 
-                              : 'bg-white text-gray-700 border-gray-300'
-                          }`}
-                        >
-                          {type === 'dine_in' ? 'Makan di Tempat' : 
-                           type === 'takeaway' ? 'Bawa Pulang' : 'Delivery'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+        <form onSubmit={handleSubmitOrder} encType="multipart/form-data">
+          <div className="space-y-4">
+            {/* Show validation errors */}
+            {errors.order && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                {errors.order}
+              </div>
+            )}
 
-                  {/* Customer Info */}
-                  <div className="space-y-3">
-                    <input
-                      type="text"
-                      placeholder="Nama Lengkap *"
-                      value={data.customer_name}
-                      onChange={(e) => setData('customer_name', e.target.value)}
-                      className={`w-full p-3 border rounded-lg ${errors.customer_name ? 'border-red-500' : ''}`}
-                      required
-                    />
-                    {errors.customer_name && (
-                      <p className="text-red-500 text-sm">{errors.customer_name}</p>
-                    )}
-
-                    <input
-                      type="tel"
-                      placeholder="No. Telepon *"
-                      value={data.customer_phone}
-                      onChange={(e) => setData('customer_phone', e.target.value)}
-                      className={`w-full p-3 border rounded-lg ${errors.customer_phone ? 'border-red-500' : ''}`}
-                      required
-                    />
-                    {errors.customer_phone && (
-                      <p className="text-red-500 text-sm">{errors.customer_phone}</p>
-                    )}
-
-                    <input
-                      type="email"
-                      placeholder="Email *"
-                      value={data.customer_email}
-                      onChange={(e) => setData('customer_email', e.target.value)}
-                      className={`w-full p-3 border rounded-lg ${errors.customer_email ? 'border-red-500' : ''}`}
-                      required
-                    />
-                    {errors.customer_email && (
-                      <p className="text-red-500 text-sm">{errors.customer_email}</p>
-                    )}
-                    
-                    {orderType === 'delivery' && (
-                      <>
-                        <textarea
-                          placeholder="Alamat Pengiriman *"
-                          value={data.delivery_address}
-                          onChange={(e) => setData('delivery_address', e.target.value)}
-                          className={`w-full p-3 border rounded-lg ${errors.delivery_address ? 'border-red-500' : ''}`}
-                          rows={3}
-                          required
-                        />
-                        {errors.delivery_address && (
-                          <p className="text-red-500 text-sm">{errors.delivery_address}</p>
-                        )}
-                      </>
-                    )}
-                    
-                    <textarea
-                      placeholder="Catatan (opsional)"
-                      value={data.notes}
-                      onChange={(e) => setData('notes', e.target.value)}
-                      className="w-full p-3 border rounded-lg"
-                      rows={2}
-                    />
-                  </div>
-
-                  {/* Order Summary */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-medium mb-2">Ringkasan Pesanan</h3>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span>Subtotal ({cartCount} item)</span>
-                        <span>Rp {cartTotal.toLocaleString('id-ID')}</span>
-                      </div>
-                      {deliveryFee > 0 && (
-                        <div className="flex justify-between">
-                          <span>Ongkir</span>
-                          <span>Rp {deliveryFee.toLocaleString('id-ID')}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span>Biaya Layanan</span>
-                        <span>Rp {serviceFee.toLocaleString('id-ID')}</span>
-                      </div>
-                      <hr className="my-2" />
-                      <div className="flex justify-between font-medium">
-                        <span>Total</span>
-                        <span>Rp {totalAmount.toLocaleString('id-ID')}</span>
-                      </div>
-                    </div>
-                  </div>
-
+            {/* Order Type */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Tipe Pesanan</label>
+              <div className="grid grid-cols-3 gap-2">
+                {['dine_in', 'takeaway', 'delivery'].map((type) => (
                   <button
-                    type="submit"
-                    disabled={processing}
-                    className={`w-full py-3 rounded-lg font-medium ${
-                      processing
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-orange-500 text-white hover:bg-orange-600'
+                    key={type}
+                    type="button"
+                    onClick={() => {
+                      setOrderType(type as any);
+                      setData('order_type', type);
+                    }}
+                    className={`p-2 text-xs rounded-lg border ${
+                      orderType === type 
+                        ? 'bg-orange-500 text-white border-orange-500' 
+                        : 'bg-white text-gray-700 border-gray-300'
                     }`}
                   >
-                    {processing ? 'Memproses...' : 'Buat Pesanan'}
+                    {type === 'dine_in' ? 'Makan di Tempat' : 
+                     type === 'takeaway' ? 'Bawa Pulang' : 'Delivery'}
                   </button>
-                </form>
+                ))}
               </div>
             </div>
+
+            {/* Customer Info */}
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Nama Lengkap *"
+                value={data.customer_name}
+                onChange={(e) => setData('customer_name', e.target.value)}
+                className={`w-full p-3 border rounded-lg ${errors.customer_name ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.customer_name && (
+                <p className="text-red-500 text-sm">{errors.customer_name}</p>
+              )}
+
+              <input
+                type="tel"
+                placeholder="No. Telepon *"
+                value={data.customer_phone}
+                onChange={(e) => setData('customer_phone', e.target.value)}
+                className={`w-full p-3 border rounded-lg ${errors.customer_phone ? 'border-red-500' : ''}`}
+                required
+              />
+
+              <input
+                type="email"
+                placeholder="Email *"
+                value={data.customer_email}
+                onChange={(e) => setData('customer_email', e.target.value)}
+                className={`w-full p-3 border rounded-lg ${errors.customer_email ? 'border-red-500' : ''}`}
+                required
+              />
+              
+              {orderType === 'delivery' && (
+                <textarea
+                  placeholder="Alamat Pengiriman *"
+                  value={data.delivery_address}
+                  onChange={(e) => setData('delivery_address', e.target.value)}
+                  className={`w-full p-3 border rounded-lg ${errors.delivery_address ? 'border-red-500' : ''}`}
+                  rows={3}
+                  required
+                />
+              )}
+              
+              <textarea
+                placeholder="Catatan (opsional)"
+                value={data.notes}
+                onChange={(e) => setData('notes', e.target.value)}
+                className="w-full p-3 border rounded-lg"
+                rows={2}
+              />
+            </div>
+
+            {/* Payment Methods */}
+            <div>
+              <label className="block text-sm font-medium mb-3">Metode Pembayaran</label>
+              
+              {/* Bayar di Tempat */}
+              <div className="mb-4">
+                <div className="text-xs font-medium text-gray-600 mb-2">Bayar di Tempat</div>
+                <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                  <input
+                    type="radio"
+                    name="payment_method"
+                    value="cash"
+                    checked={data.payment_method === 'cash'}
+                    onChange={(e) => setData('payment_method', e.target.value)}
+                    className="mr-3"
+                  />
+                  <div className="flex items-center">
+                    <span className="text-2xl mr-3">💵</span>
+                    <span className="font-medium">Bayar di Tempat</span>
+                  </div>
+                </label>
+              </div>
+
+              {/* E-Wallet */}
+              <div className="mb-4">
+                <div className="text-xs font-medium text-gray-600 mb-2">E-Wallet</div>
+                <div className="space-y-2">
+                  {[
+                    { value: 'dana', label: 'DANA', icon: '💙' },
+                    { value: 'gopay', label: 'GoPay', icon: '🟢' },
+                    { value: 'ovo', label: 'OVO', icon: '🟣' },
+                    { value: 'shopeepay', label: 'ShopeePay', icon: '🧡' }
+                  ].map((method) => (
+                    <label key={method.value} className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="payment_method"
+                        value={method.value}
+                        checked={data.payment_method === method.value}
+                        onChange={(e) => setData('payment_method', e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">{method.icon}</span>
+                        <span className="font-medium">{method.label}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Mobile Banking */}
+              <div className="mb-4">
+                <div className="text-xs font-medium text-gray-600 mb-2">Mobile/Internet Banking</div>
+                <div className="space-y-2">
+                  {[
+                    { value: 'bca', label: 'BCA', icon: '🔵' },
+                    { value: 'mandiri', label: 'Mandiri', icon: '🟡' },
+                    { value: 'bni', label: 'BNI', icon: '🟠' },
+                    { value: 'bri', label: 'BRI', icon: '🔵' },
+                    { value: 'bsi', label: 'BSI', icon: '🟢' }
+                  ].map((method) => (
+                    <label key={method.value} className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="payment_method"
+                        value={method.value}
+                        checked={data.payment_method === method.value}
+                        onChange={(e) => setData('payment_method', e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">{method.icon}</span>
+                        <span className="font-medium">{method.label}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Upload Payment Proof untuk non-cash */}
+            {data.payment_method !== 'cash' && (
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Bukti Pembayaran <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setData('payment_proof', file);
+                    }
+                  }}
+                  className="w-full p-3 border rounded-lg"
+                  required={data.payment_method !== 'cash'}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Upload screenshot bukti transfer/pembayaran (JPG, PNG, max 2MB)
+                </p>
+              </div>
+            )}
+
+            {/* Order Summary */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="font-medium mb-2">Ringkasan Pesanan</h3>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span>Subtotal ({cartCount} item)</span>
+                  <span>Rp {cartTotal.toLocaleString('id-ID')}</span>
+                </div>
+                {deliveryFee > 0 && (
+                  <div className="flex justify-between">
+                    <span>Ongkir</span>
+                    <span>Rp {deliveryFee.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span>Biaya Layanan</span>
+                  <span>Rp {serviceFee.toLocaleString('id-ID')}</span>
+                </div>
+                <hr className="my-2" />
+                <div className="flex justify-between font-medium">
+                  <span>Total</span>
+                  <span>Rp {totalAmount.toLocaleString('id-ID')}</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={processing}
+              className={`w-full py-3 rounded-lg font-medium ${
+                processing
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-orange-500 text-white hover:bg-orange-600'
+              }`}
+            >
+              {processing ? 'Memproses...' : 'Buat Pesanan'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+)}
+
+
+{/* Success Modal */}
+{showSuccessModal && successOrderData && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl max-w-md w-full">
+      <div className="p-6 text-center">
+        {/* Success Icon */}
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+
+        {/* Success Message */}
+        <h2 className="text-xl font-bold text-gray-900 mb-2">
+          Pesanan Berhasil Dibuat! 🎉
+        </h2>
+        
+        <div className="bg-gray-50 rounded-lg p-4 mb-4 text-left">
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Kode Pesanan:</span>
+              <span className="font-medium text-orange-600">{successOrderData.orderCode}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Total Pembayaran:</span>
+              <span className="font-medium">Rp {successOrderData.total.toLocaleString('id-ID')}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Metode Pembayaran:</span>
+              <span className="font-medium capitalize">
+                {successOrderData.paymentMethod === 'cash' ? 'Bayar di Tempat' : successOrderData.paymentMethod.toUpperCase()}
+              </span>
+            </div>
+            {successOrderData.estimatedTime && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Estimasi Siap:</span>
+                <span className="font-medium">{successOrderData.estimatedTime}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Payment Status Info */}
+        {successOrderData.paymentMethod === 'cash' ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <p className="text-sm text-blue-800">
+              💡 Silakan bayar saat pesanan siap atau saat makan di tempat
+            </p>
+          </div>
+        ) : (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+            <p className="text-sm text-green-800">
+              ✅ Bukti pembayaran berhasil diupload. Pesanan akan segera diproses oleh staff.
+            </p>
           </div>
         )}
+
+        {/* What's Next */}
+        <div className="text-left mb-4">
+          <h3 className="font-medium text-gray-900 mb-2">Selanjutnya:</h3>
+          <ul className="text-sm text-gray-600 space-y-1">
+            <li>• Staff akan mengkonfirmasi pesanan Anda</li>
+            <li>• Anda akan mendapat notifikasi saat pesanan siap</li>
+            <li>• Silakan datang ke lokasi untuk mengambil pesanan</li>
+          </ul>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="space-y-3">
+          <button
+            onClick={() => {
+              setShowSuccessModal(false);
+              setSuccessOrderData(null);
+              // Redirect ke halaman order detail jika ada
+              // window.location.href = `/orders/${successOrderData.orderCode}`;
+            }}
+            className="w-full bg-orange-500 text-white py-3 rounded-lg font-medium hover:bg-orange-600 transition-all"
+          >
+            Lihat Detail Pesanan
+          </button>
+          
+          <button
+            onClick={() => {
+              setShowSuccessModal(false);
+              setSuccessOrderData(null);
+            }}
+            className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-200 transition-all"
+          >
+            Lanjut Belanja
+          </button>
+        </div>
+
+        {/* Contact Info */}
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <p className="text-xs text-gray-500">
+            Ada pertanyaan? Hubungi kami di <span className="font-medium">0812-3456-7890</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Floating Cart Button */}
         {cartCount > 0 && (

@@ -30,6 +30,46 @@ const ProductGrid: React.FC<ProductGridProps> = ({
   const [favorites, setFavorites] = useState<number[]>(favoriteIds || []);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Function to get correct menu image path
+  const getMenuImagePath = (imageFilename: string) => {
+    if (!imageFilename) {
+      return "/images/poto_menu/default-menu.jpg";
+    }
+    
+    if (imageFilename.startsWith('http')) {
+      return imageFilename;
+    }
+    
+    return `/images/poto_menu/${imageFilename}`;
+  };
+
+  // Function untuk fallback gambar yang gagal load
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>, menuName: string) => {
+    const target = e.target as HTMLImageElement;
+    
+    // Coba fallback ke gambar default dulu
+    if (!target.src.includes('default-menu.jpg')) {
+      target.src = '/images/poto_menu/default-menu.jpg';
+      return;
+    }
+    
+    // Jika default-menu.jpg juga gagal, ganti dengan fallback div
+    const parent = target.parentElement;
+    if (parent && !parent.querySelector('.fallback-div')) {
+      // Hide the broken image
+      target.style.display = 'none';
+      
+      // Create colored fallback div
+      const fallbackDiv = document.createElement('div');
+      fallbackDiv.className = 'fallback-div w-full h-48 flex items-center justify-center bg-yellow-400 text-white font-bold text-2xl';
+      const initials = menuName.split(' ').map(word => word[0]).join('').substring(0, 2).toUpperCase();
+      fallbackDiv.textContent = initials || 'M';
+      
+      // Insert fallback div right after the image
+      parent.insertBefore(fallbackDiv, target.nextSibling);
+    }
+  };
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -131,13 +171,10 @@ const ProductGrid: React.FC<ProductGridProps> = ({
             {/* Image */}
             <div className="relative">
               <img
-                src={product.image || `https://via.placeholder.com/300x200/fbbf24/ffffff?text=${encodeURIComponent(product.name)}`}
+                src={getMenuImagePath(product.image)}
                 alt={product.name}
                 className="w-full h-48 object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = `https://via.placeholder.com/300x200/fbbf24/ffffff?text=${encodeURIComponent(product.name)}`;
-                }}
+                onError={(e) => handleImageError(e, product.name)}
               />
               
               {/* Badges */}

@@ -54,6 +54,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     Route::get('/orders/{order}/track', [OrderController::class, 'trackOrder'])->name('orders.track');
+    Route::get('/orders/{order}/payment', [OrderController::class, 'showPayment'])->name('orders.payment');
+    Route::post('/orders/{order}/payment-proof', [OrderController::class, 'uploadPaymentProof'])->name('orders.payment-proof');
 
     // ===== RESERVATION MANAGEMENT =====
     Route::get('/reservation', [ReservationController::class, 'create'])->name('reservation');

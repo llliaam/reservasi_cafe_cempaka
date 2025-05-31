@@ -5,11 +5,9 @@ import { Link, usePage } from '@inertiajs/react';
 
 const Navbar = () => {
     const { auth } = usePage<SharedData>().props;
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSticky, setIsSticky] = useState(false);
 
-    const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
     const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
     useEffect(() => {
@@ -26,16 +24,6 @@ const Navbar = () => {
             window.removeEventListener('scroll', handleScroll);
         };
     }, []);
-
-    const menuItems = [
-        { name: "Breakfast", href: "#hot-coffee" },
-        { name: "Coffee", href: "#coffee" },
-        { name: "Desserts", href: "#desserts" },
-        { name: "Lunch", href: "#blunch" },
-        { name: "Dinner", href: "#dinner" },
-        { name: "Drink", href: "#drink" },
-        { name: "See All Menu", href: "/menuPage" },
-    ];
 
     return (
         <nav 
@@ -59,37 +47,13 @@ const Navbar = () => {
 
                 {/* Desktop menu */}
                 <div className="hidden md:flex items-center space-x-4 gap-1.5">
-                    {/* Dropdown */}
-                    <div className="relative">
-                        <button
-                            onClick={toggleMenu}
-                            className="text-gray-600 hover:text-yellow-500 flex items-center"
-                        >
-                            Menu
-                            <svg
-                                className={`ml-1 h-4 w-4 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`}
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
-
-                        {isMenuOpen && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                                {menuItems.map((item) => (
-                                    <a
-                                        key={item.name}
-                                        href={item.href}
-                                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                    >
-                                        {item.name}
-                                    </a>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    {/* Menu Item - now as direct link */}
+                    <a
+                        href="/menuPage"
+                        className="text-gray-600 hover:text-yellow-500"
+                    >
+                        Our Menu
+                    </a>
 
                     <ScrollLink
                         to="contact"
@@ -195,15 +159,12 @@ const Navbar = () => {
             {/* Mobile menu */}
             {isMobileMenuOpen && (
                 <div className="mt-4 md:hidden space-y-2">
-                    {menuItems.map((item) => (
-                        <a
-                            key={item.name}
-                            href={item.href}
-                            className="block px-2 py-2 text-gray-700 hover:bg-gray-100"
-                        >
-                            {item.name}
-                        </a>
-                    ))}
+                    <a
+                        href="/menuPage"
+                        className="block px-2 py-2 text-gray-700 hover:bg-gray-100"
+                    >
+                        Our Menu
+                    </a>
                     <ScrollLink
                         to="contact"
                         smooth={true}

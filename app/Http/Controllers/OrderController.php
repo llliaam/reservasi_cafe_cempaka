@@ -8,6 +8,8 @@ use App\Models\MenuItem;
 use App\Models\UserReview;
 use Illuminate\Http\Request;
 use App\Models\MenuCategory;
+use Illuminate\Support\Facades\Storage; // TAMBAH INI
+use Illuminate\Support\Str; // TAMBAH INI
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -233,84 +235,190 @@ class OrderController extends Controller
      * Store a new order - using session flash for feedback
      */
     public function store(Request $request)
-    {
-        $user = Auth::user();
-        
-        $request->validate([
-            'customer_name' => 'required|string|max:255',
-            'customer_phone' => 'required|string|max:20',
-            'customer_email' => 'required|email|max:255',
-            'order_type' => 'required|in:dine_in,takeaway,delivery',
-            'delivery_address' => 'required_if:order_type,delivery|nullable|string|max:500',
-            'notes' => 'nullable|string|max:500',
-            'cart_items' => 'required|array|min:1',
-            'cart_items.*.id' => 'required|exists:menu_items,id',
-            'cart_items.*.quantity' => 'required|integer|min:1',
-            'cart_items.*.special_instructions' => 'nullable|string|max:255',
-            'subtotal' => 'required|numeric|min:0',
-            'delivery_fee' => 'required|numeric|min:0',
-            'service_fee' => 'required|numeric|min:0',
-            'total_amount' => 'required|numeric|min:0',
-            'payment_method' => 'required|string'
+{
+    $user = Auth::user();
+    
+    $request->validate([
+        'customer_name' => 'required|string|max:255',
+        'customer_phone' => 'required|string|max:20',
+        'customer_email' => 'required|email|max:255',
+        'order_type' => 'required|in:dine_in,takeaway,delivery',
+        'delivery_address' => 'required_if:order_type,delivery|nullable|string|max:500',
+        'notes' => 'nullable|string|max:500',
+        'cart_items' => 'required|array|min:1',
+        'cart_items.*.id' => 'required|exists:menu_items,id',
+        'cart_items.*.quantity' => 'required|integer|min:1',
+        'cart_items.*.special_instructions' => 'nullable|string|max:255',
+        'subtotal' => 'required|numeric|min:0',
+        'delivery_fee' => 'required|numeric|min:0',
+        'service_fee' => 'required|numeric|min:0',
+        'total_amount' => 'required|numeric|min:0',
+        'payment_method' => 'required|string',
+        'payment_proof' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+    ]);
+
+    DB::beginTransaction();
+    try {
+        // Create order first
+        $order = Order::create([
+            'user_id' => $user->id,
+            'customer_name' => $request->customer_name,
+            'customer_phone' => $request->customer_phone,
+            'customer_email' => $request->customer_email,
+            'order_type' => $request->order_type,
+            'delivery_address' => $request->delivery_address,
+            'notes' => $request->notes,
+            'subtotal' => $request->subtotal,
+            'delivery_fee' => $request->delivery_fee,
+            'service_fee' => $request->service_fee,
+            'total_amount' => $request->total_amount,
+            'payment_method' => $request->payment_method,
+            'payment_status' => Order::PAYMENT_PENDING,
+            'status' => Order::STATUS_PENDING
         ]);
 
-        DB::beginTransaction();
+        // Create order items
+        foreach ($request->cart_items as $cartItem) {
+            $menuItem = MenuItem::find($cartItem['id']);
+            
+            if (!$menuItem || !$menuItem->is_available) {
+                $itemName = $menuItem && $menuItem->name ? $menuItem->name : 'Unknown';
+                throw ValidationException::withMessages([
+                    'cart_items' => "Menu item '{$itemName}' is not available"
+                ]);
+            }   
+
+            OrderItem::create([
+                'order_id' => $order->id,
+                'menu_item_id' => $menuItem->id,
+                'menu_item_name' => $menuItem->name,
+                'menu_item_price' => $menuItem->price,
+                'quantity' => $cartItem['quantity'],
+                'special_instructions' => $cartItem['special_instructions'] ?? null,
+            ]);
+        }
+
+        // Handle payment proof upload dengan format nama yang konsisten
+        if ($request->hasFile('payment_proof')) {
+            $file = $request->file('payment_proof');
+            $extension = $file->getClientOriginalExtension();
+            
+            // Format nama file: {order_code}_payment_{timestamp}_{random}.{ext}
+            // Contoh: ORD-20250531-A1B2_payment_20250531123456_xyzk.jpg
+            $fileName = $order->order_code . '_payment_' . date('YmdHis') . '_' . strtolower(Str::random(4)) . '.' . $extension;
+            
+            // Simpan ke storage/app/public/orders/payments/
+            $filePath = $file->storeAs('orders/payments', $fileName, 'public');
+            
+            $order->update([
+                'payment_proof' => $filePath,
+                'payment_status' => Order::PAYMENT_PAID // Auto mark as paid when proof uploaded
+            ]);
+        }
+
+        // Calculate estimated time
+        $order->calculateEstimatedTime();
+
+        DB::commit();
+
+        // PERBAIKAN: Redirect ke menu dengan flash data untuk success modal
+    $estimatedTime = $order->estimated_ready_time ? $order->estimated_ready_time->format('H:i') : '20-30 menit';
+    
+    return redirect()->route('menu.index') // atau route ke menu page
+        ->with([
+            'success' => true,
+            'order_success' => [
+                'order_code' => $order->order_code,
+                'total_amount' => $order->total_amount,
+                'payment_method' => $order->payment_method,
+                'estimated_time' => $estimatedTime,
+                'message' => $request->payment_method === 'cash' 
+                    ? 'Pesanan berhasil dibuat! Silakan bayar saat pesanan siap.'
+                    : 'Pesanan berhasil dibuat! Bukti pembayaran berhasil diupload.'
+            ]
+        ]);
+
+} catch (\Exception $e) {
+    DB::rollback();
+    
+    return redirect()->back()
+                   ->withErrors(['order' => $e->getMessage()])
+                   ->withInput();
+}
+}
+
+    /**
+     * Show payment page for online payment methods
+     */
+    public function showPayment(Order $order)
+    {
+        $user = Auth::user();
+
+        if ($order->user_id !== $user->id) {
+            abort(403, 'Unauthorized access to order');
+        }
+
+        if ($order->payment_method === 'cash') {
+            return redirect()->route('orders.show', $order);
+        }
+
+        return Inertia::render('Orders/Payment', [
+            'order' => [
+                'id' => $order->id,
+                'order_code' => $order->order_code,
+                'total_amount' => $order->total_amount,
+                'formatted_total' => $order->formatted_total,
+                'payment_method' => $order->payment_method,
+                'payment_method_label' => $order->payment_method_label,
+                'payment_instructions' => $order->payment_instructions,
+                'payment_status' => $order->payment_status,
+                'requires_proof' => $order->requiresPaymentProof(),
+                'payment_proof' => $order->payment_proof
+            ]
+        ]);
+    }
+
+    /**
+     * Upload payment proof
+     */
+    public function uploadPaymentProof(Request $request, Order $order)
+    {
+        $user = Auth::user();
+
+        if ($order->user_id !== $user->id) {
+            abort(403, 'Unauthorized access to order');
+        }
+
+        $request->validate([
+            'payment_proof' => 'required|image|mimes:jpeg,png,jpg|max:2048'
+        ]);
+
         try {
-            // Create order
-            $order = Order::create([
-                'user_id' => $user->id,
-                'customer_name' => $request->customer_name,
-                'customer_phone' => $request->customer_phone,
-                'customer_email' => $request->customer_email,
-                'order_type' => $request->order_type,
-                'delivery_address' => $request->delivery_address,
-                'notes' => $request->notes,
-                'subtotal' => $request->subtotal,
-                'delivery_fee' => $request->delivery_fee,
-                'service_fee' => $request->service_fee,
-                'total_amount' => $request->total_amount,
-                'payment_method' => $request->payment_method,
-                'payment_status' => Order::PAYMENT_PENDING,
-                'status' => Order::STATUS_PENDING
+            $file = $request->file('payment_proof');
+            $extension = $file->getClientOriginalExtension();
+            
+            // Hapus file lama jika ada
+            if ($order->payment_proof && Storage::disk('public')->exists($order->payment_proof)) {
+                Storage::disk('public')->delete($order->payment_proof);
+            }
+            
+            // Format nama file yang konsisten
+            $fileName = $order->order_code . '_payment_' . date('YmdHis') . '_' . strtolower(Str::random(4)) . '.' . $extension;
+            
+            // Simpan ke storage/app/public/orders/payments/
+            $filePath = $file->storeAs('orders/payments', $fileName, 'public');
+            
+            $order->update([
+                'payment_proof' => $filePath,
+                'payment_status' => Order::PAYMENT_PAID
             ]);
 
-            // Create order items
-            foreach ($request->cart_items as $cartItem) {
-                $menuItem = MenuItem::find($cartItem['id']);
-                
-                if (!$menuItem || !$menuItem->is_available) {
-                    $itemName = $menuItem && $menuItem->name ? $menuItem->name : 'Unknown';
-                    throw ValidationException::withMessages([
-                        'cart_items' => "Menu item '{$itemName}' is not available"
-                    ]);
-                }   
-
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'menu_item_id' => $menuItem->id,
-                    'quantity' => $cartItem['quantity'],
-                    'price' => $menuItem->price,
-                    'subtotal' => $menuItem->price * $cartItem['quantity'],
-                    'special_instructions' => $cartItem['special_instructions'] ?? null
-                ]);
-            }
-
-            // Calculate and set estimated ready time
-            $order->calculateEstimatedTime();
-
-            DB::commit();
-
-            $estimatedTime = $order->estimated_ready_time->format('H:i');
-
             return redirect()->route('orders.show', $order)
-                           ->with('success', "Pesanan berhasil dibuat! Kode Pesanan: {$order->order_code}. Estimasi siap: {$estimatedTime}");
+                ->with('success', 'Bukti pembayaran berhasil diupload! Pesanan akan segera diproses.');
 
         } catch (\Exception $e) {
-            DB::rollback();
-            
             return redirect()->back()
-                           ->withErrors(['order' => $e->getMessage()])
-                           ->withInput();
+                ->withErrors(['payment_proof' => 'Gagal mengupload bukti pembayaran.']);
         }
     }
 
@@ -420,5 +528,12 @@ class OrderController extends Controller
 
         return redirect()->back()
                        ->with('success', "Status pesanan {$order->order_code} berhasil diperbarui dari {$oldStatus} ke {$validated['status']}");
+    }
+        /**
+     * Helper method untuk generate nama file payment proof
+     */
+    private function generatePaymentProofFileName(Order $order, $extension): string
+    {
+        return $order->order_code . '_payment_' . date('YmdHis') . '_' . strtolower(Str::random(4)) . '.' . $extension;
     }
 }

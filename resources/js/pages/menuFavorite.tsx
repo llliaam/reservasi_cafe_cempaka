@@ -60,6 +60,41 @@ const MenuFavorite: React.FC = () => {
   const { favorites, stats, flash } = usePage<PageProps>().props;
   const [cart, setCart] = useState<CartItem[]>([]);
 
+  // Function to get correct menu image path
+  const getMenuImagePath = (imageFilename: string) => {
+    if (!imageFilename) {
+      return "/images/poto_menu/default-menu.jpg";
+    }
+    
+    if (imageFilename.startsWith('http')) {
+      return imageFilename;
+    }
+    
+    return `/images/poto_menu/${imageFilename}`;
+  };
+
+  // Function untuk fallback gambar yang gagal load
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>, menuName: string) => {
+    const target = e.target as HTMLImageElement;
+    
+    // Coba fallback ke gambar default dulu
+    if (!target.src.includes('default-menu.jpg')) {
+      target.src = '/images/poto_menu/default-menu.jpg';
+      return;
+    }
+    
+    // Jika default-menu.jpg juga gagal, buat simple colored div
+    target.style.display = 'none';
+    const parent = target.parentElement;
+    if (parent && !parent.querySelector('.fallback-div')) {
+      const fallbackDiv = document.createElement('div');
+      fallbackDiv.className = 'fallback-div absolute inset-0 flex items-center justify-center bg-yellow-400 text-white font-bold text-lg';
+      const initials = menuName.split(' ').map(word => word[0]).join('').substring(0, 2).toUpperCase();
+      fallbackDiv.textContent = initials || 'M';
+      parent.appendChild(fallbackDiv);
+    }
+  };
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -225,13 +260,10 @@ const MenuFavorite: React.FC = () => {
                     {/* Image */}
                     <div className="relative h-40">
                       <img
-                        src={item.image}
+                        src={getMenuImagePath(item.image)}
                         alt={item.name}
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = `https://via.placeholder.com/300x200/fbbf24/ffffff?text=${encodeURIComponent(item.name)}`;
-                        }}
+                        onError={(e) => handleImageError(e, item.name)}
                       />
                       
                       {/* Popular Badge */}

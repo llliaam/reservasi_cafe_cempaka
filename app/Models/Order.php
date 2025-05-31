@@ -78,6 +78,20 @@ class Order extends Model
     const PAYMENT_FAILED = 'failed';
 
     /**
+     * Constants for payment methods
+     */
+    const PAYMENT_CASH = 'cash';
+    const PAYMENT_DANA = 'dana';
+    const PAYMENT_GOPAY = 'gopay';
+    const PAYMENT_OVO = 'ovo';
+    const PAYMENT_SHOPEEPAY = 'shopeepay';
+    const PAYMENT_BCA = 'bca';
+    const PAYMENT_MANDIRI = 'mandiri';
+    const PAYMENT_BNI = 'bni';
+    const PAYMENT_BRI = 'bri';
+    const PAYMENT_BSI = 'bsi';
+
+    /**
      * Generate unique order code
      */
     protected static function boot()
@@ -455,6 +469,163 @@ class Order extends Model
 
         return $labels[$this->payment_status] ?? $this->payment_status;
     }
+
+     /**
+     * Get payment method label
+     */
+    public function getPaymentMethodLabelAttribute(): string
+    {
+        $labels = [
+            self::PAYMENT_CASH => 'Bayar di Tempat',
+            self::PAYMENT_DANA => 'DANA',
+            self::PAYMENT_GOPAY => 'GoPay',
+            self::PAYMENT_OVO => 'OVO',
+            self::PAYMENT_SHOPEEPAY => 'ShopeePay',
+            self::PAYMENT_BCA => 'BCA Mobile/Internet Banking',
+            self::PAYMENT_MANDIRI => 'Mandiri Mobile/Internet Banking',
+            self::PAYMENT_BNI => 'BNI Mobile/Internet Banking',
+            self::PAYMENT_BRI => 'BRI Mobile/Internet Banking',
+            self::PAYMENT_BSI => 'BSI Mobile/Internet Banking',
+        ];
+
+        return $labels[$this->payment_method] ?? $this->payment_method;
+    }
+
+    /**
+     * Check if payment method requires proof
+     */
+    public function requiresPaymentProof(): bool
+    {
+        return $this->payment_method !== self::PAYMENT_CASH;
+    }
+
+     /**
+     * Get payment instructions based on method
+     */
+    public function getPaymentInstructionsAttribute(): array
+    {
+        $instructions = [
+            self::PAYMENT_CASH => [
+                'title' => 'Pembayaran di Tempat',
+                'steps' => [
+                    'Datang ke lokasi resto',
+                    'Bayar saat pesanan siap atau saat makan'
+                ]
+            ],
+            self::PAYMENT_DANA => [
+                'title' => 'Transfer via DANA',
+                'steps' => [
+                    'Buka aplikasi DANA',
+                    'Transfer ke nomor: 081234567890',
+                    'Nominal: Rp ' . number_format($this->total_amount, 0, ',', '.'),
+                    'Upload bukti transfer'
+                ]
+            ],
+            self::PAYMENT_GOPAY => [
+                'title' => 'Transfer via GoPay',
+                'steps' => [
+                    'Buka aplikasi Gojek/GoPay',
+                    'Transfer ke nomor: 081234567890',
+                    'Nominal: Rp ' . number_format($this->total_amount, 0, ',', '.'),
+                    'Upload bukti transfer'
+                ]
+            ],
+            self::PAYMENT_BCA => [
+                'title' => 'Transfer via BCA',
+                'steps' => [
+                    'Login ke BCA Mobile/KlikBCA',
+                    'Transfer ke rekening: 1234567890',
+                    'Atas nama: Cempaka Cafe',
+                    'Nominal: Rp ' . number_format($this->total_amount, 0, ',', '.'),
+                    'Upload bukti transfer'
+                ]
+            ],
+            // Add more payment methods...
+        ];
+
+        return $instructions[$this->payment_method] ?? [];
+    }
+
+     /**
+     * Static method to get all payment methods
+     */
+    public static function getAllPaymentMethods(): array
+    {
+        return [
+            self::PAYMENT_CASH => 'Bayar di Tempat',
+            self::PAYMENT_DANA => 'DANA',
+            self::PAYMENT_GOPAY => 'GoPay',
+            self::PAYMENT_OVO => 'OVO',
+            self::PAYMENT_SHOPEEPAY => 'ShopeePay',
+            self::PAYMENT_BCA => 'BCA Mobile/Internet Banking',
+            self::PAYMENT_MANDIRI => 'Mandiri Mobile/Internet Banking',
+            self::PAYMENT_BNI => 'BNI Mobile/Internet Banking',
+            self::PAYMENT_BRI => 'BRI Mobile/Internet Banking',
+            self::PAYMENT_BSI => 'BSI Mobile/Internet Banking',
+        ];
+    }
+
+    /**
+     * Check if payment method is e-wallet
+     */
+    public function isEWallet(): bool
+    {
+        return in_array($this->payment_method, [
+            self::PAYMENT_DANA,
+            self::PAYMENT_GOPAY,
+            self::PAYMENT_OVO,
+            self::PAYMENT_SHOPEEPAY
+        ]);
+    }
+
+    /**
+     * Check if payment method is mobile banking
+     */
+    public function isMobileBanking(): bool
+    {
+        return in_array($this->payment_method, [
+            self::PAYMENT_BCA,
+            self::PAYMENT_MANDIRI,
+            self::PAYMENT_BNI,
+            self::PAYMENT_BRI,
+            self::PAYMENT_BSI
+        ]);
+    }
+
+    /**
+     * Get grouped payment methods for UI
+     */
+    public static function getGroupedPaymentMethods(): array
+    {
+        return [
+            'cash' => [
+                'title' => 'Bayar di Tempat',
+                'methods' => [
+                    self::PAYMENT_CASH => 'Bayar di Tempat'
+                ]
+            ],
+            'ewallet' => [
+                'title' => 'E-Wallet',
+                'methods' => [
+                    self::PAYMENT_DANA => 'DANA',
+                    self::PAYMENT_GOPAY => 'GoPay',
+                    self::PAYMENT_OVO => 'OVO',
+                    self::PAYMENT_SHOPEEPAY => 'ShopeePay',
+                ]
+            ],
+            'banking' => [
+                'title' => 'Mobile/Internet Banking',
+                'methods' => [
+                    self::PAYMENT_BCA => 'BCA',
+                    self::PAYMENT_MANDIRI => 'Mandiri',
+                    self::PAYMENT_BNI => 'BNI',
+                    self::PAYMENT_BRI => 'BRI',
+                    self::PAYMENT_BSI => 'BSI',
+                ]
+            ]
+        ];
+    }
+
 
     /**
      * Get status color for UI
