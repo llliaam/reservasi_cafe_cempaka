@@ -142,8 +142,9 @@ Route::middleware(['auth', 'verified', 'role:staff,admin'])->prefix('staff')->na
     
     // ===== STAFF ORDER MANAGEMENT =====
     Route::get('/orders', [OrderController::class, 'staffIndex'])->name('orders.index');
-    Route::patch('/orders/{order}/status', [OrderController::class, 'updateOrderStatus'])->name('orders.update-status');
+    // Route::patch('/orders/{order}/status', [OrderController::class, 'updateOrderStatus'])->name('orders.update-status');
     Route::get('/orders/{order}', [OrderController::class, 'staffShow'])->name('orders.show');
+    Route::patch('/orders/{order}/status', [StaffController::class, 'updateOrderStatus'])->name('orders.update-status');
     
     // ===== STAFF RESERVATION MANAGEMENT (PURE INERTIA) =====
     Route::get('/reservations', [StaffController::class, 'reservationsManagement'])->name('reservations.management');
@@ -290,6 +291,15 @@ if (app()->environment('local')) {
                 'isCustomer' => $user->isCustomer(),
             ]);
         });
+
+        Route::get('/update-tables-realtime', function() {
+        $updated = \App\Models\RestaurantTable::updateAllRealtimeStatuses();
+        return response()->json([
+            'success' => true,
+            'updated_tables' => $updated,
+            'message' => "Updated {$updated} tables with realtime status"
+        ]);
+        })->middleware(['auth', 'role:staff,admin']);
         
         // Test table assignment
         Route::get('/test-table-assignment', function () {

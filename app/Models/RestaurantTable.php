@@ -304,6 +304,46 @@ class RestaurantTable extends Model
     return $this->capacity >= $numberOfPeople && $this->is_active && $this->status === self::STATUS_AVAILABLE;
 }
 
+ /**
+     * ENHANCED: Update all tables' realtime status
+     */
+    public static function updateAllRealtimeStatuses(): int
+{
+    $updated = 0;
+    
+    // Update semua meja yang ada reservasi confirmed
+    $tablesWithReservations = self::whereHas('reservations', function($query) {
+        $query->where('status', 'confirmed');
+    })->get();
+
+    foreach ($tablesWithReservations as $table) {
+        if ($table->status !== self::STATUS_RESERVED && 
+            !in_array($table->status, [self::STATUS_MAINTENANCE, self::STATUS_OCCUPIED])) {
+            
+            $table->status = self::STATUS_RESERVED;
+            if ($table->save()) {
+                $updated++;
+                \Log::info("Table {$table->id} auto-set to reserved (has confirmed reservation)");
+            }
+        }
+    }
+
+    // Update meja yang tidak ada reservasi confirmed menjadi available
+    $tablesWithoutReservations = self::whereDoesntHave('reservations', function($query) {
+        $query->where('status', 'confirmed');
+    })->where('status', self::STATUS_RESERVED)->get();
+
+    foreach ($tablesWithoutReservations as $table) {
+        $table->status = self::STATUS_AVAILABLE;
+        if ($table->save()) {
+            $updated++;
+            \Log::info("Table {$table->id} auto-set to available (no confirmed reservation)");
+        }
+    }
+
+    \Log::info("Updated {$updated} tables based on reservations");
+    return $updated;
+}
 public function isAvailableAtDateTime($date, $time): bool
 {
     try {
@@ -362,49 +402,113 @@ public function isSuitableForReservation($reservation): bool
     return true;
 }
 
+    private function getStatusLabelForStatus($status): string 
+    {
+        $labels = [
+            self::STATUS_AVAILABLE => 'Tersedia',
+            self::STATUS_OCCUPIED => 'Terisi',
+            self::STATUS_RESERVED => 'Direservasi',
+            self::STATUS_MAINTENANCE => 'Maintenance'
+        ];
+
+        return $labels[$status] ?? $status;
+    }
+
+    private function getStatusColorForStatus($status): string 
+    {
+        $colors = [
+            self::STATUS_AVAILABLE => 'green',
+            self::STATUS_OCCUPIED => 'red',
+            self::STATUS_RESERVED => 'yellow',
+            self::STATUS_MAINTENANCE => 'gray'
+        ];
+
+        return $colors[$status] ?? 'gray';
+    }
+
 
     /**
      * Get table summary for display
      */
-   public function getSummary(): array
-{
-    $summary = [
-        'id' => $this->id,
-        'meja_name' => $this->meja_name,
-        'table_number' => $this->table_number,
-        'capacity' => $this->capacity,
-        'location_type' => $this->location_type,
-        'location_detail' => $this->location_detail,
-        'full_location' => $this->full_location,
-        'status' => $this->status,
-        'status_label' => $this->status_label,
-        'status_color' => $this->status_color,
-        'is_available' => $this->isAvailable(),
-        'is_active' => $this->is_active,
-        'current_reservation' => null,
-        'today_reservations_count' => 0,
-    ];
+    public function getSummary(): array
+    {
+        // Update realtime status dulu
+        $this->updateRealtimeStatus();
+        
+        $summary = [
+            'id' => $this->id,
+            'meja_name' => $this->meja_name,
+            'table_number' => $this->table_number,
+            'capacity' => $this->capacity,
+            'location_type' => $this->location_type,
+            'location_detail' => $this->location_detail,
+            'full_location' => $this->full_location,
+            'status' => $this->status, // Status dari database (setelah update)
+            'status_label' => $this->status_label, 
+            'status_color' => $this->status_color,
+            'is_available' => $this->isAvailable(),
+            'is_active' => $this->is_active,
+            'current_reservation' => null,
+            'next_reservation' => null,
+            'today_reservations_count' => 0,
+            'upcoming_reservations_count' => 0,
+            'all_reservations' => [],
+        ];
 
-    // Load current reservation jika ada
-    try {
-        $currentReservation = $this->currentReservation();
-        if ($currentReservation) {
-            $summary['current_reservation'] = [
-                'customer_name' => $currentReservation->customer_name,
-                'time' => $currentReservation->reservation_time->format('H:i'),
-                'guests' => $currentReservation->number_of_people
-            ];
+        // Load current reservation jika ada
+        try {
+            $currentReservation = $this->currentReservation();
+            if ($currentReservation) {
+                $summary['current_reservation'] = [
+                    'id' => $currentReservation->id,
+                    'reservation_code' => $currentReservation->reservation_code,
+                    'customer_name' => $currentReservation->customer_name,
+                    'time' => $currentReservation->reservation_time->format('H:i'),
+                    'guests' => $currentReservation->number_of_people,
+                    'status' => $currentReservation->status
+                ];
+            }
+
+            // Load next reservation
+            $nextReservation = $this->nextReservation();
+            if ($nextReservation) {
+                $summary['next_reservation'] = [
+                    'id' => $nextReservation->id,
+                    'reservation_code' => $nextReservation->reservation_code,
+                    'customer_name' => $nextReservation->customer_name,
+                    'date' => $nextReservation->reservation_date->format('d/m/Y'),
+                    'time' => $nextReservation->reservation_time->format('H:i'),
+                    'guests' => $nextReservation->number_of_people,
+                    'status' => $nextReservation->status
+                ];
+            }
+
+            // Count today's reservations
+            $summary['today_reservations_count'] = $this->todayReservations()->count();
+
+            // Count upcoming reservations
+            $summary['upcoming_reservations_count'] = $this->upcomingReservations()->count();
+
+            // Load confirmed reservations untuk modal
+            $allReservations = $this->allReservations()->limit(10)->get();
+            $summary['all_reservations'] = $allReservations->map(function($reservation) {
+                return [
+                    'id' => $reservation->id,
+                    'reservation_code' => $reservation->reservation_code,
+                    'customer_name' => $reservation->customer_name,
+                    'date' => $reservation->reservation_date->format('d/m/Y'),
+                    'time' => $reservation->reservation_time->format('H:i'),
+                    'status' => $reservation->status,
+                    'guests' => $reservation->number_of_people
+                ];
+            })->toArray();
+
+        } catch (\Exception $e) {
+            \Log::warning("Error loading reservation data for table {$this->id}: " . $e->getMessage());
         }
 
-        // Count today's reservations
-        $summary['today_reservations_count'] = $this->todayReservations()->count();
-
-    } catch (\Exception $e) {
-        \Log::warning("Error loading reservation data for table {$this->id}: " . $e->getMessage());
+        return $summary;
     }
-
-    return $summary;
-}
 
     /**
  * IMPROVED: Static method untuk mencari meja yang cocok dengan kriteria ketat
@@ -537,4 +641,94 @@ public static function getAvailableTablesForCriteria(string $locationType, int $
     {
         return !$this->reservations()->exists() && !$this->orders()->exists();
     }
+
+    /**
+     * ENHANCED: Get all reservations for this table (tidak hanya hari ini)
+     */
+    public function allReservations()
+    {
+        return $this->reservations()
+                    ->where('status', 'confirmed') 
+                    ->orderBy('reservation_date', 'desc')
+                    ->orderBy('reservation_time', 'desc');
+    }
+
+    /**
+     * ENHANCED: Get upcoming reservations (dari hari ini ke depan)
+     */
+    public function upcomingReservations()
+    {
+        return $this->reservations()
+                    ->where('status', '!=', 'cancelled')
+                    ->where('reservation_date', '>=', today())
+                    ->orderBy('reservation_date', 'asc')
+                    ->orderBy('reservation_time', 'asc');
+    }
+
+    /**
+     * ENHANCED: Get next reservation (reservasi berikutnya yang akan datang)
+     */
+    public function nextReservation()
+    {
+        $now = now();
+        
+        return $this->reservations()
+                    ->where('status', '!=', 'cancelled')
+                    ->where(function($query) use ($now) {
+                        $query->where('reservation_date', '>', today())
+                              ->orWhere(function($subQuery) use ($now) {
+                                  $subQuery->where('reservation_date', today())
+                                          ->where('reservation_time', '>', $now->format('H:i:s'));
+                              });
+                    })
+                    ->orderBy('reservation_date', 'asc')
+                    ->orderBy('reservation_time', 'asc')
+                    ->first();
+    }
+
+    
+    /**
+     * ENHANCED: Calculate realtime status based on current conditions
+     */
+    public function calculateRealtimeStatus(): string
+    {
+        // Prioritas 1: Manual maintenance (tidak boleh di-override)
+        if ($this->status === self::STATUS_MAINTENANCE) {
+            return self::STATUS_MAINTENANCE;
+        }
+
+        // Prioritas 2: Manual occupied (untuk customer offline)
+        if ($this->status === self::STATUS_OCCUPIED) {
+            return self::STATUS_OCCUPIED;
+        }
+
+        // Prioritas 3: Cek apakah ada reservasi confirmed untuk meja ini
+        $hasConfirmedReservation = $this->reservations()
+                                    ->where('status', 'confirmed')
+                                    ->exists();
+
+        if ($hasConfirmedReservation) {
+            return self::STATUS_RESERVED; // Meja sudah direservasi
+        }
+
+        // Default: Available
+        return self::STATUS_AVAILABLE;
+    }
+
+
+    /**
+     * ENHANCED: Update status based on realtime calculation
+     */
+    public function updateRealtimeStatus(): bool
+    {
+        $newStatus = $this->calculateRealtimeStatus();
+        
+        if ($this->status !== $newStatus) {
+            $this->status = $newStatus;
+            return $this->save();
+        }
+        
+        return true; // No change needed
+    }
+
 }

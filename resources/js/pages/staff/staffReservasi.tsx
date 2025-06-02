@@ -29,6 +29,16 @@ interface Reservation {
   requires_payment_confirmation: boolean;
 }
 
+interface TableReservation {
+  id: number;
+  reservation_code: string;
+  customer_name: string;
+  date: string;
+  time: string;
+  status: string;
+  guests: number;
+}
+
 interface Table {
   id: number;
   table_number: number;
@@ -41,8 +51,27 @@ interface Table {
   status_label: string;
   status_color: string;
   is_available: boolean;
-  current_reservation?: any;
+  current_reservation?: {
+    id: number;
+    reservation_code: string;
+    customer_name: string;
+    time: string;
+    guests: number;
+    status: string;
+  };
+  // ENHANCED: Tambahan data reservasi
+  next_reservation?: {
+    id: number;
+    reservation_code: string;
+    customer_name: string;
+    date: string;
+    time: string;
+    guests: number;
+    status: string;
+  };
   today_reservations_count: number;
+  upcoming_reservations_count: number;
+  all_reservations: TableReservation[]; // ADDED: Daftar semua reservasi
 }
 
 interface Props {
@@ -94,6 +123,7 @@ const StaffReservasi: React.FC<Props> = ({
   const [showPaymentProof, setShowPaymentProof] = useState(false);
   const [showTableSelection, setShowTableSelection] = useState(false);
   const [showTableDetail, setShowTableDetail] = useState(false);
+  const [showTableReservations, setShowTableReservations] = useState(false);
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
@@ -229,7 +259,7 @@ const executeConfirmedAction = () => {
 };
 
   // Update reservation status
-  const updateReservationStatus = (reservation: Reservation, status: 'confirmed' | 'cancelled') => {
+  const updateReservationStatus = (reservation: Reservation, status: 'confirmed' | 'cancelled' | 'completed') => {
   console.log('=== UPDATE RESERVATION STATUS ===', {
     reservationId: reservation.id,
     currentStatus: reservation.status,
@@ -614,9 +644,14 @@ const updateTableStatusAlternative = async (tableId: number, status: string) => 
 
   // Show table detail modal
   const showTableDetailModal = (table: Table) => {
-    setSelectedTable(table);
-    setShowTableDetail(true);
-  };
+  setSelectedTable(table);
+  setShowTableDetail(true);
+};
+
+const showTableReservationsList = (table: Table) => {
+  setSelectedTable(table);
+  setShowTableReservations(true);
+};
 
   // Refresh all data
   const refreshData = () => {
@@ -1325,6 +1360,19 @@ const filteredReservations = getFilteredReservations();
                           </div>
                         )}
 
+                        {/* 🎯 TAMBAHKAN CODE INI DI SINI */}
+                        {table.all_reservations && table.all_reservations.length > 0 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              showTableReservationsList(table);
+                            }}
+                            className="w-full mt-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                          >
+                            Lihat {table.all_reservations.length} Reservasi
+                          </button>
+                        )}
+
                         {/* Click indicator */}
                         <div className="flex items-center justify-center pt-2 text-xs text-gray-500">
                           <Settings size={12} className="mr-1" />
@@ -1629,6 +1677,165 @@ const filteredReservations = getFilteredReservations();
                 <div className="flex justify-end mt-6 pt-4 border-t border-gray-200">
                   <button
                     onClick={() => setShowTableDetail(false)}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Table Reservations List Modal */}
+        {showTableReservations && selectedTable && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="max-w-4xl max-h-screen overflow-auto bg-white rounded-lg">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Daftar Reservasi - {selectedTable.meja_name}
+                </h3>
+                <button
+                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowTableReservations(false)}
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <div className="p-6">
+                {/* Table Info */}
+                <div className="p-4 mb-6 bg-gray-50 rounded-lg">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">Kapasitas:</span>
+                      <span className="ml-2">{selectedTable.capacity} kursi</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Lokasi:</span>
+                      <span className="ml-2">{selectedTable.full_location}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Status:</span>
+                      <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                        selectedTable.status_color === 'green' ? 'bg-green-100 text-green-800' :
+                        selectedTable.status_color === 'red' ? 'bg-red-100 text-red-800' :
+                        selectedTable.status_color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {selectedTable.status_label}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Total Reservasi:</span>
+                      <span className="ml-2">{selectedTable.all_reservations.length}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Current & Next Reservation Info */}
+                {(selectedTable.current_reservation || selectedTable.next_reservation) && (
+                  <div className="grid grid-cols-1 gap-4 mb-6 md:grid-cols-2">
+                    {selectedTable.current_reservation && (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h4 className="text-sm font-medium text-blue-900 mb-2">Reservasi Aktif</h4>
+                        <div className="text-sm space-y-1">
+                          <div className="font-medium text-blue-800">
+                            {selectedTable.current_reservation.customer_name}
+                          </div>
+                          <div className="text-blue-700">
+                            {selectedTable.current_reservation.reservation_code}
+                          </div>
+                          <div className="text-blue-600">
+                            {selectedTable.current_reservation.time} • {selectedTable.current_reservation.guests} orang
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {selectedTable.next_reservation && (
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <h4 className="text-sm font-medium text-green-900 mb-2">Reservasi Selanjutnya</h4>
+                        <div className="text-sm space-y-1">
+                          <div className="font-medium text-green-800">
+                            {selectedTable.next_reservation.customer_name}
+                          </div>
+                          <div className="text-green-700">
+                            {selectedTable.next_reservation.reservation_code}
+                          </div>
+                          <div className="text-green-600">
+                            {selectedTable.next_reservation.date} • {selectedTable.next_reservation.time} • {selectedTable.next_reservation.guests} orang
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* All Reservations List */}
+                <div>
+                  <h4 className="text-lg font-medium text-gray-900 mb-4">
+                    Semua Reservasi ({selectedTable.all_reservations.length})
+                  </h4>
+                  
+                  {selectedTable.all_reservations.length === 0 ? (
+                    <div className="py-8 text-center">
+                      <Calendar size={48} className="mx-auto mb-4 text-gray-400" />
+                      <p className="text-gray-500">Belum ada reservasi untuk meja ini</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {selectedTable.all_reservations.map((reservation) => (
+                        <div
+                          key={reservation.id}
+                          className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <h5 className="font-medium text-gray-900">
+                                {reservation.customer_name}
+                              </h5>
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                reservation.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                                reservation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                reservation.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {reservation.status}
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center space-x-4 text-sm text-gray-600">
+                              <div className="flex items-center space-x-1">
+                                <Calendar size={14} />
+                                <span>{reservation.date}</span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <Clock size={14} />
+                                <span>{reservation.time}</span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <Users size={14} />
+                                <span>{reservation.guests} orang</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right">
+                            <div className="text-sm font-medium text-gray-900">
+                              {reservation.reservation_code}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end mt-6 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => setShowTableReservations(false)}
                     className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                   >
                     Tutup

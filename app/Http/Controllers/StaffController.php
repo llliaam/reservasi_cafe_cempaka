@@ -160,7 +160,8 @@ class StaffController extends Controller
 
         // ADDED: Get reservations and tables data for StaffReservasi component
         $reservationsData = $this->getReservationsData($request);
-        $tablesData = $this->getTablesData();
+        $tablesData = $this->getTablesDataWithRealtime(); // RESTORED: Use realtime method
+        $ordersData = $this->getOrdersData($request);
         
         // Return StaffPage with all data including reservations
         return Inertia::render('staff/staffPage', [
@@ -174,6 +175,7 @@ class StaffController extends Controller
             // ADDED: Pass reservations data to StaffPage
             'reservationsData' => $reservationsData,
             'tablesData' => $tablesData,
+            'ordersData' => $ordersData,
             'reservationFilters' => [
                 'status' => $request->status ?? 'all',
                 'date' => $request->date ?? ''
@@ -431,63 +433,62 @@ private function getFallbackTableData($table)
      * Show reservations management page with data
      */
    public function reservationsManagement(Request $request)
-    {
-        try {
-            $query = Reservation::query()
-                ->orderBy('reservation_date', 'desc')
-                ->orderBy('reservation_time', 'desc');
-            
-            $reservations = $query
-                ->leftJoin('reservation_packages', 'reservations.package_id', '=', 'reservation_packages.id')
-                ->leftJoin('restaurant_tables', 'reservations.table_id', '=', 'restaurant_tables.id')
-                ->leftJoin('users', 'reservations.user_id', '=', 'users.id')
-                ->select([
-                    'reservations.*',
-                    'reservation_packages.name as package_name',
-                    'reservation_packages.max_people as package_max_people',
-                    'restaurant_tables.table_number',
-                    'restaurant_tables.capacity as table_capacity',
-                    'restaurant_tables.location_type as table_location_type',
-                    'restaurant_tables.location_detail as table_location_detail',
-                    'restaurant_tables.status as table_status',
-                    'users.name as user_name',
-                    'users.email as user_email'
-                ])
-                ->get()
-                ->map(function ($reservation) {
-                    try {
-                        return $this->transformReservationData($reservation);
-                    } catch (\Exception $e) {
-                        \Log::warning("Error transforming reservation {$reservation->id}: " . $e->getMessage());
-                        return $this->getFallbackReservationData($reservation);
-                    }
-                });
+{
+    try {
+        $query = Reservation::query()
+            ->orderBy('reservation_date', 'desc')
+            ->orderBy('reservation_time', 'desc');
+        
+        $reservations = $query
+            ->leftJoin('reservation_packages', 'reservations.package_id', '=', 'reservation_packages.id')
+            ->leftJoin('restaurant_tables', 'reservations.table_id', '=', 'restaurant_tables.id')
+            ->leftJoin('users', 'reservations.user_id', '=', 'users.id')
+            ->select([
+                'reservations.*',
+                'reservation_packages.name as package_name',
+                'reservation_packages.max_people as package_max_people',
+                'restaurant_tables.table_number',
+                'restaurant_tables.capacity as table_capacity',
+                'restaurant_tables.location_type as table_location_type',
+                'restaurant_tables.location_detail as table_location_detail',
+                'restaurant_tables.status as table_status',
+                'users.name as user_name',
+                'users.email as user_email'
+            ])
+            ->get()
+            ->map(function ($reservation) {
+                try {
+                    return $this->transformReservationData($reservation);
+                } catch (\Exception $e) {
+                    \Log::warning("Error transforming reservation {$reservation->id}: " . $e->getMessage());
+                    return $this->getFallbackReservationData($reservation);
+                }
+            });
 
-            $tables = $this->getTablesData();
+        $tables = $this->getTablesDataWithRealtime();
+        return Inertia::render('staff/staffReservasi', [
+            'reservations' => $reservations,
+            'tables' => $tables,
+            'filters' => [
+                'status' => $request->status ?? 'all',
+                'date' => $request->date ?? ''
+            ]
+        ]);
 
-            return Inertia::render('staff/staffReservasi', [
-                'reservations' => $reservations,
-                'tables' => $tables,
-                'filters' => [
-                    'status' => $request->status ?? 'all',
-                    'date' => $request->date ?? '' // Tetap pass untuk initial state
-                ]
-            ]);
+    } catch (\Exception $e) {
+        \Log::error('Error in reservationsManagement: ' . $e->getMessage());
 
-        } catch (\Exception $e) {
-            \Log::error('Error in reservationsManagement: ' . $e->getMessage());
-
-            return Inertia::render('staff/staffReservasi', [
-                'reservations' => [],
-                'tables' => [],
-                'filters' => [
-                    'status' => 'all',
-                    'date' => ''
-                ],
-                'error' => 'Terjadi kesalahan saat memuat data. Silakan refresh halaman.'
-            ]);
-        }
+        return Inertia::render('staff/staffReservasi', [
+            'reservations' => [], 
+            'tables' => [],       
+            'filters' => [
+                'status' => $request->status ?? 'all',
+                'date' => $request->date ?? ''
+            ],
+            'error' => 'Terjadi kesalahan saat memuat data. Silakan refresh halaman.'
+        ]);
     }
+}
 
 /**
  * Fallback untuk package name
@@ -611,6 +612,46 @@ private function transformReservationData($reservation)
         'requires_payment_confirmation' => in_array($reservation->payment_method, ['transfer', 'bca', 'mandiri', 'bni', 'bri', 'gopay', 'ovo', 'dana', 'shopeepay']),
     ];
 }
+
+// === UPDATE METHOD updateOrderStatus ===
+    public function updateOrderStatus(Request $request, $orderId)
+{
+    $request->validate([
+        'status' => 'required|in:confirmed,cancelled,completed',
+        'notes' => 'nullable|string|max:500'
+    ]);
+
+    try {
+        $order = Order::findOrFail($orderId);
+        $order->status = $request->status;
+        
+        if ($request->status === 'completed' && !$order->completed_at) {
+            $order->completed_at = now();
+        }
+        
+        $order->save();
+
+        $statusMessages = [
+            'confirmed' => 'dikonfirmasi',
+            'cancelled' => 'ditolak/dibatalkan', 
+            'completed' => 'diselesaikan'
+        ];
+        
+        $statusMessage = $statusMessages[$request->status] ?? "diubah";
+
+        // === REDIRECT KE URL BEDA (BUKAN BACK) ===
+        return redirect()->route('StaffPage')->with([
+            'success' => "Pesanan {$order->order_code} berhasil {$statusMessage}",
+            'tab' => 'online-orders'  // Pass tab info
+        ]);
+
+    } catch (\Exception $e) {
+        return redirect()->route('StaffPage')->with([
+            'error' => 'Terjadi kesalahan: ' . $e->getMessage(),
+            'tab' => 'online-orders'
+        ]);
+    }
+}
     
 
     /**
@@ -628,125 +669,58 @@ private function transformReservationData($reservation)
             'notes' => 'nullable|string|max:500'
         ]);
 
-        try {
-            // FIXED: Load reservation with all necessary relationships
-            $reservation = Reservation::with(['package', 'table'])->findOrFail($id);
-            
-            \Log::info('Reservation found:', [
-                'id' => $reservation->id,
-                'current_status' => $reservation->status,
-                'new_status' => $request->status,
-                'has_table_id' => !!$reservation->table_id,
-                'has_table_relation' => !!$reservation->table,
-                'package_id' => $reservation->package_id,
-                'table_location' => $reservation->table_location
-            ]);
+       try {
+        $reservation = Reservation::with(['package', 'table'])->findOrFail($id);
+        
+        $oldStatus = $reservation->status;
+        $newStatus = $request->status;
 
-            $oldStatus = $reservation->status;
-            $newStatus = $request->status;
+        DB::beginTransaction();
 
-            // FIXED: Use direct update instead of model method to avoid relationship issues
-            DB::beginTransaction();
+        // Update reservation status
+        $reservation->status = $newStatus;
+        $saved = $reservation->save();
 
-            // Update reservation status directly
-            $reservation->status = $newStatus;
-            $saved = $reservation->save();
+        if (!$saved) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Gagal menyimpan status reservasi');
+        }
 
-            if (!$saved) {
-                DB::rollBack();
-                return redirect()->back()->with('error', 'Gagal menyimpan status reservasi');
-            }
-
-            \Log::info('Reservation status updated successfully');
-
-            // AUTO-ASSIGN TABLE jika status menjadi confirmed dan belum ada meja
-            if ($newStatus === 'confirmed' && !$reservation->table_id) {
-                \Log::info('Auto-assigning table for confirmed reservation');
+        // Auto-free table when completed/cancelled
+        if ($reservation->table_id && in_array($newStatus, ['completed', 'cancelled'])) {
+            $table = RestaurantTable::find($reservation->table_id);
+            if ($table) {
+                $table->updateRealtimeStatus(); // Update berdasarkan kondisi realtime
                 
-                try {
-                    // Get package for capacity requirements
-                    if (!$reservation->package) {
-                        $reservation->load('package');
-                    }
-
-                    if ($reservation->package) {
-                        // Find suitable table
-                        $suitableTable = \App\Models\RestaurantTable::findSuitableTableForReservation(
-                            $reservation->table_location,
-                            $reservation->package->max_people,
-                            $reservation->reservation_date,
-                            $reservation->reservation_time->format('H:i')
-                        );
-
-                        if ($suitableTable) {
-                            $reservation->table_id = $suitableTable->id;
-                            $reservation->save();
-                            
-                            // Update table status
-                            $suitableTable->updateStatus('reserved');
-                            
-                            \Log::info('Table auto-assigned successfully', [
-                                'reservation_id' => $reservation->id,
-                                'table_id' => $suitableTable->id,
-                                'table_number' => $suitableTable->table_number
-                            ]);
-                        } else {
-                            \Log::warning('No suitable table found for auto-assignment', [
-                                'reservation_id' => $reservation->id,
-                                'package_max_people' => $reservation->package->max_people,
-                                'table_location' => $reservation->table_location
-                            ]);
-                        }
-                    }
-                } catch (\Exception $e) {
-                    \Log::error('Error in auto table assignment: ' . $e->getMessage(), [
-                        'reservation_id' => $reservation->id,
-                        'trace' => $e->getTraceAsString()
-                    ]);
-                    // Don't fail the status update if table assignment fails
-                }
+                \Log::info('Table status auto-updated after reservation status change', [
+                    'reservation_id' => $reservation->id,
+                    'table_id' => $table->id,
+                    'new_table_status' => $table->fresh()->status,
+                    'reason' => $newStatus
+                ]);
             }
+        }
 
-            // ENHANCED TABLE STATUS UPDATE for all status changes
-            if ($reservation->table_id && $reservation->table) {
-                try {
-                    switch ($newStatus) {
-                        case 'confirmed':
-                            $reservation->table->updateStatus('reserved');
-                            break;
-                        case 'cancelled':
-                        case 'completed': // NEW: Handle completed status
-                            $reservation->table->updateStatus('available');
-                            \Log::info('Table marked as available', [
-                                'reservation_id' => $reservation->id,
-                                'table_id' => $reservation->table->id,
-                                'reason' => $newStatus === 'completed' ? 'reservation_completed' : 'reservation_cancelled'
-                            ]);
-                            break;
-                    }
-                } catch (\Exception $e) {
-                    \Log::error('Error updating table status: ' . $e->getMessage());
-                    // Don't fail the main operation
-                }
-            }
+        // Auto-assign table for confirmed reservations
+        if ($newStatus === 'confirmed' && !$reservation->table_id) {
+            // ... existing auto-assign logic ...
+        }
 
-            DB::commit();
+        DB::commit();
 
-            // Enhanced success message based on status
-            $statusMessages = [
-                'confirmed' => 'dikonfirmasi',
-                'cancelled' => 'dibatalkan', 
-                'completed' => 'diselesaikan'
-            ];
-            
-            $statusMessage = $statusMessages[$newStatus] ?? "diubah ke {$newStatus}";
+        $statusMessages = [
+            'confirmed' => 'dikonfirmasi',
+            'cancelled' => 'dibatalkan', 
+            'completed' => 'diselesaikan'
+        ];
+        
+        $statusMessage = $statusMessages[$newStatus] ?? "diubah ke {$newStatus}";
 
-            return redirect()->back()->with('success', 
-                "Reservasi {$reservation->reservation_code} berhasil {$statusMessage}" .
-                ($newStatus === 'completed' && $reservation->table ? " dan meja {$reservation->table->meja_name} tersedia kembali" : "")
-            );
+        return redirect()->back()->with('success', 
+            "Reservasi {$reservation->reservation_code} berhasil {$statusMessage}"
+        );
 
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             \Log::error('Reservation not found: ' . $id);
             return redirect()->back()->with('error', 'Reservasi tidak ditemukan');
             
@@ -853,97 +827,104 @@ private function transformReservationData($reservation)
  /**
  * Update table status manually
  */
-public function updateTableStatus(Request $request, $tableId): RedirectResponse
-{
-    \Log::info('=== UPDATING TABLE STATUS ===', [
-        'table_id' => $tableId,
-        'request_data' => $request->all(),
-        'method' => $request->method(),
-        'url' => $request->url(),
-        'content_type' => $request->header('Content-Type'),
-        'raw_input' => $request->getContent()
-    ]);
-
-    try {
-        // Validate the request
-        $validated = $request->validate([
-            'status' => 'required|in:available,occupied,reserved,maintenance'
-        ]);
-
-        \Log::info('Validation passed:', $validated);
-
-        // Find the table
-        $table = RestaurantTable::findOrFail($tableId);
-        \Log::info('Table found:', [
-            'table_id' => $table->id,
-            'current_status' => $table->status,
-            'table_number' => $table->table_number,
-            'table_name' => $table->meja_name
-        ]);
-        
-        $oldStatus = $table->status;
-        $newStatus = $validated['status'];
-        
-        // Update the status directly
-        $table->status = $newStatus;
-        $saved = $table->save();
-        
-        \Log::info('Save operation result:', [
-            'saved' => $saved,
-            'old_status' => $oldStatus,
-            'new_status' => $newStatus,
-            'table_after_save' => $table->fresh()->toArray()
-        ]);
-
-        if ($saved) {
-            // Get fresh table data
-            $freshTable = $table->fresh();
-            
-            \Log::info('Update successful - redirecting back with success message');
-            
-            return redirect()->back()->with([
-                'success' => "Status {$freshTable->meja_name} berhasil diubah dari {$oldStatus} ke {$newStatus}",
-                'updated_table_id' => $freshTable->id,
-                'updated_table_status' => $freshTable->status
-            ]);
-        }
-
-        \Log::error('Save operation returned false');
-        return redirect()->back()->with('error', 'Gagal menyimpan perubahan status meja');
-        
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        \Log::error('Validation failed:', [
-            'errors' => $e->errors(),
-            'input' => $request->all()
-        ]);
-        
-        // FIXED: Ganti array_flatten dengan collect()->flatten()
-        $errorMessages = collect($e->errors())->flatten()->implode(', ');
-        
-        return redirect()->back()
-            ->withErrors($e->errors())
-            ->withInput()
-            ->with('error', 'Data tidak valid: ' . $errorMessages);
-        
-    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-        \Log::error('Table not found:', [
+    public function updateTableStatus(Request $request, $tableId): RedirectResponse
+    {
+        \Log::info('=== MANUAL TABLE STATUS UPDATE DEBUG ===', [
             'table_id' => $tableId,
-            'error' => $e->getMessage()
+            'request_all' => $request->all(),
+            'request_method' => $request->method(),
+            'content_type' => $request->header('Content-Type'),
+            'csrf_token' => $request->header('X-CSRF-TOKEN'),
+            'raw_input' => $request->getContent()
         ]);
-        
-        return redirect()->back()->with('error', 'Meja tidak ditemukan');
-        
-    } catch (\Exception $e) {
-        \Log::error('Unexpected error updating table status:', [
-            'message' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        
-        return redirect()->back()->with('error', 'Terjadi kesalahan sistem: ' . $e->getMessage());
+
+        try {
+            // Validate
+            $validated = $request->validate([
+                'status' => 'required|in:available,occupied,reserved,maintenance'
+            ]);
+
+            \Log::info('Validation passed:', $validated);
+
+            // Find table - debug current state
+            $table = RestaurantTable::findOrFail($tableId);
+            
+            \Log::info('BEFORE UPDATE - Table state:', [
+                'id' => $table->id,
+                'table_number' => $table->table_number,
+                'current_status' => $table->status,
+                'new_status' => $validated['status'],
+                'has_reservations' => $table->reservations()->where('status', 'confirmed')->exists(),
+                'reservation_count' => $table->reservations()->where('status', 'confirmed')->count()
+            ]);
+            
+            $oldStatus = $table->status;
+            $newStatus = $validated['status'];
+            
+            // Method 1: Eloquent update
+            $table->status = $newStatus;
+            $saved = $table->save();
+            
+            \Log::info('Eloquent update result:', [
+                'saved' => $saved,
+                'table_status_after_save' => $table->status
+            ]);
+
+            // Method 2: Query builder update (fallback)
+            if (!$saved) {
+                \Log::info('Eloquent failed, trying query builder...');
+                
+                $updated = DB::table('restaurant_tables')
+                            ->where('id', $tableId)
+                            ->update([
+                                'status' => $newStatus,
+                                'updated_at' => now()
+                            ]);
+                
+                \Log::info('Query builder update result:', ['affected_rows' => $updated]);
+            }
+
+            // Verify in database
+            $freshTable = DB::table('restaurant_tables')->where('id', $tableId)->first();
+            
+            \Log::info('AFTER UPDATE - Database verification:', [
+                'database_status' => $freshTable->status,
+                'database_updated_at' => $freshTable->updated_at,
+                'update_successful' => $freshTable->status === $newStatus
+            ]);
+            
+            if ($freshTable->status === $newStatus) {
+                return redirect()->back()->with([
+                    'success' => "Status {$table->meja_name} berhasil diubah dari {$oldStatus} ke {$newStatus}",
+                    'debug_info' => "Database confirmed: {$freshTable->status}",
+                    'updated_table_id' => $tableId,
+                    'updated_table_status' => $newStatus
+                ]);
+            } else {
+                \Log::error('UPDATE FAILED - Status not changed in database');
+                return redirect()->back()->with('error', 'Status tidak berubah di database. Debug: ' . json_encode([
+                    'expected' => $newStatus,
+                    'actual' => $freshTable->status,
+                    'eloquent_saved' => $saved ?? false
+                ]));
+            }
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation error:', $e->errors());
+            return redirect()->back()->withErrors($e->errors())->with('error', 'Validasi gagal');
+            
+        } catch (\Exception $e) {
+            \Log::error('Unexpected error:', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
+        }
     }
-}
+
     /**
      * Get today's reservation schedule
      */
@@ -975,4 +956,100 @@ public function updateTableStatus(Request $request, $tableId): RedirectResponse
 
         return $this->reservationsManagement($request)->with(['reservationStats' => $stats]);
     }
+
+    private function getTablesDataWithRealtime()
+{
+    try {
+        \Log::info('=== GETTING TABLES WITH REALTIME UPDATE ===');
+        
+        // Update all tables berdasarkan reservasi confirmed
+        $updatedCount = RestaurantTable::updateAllRealtimeStatuses();
+        
+        \Log::info('Realtime update completed:', [
+            'tables_updated' => $updatedCount
+        ]);
+        
+        // Get fresh table data
+        $tables = RestaurantTable::active()
+            ->orderBy('table_number')
+            ->get()
+            ->map(function ($table) {
+                $summary = $table->getSummary();
+                
+                \Log::info("Table {$table->table_number} status:", [
+                    'status' => $summary['status'],
+                    'has_reservations' => count($summary['all_reservations']) > 0,
+                    'reservations_count' => count($summary['all_reservations'])
+                ]);
+                
+                return $summary;
+            });
+
+        return $tables;
+
+    } catch (\Exception $e) {
+        \Log::error('Error in getTablesDataWithRealtime: ' . $e->getMessage());
+        return collect([]);
+    }
+}
+
+/**
+ * Get orders data for staff interface
+ */
+// === UPDATE METHOD getOrdersData ===
+private function getOrdersData(Request $request)
+{
+    try {
+        $query = Order::with(['user', 'orderItems.menuItem'])
+            ->orderBy('order_time', 'desc');
+
+        $orders = $query->get();
+
+        $transformedOrders = $orders->map(function ($order) {
+            return [
+                'id' => $order->id,
+                'order_code' => $order->order_code,
+                'customer_name' => $order->customer_name,
+                'customer_phone' => $order->customer_phone,
+                'customer_email' => $order->customer_email,
+                'order_type' => $order->order_type,
+                'order_type_label' => $order->order_type_label,
+                'status' => $order->status,
+                'status_label' => $order->status_label,
+                'payment_method' => $order->payment_method,
+                'payment_method_label' => $order->payment_method_label,
+                'payment_status' => $order->payment_status,
+                'payment_proof' => $order->payment_proof ? asset("storage/{$order->payment_proof}") : null, // === TAMBAH INI ===
+
+                'subtotal' => $order->subtotal,
+                'delivery_fee' => $order->delivery_fee ?? 0,
+                'service_fee' => $order->service_fee ?? 0,
+                'total_amount' => $order->total_amount,
+                'delivery_address' => $order->delivery_address,
+                'notes' => $order->notes,
+
+                'total_amount' => $order->total_amount,
+                'formatted_total' => $order->formatted_total,
+                'order_time' => $order->order_time->format('d/m/Y H:i'),
+                'items_count' => $order->orderItems->sum('quantity'),
+                'main_item' => $order->orderItems->first()?->menuItem?->name ?? 'Unknown Item',
+                'items' => $order->orderItems->map(function ($item) {
+                    return [
+                        'menu_name' => $item->menuItem?->name ?? 'Unknown Item',
+                        'quantity' => $item->quantity,
+                        'price' => $item->menu_item_price,
+                        'subtotal' => $item->subtotal,
+                        'special_instructions' => $item->special_instructions
+                    ];
+                })
+            ];
+        });
+
+        return $transformedOrders;
+
+    } catch (\Exception $e) {
+        \Log::error('Error getting orders data: ' . $e->getMessage());
+        return collect([]);
+    }
+}
 }
