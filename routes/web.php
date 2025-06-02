@@ -9,6 +9,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\FavoriteMenuController;
 use App\Http\Controllers\MenuItemController;
+use App\Http\Controllers\RestaurantTableController;
 use Inertia\Inertia;
 
 /*
@@ -136,18 +137,25 @@ Route::middleware(['auth', 'verified', 'role:customer'])->group(function () {
 
 Route::middleware(['auth', 'verified', 'role:staff,admin'])->prefix('staff')->name('staff.')->group(function () {
     
+     // ===== STAFF DASHBOARD/REPORTS =====
+    Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
+    
     // ===== STAFF ORDER MANAGEMENT =====
     Route::get('/orders', [OrderController::class, 'staffIndex'])->name('orders.index');
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateOrderStatus'])->name('orders.update-status');
     Route::get('/orders/{order}', [OrderController::class, 'staffShow'])->name('orders.show');
     
-    // ===== STAFF RESERVATION MANAGEMENT =====
-    Route::get('/reservations', [ReservationController::class, 'staffIndex'])->name('reservations.index');
-    Route::patch('/reservations/{reservation}/status', [ReservationController::class, 'updateReservationStatus'])->name('reservations.update-status');
-    Route::get('/reservations/{reservation}', [ReservationController::class, 'staffShow'])->name('reservations.show');
+    // ===== STAFF RESERVATION MANAGEMENT (PURE INERTIA) =====
+    Route::get('/reservations', [StaffController::class, 'reservationsManagement'])->name('reservations.management');
+    Route::patch('/reservations/{id}/status', [StaffController::class, 'updateReservationStatus'])->name('reservations.update-status');
+    Route::patch('/reservations/{id}/assign-table', [StaffController::class, 'assignTableToReservation'])->name('reservations.assign-table');
+    Route::get('/reservations/{id}/available-tables', [StaffController::class, 'getAvailableTablesForReservation'])->name('reservations.available-tables');
     
-    // ===== STAFF DASHBOARD/REPORTS =====
-    Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
+    // ===== STAFF TABLE MANAGEMENT (PURE INERTIA) =====
+    Route::patch('/tables/{tableId}/status', [StaffController::class, 'updateTableStatus'])->name('tables.update-status');
+    Route::get('/reservations/today', [StaffController::class, 'getTodayReservations'])->name('reservations.today');
+    Route::get('/reservations/stats', [StaffController::class, 'getReservationStats'])->name('reservations.stats');
+    Route::patch('/tables/{tableId}/status', [StaffController::class, 'updateTableStatus'])->name('tables.update-status');
 });
 
 /*
@@ -190,6 +198,23 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::delete('/menu/{menuItem}', [MenuItemController::class, 'destroy'])->name('menu.destroy');
     Route::patch('/menu/{menuItem}/status', [MenuItemController::class, 'updateStatus'])->name('menu.update-status');
     
+    // ===== ADMIN TABLE MANAGEMENT (NEW) =====
+    Route::get('/tables', [RestaurantTableController::class, 'index'])->name('tables.index');
+    Route::post('/tables', [RestaurantTableController::class, 'store'])->name('tables.store');
+    Route::get('/tables/create', function () {
+        return Inertia::render('admin/tables/Create');
+    })->name('tables.create');
+    Route::get('/tables/{table}', [RestaurantTableController::class, 'show'])->name('tables.show');
+    Route::get('/tables/{table}/edit', function ($table) {
+        return Inertia::render('admin/tables/Edit', ['table' => $table]);
+    })->name('tables.edit');
+    Route::put('/tables/{table}', [RestaurantTableController::class, 'update'])->name('tables.update');
+    Route::delete('/tables/{table}', [RestaurantTableController::class, 'destroy'])->name('tables.destroy');
+    Route::patch('/tables/{table}/status', [RestaurantTableController::class, 'updateStatus'])->name('tables.update-status');
+    Route::get('/tables/available', [RestaurantTableController::class, 'getAvailableTables'])->name('tables.available');
+    Route::post('/tables/{table}/assign-reservation', [RestaurantTableController::class, 'assignToReservation'])->name('tables.assign-reservation');
+    Route::get('/tables/statistics', [RestaurantTableController::class, 'getStatistics'])->name('tables.statistics');
+    
     // ===== ADMIN ANALYTICS & REPORTS =====
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
     Route::get('/reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
@@ -199,6 +224,52 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     // ===== ADMIN SETTINGS =====
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Enhanced Reservation Routes (for automatic table assignment)
+|--------------------------------------------------------------------------
+*/
+
+// Override existing reservation store to include auto table assignment
+Route::middleware(['auth', 'verified'])->group(function () {
+    // This will automatically assign tables when reservations are created
+    // The auto-assignment is handled in the Reservation model's boot method
+    
+    // Staff-specific reservation management pages
+    Route::middleware('role:staff,admin')->group(function () {
+        Route::get('/staff/reservations-management', function () {
+            return Inertia::render('staff/staffReservasi');
+        })->name('staff.reservations.management');
+        
+        Route::get('/staff/tables-overview', function () {
+            return Inertia::render('staff/TablesOverview');
+        })->name('staff.tables.overview');
+    });
+    
+    // Admin-specific table management pages
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/admin/tables-management', function () {
+            return Inertia::render('admin/tables/Index');
+        })->name('admin.tables.management');
+        
+        Route::get('/admin/reservations-overview', function () {
+            return Inertia::render('admin/reservations/Overview');
+        })->name('admin.reservations.overview');
+    });
+});
+
+/*
+|--------------------------------------------------------------------------
+| Public Table Availability Check (for customers making reservations)
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    // Customers can check table availability when making reservations
+    Route::get('/tables/available-for-reservation', [RestaurantTableController::class, 'getAvailableTables'])
+         ->name('tables.available-for-reservation');
 });
 
 /*
@@ -217,6 +288,33 @@ if (app()->environment('local')) {
                 'isAdmin' => $user->isAdmin(),
                 'isStaff' => $user->isStaff(),
                 'isCustomer' => $user->isCustomer(),
+            ]);
+        });
+        
+        // Test table assignment
+        Route::get('/test-table-assignment', function () {
+            $reservation = \App\Models\Reservation::with(['package', 'table'])->first();
+            if ($reservation) {
+                return response()->json([
+                    'reservation' => $reservation->getSummary(),
+                    'package' => $reservation->package,
+                    'table' => $reservation->table?->getSummary(),
+                ]);
+            }
+            return response()->json(['message' => 'No reservations found']);
+        });
+        
+        // Test available tables
+        Route::get('/test-available-tables', function () {
+            $tables = \App\Models\RestaurantTable::available()
+                ->byLocation('indoor')
+                ->minCapacity(2)
+                ->get();
+                
+            return response()->json([
+                'available_tables' => $tables->map(function ($table) {
+                    return $table->getSummary();
+                })
             ]);
         });
     });

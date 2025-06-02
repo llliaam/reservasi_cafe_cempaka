@@ -146,6 +146,7 @@ class Order extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+
     /**
      * Relasi dengan Order Items
      */
@@ -645,6 +646,70 @@ class Order extends Model
     }
 
     /**
+     * UPDATED: Get table name for dine-in orders
+     */
+    public function getTableName(): ?string
+    {
+        return $this->table ? $this->table->meja_name : null;
+    }
+
+    /**
+     * UPDATED: Auto-assign table for dine-in orders
+     */
+    public function assignTableForDineIn(): void
+    {
+        if ($this->order_type !== self::TYPE_DINE_IN || $this->table_id) {
+            return; // Not dine-in or already has table
+        }
+
+        // Find available table that can accommodate the order
+        // For orders, we estimate 2-4 people per order (can be adjusted)
+        $estimatedPeople = max(2, min(4, $this->total_items));
+        
+        $availableTable = RestaurantTable::active()
+            ->available()
+            ->minCapacity($estimatedPeople)
+            ->orderBy('capacity', 'asc')
+            ->first();
+
+        if ($availableTable) {
+            $this->table_id = $availableTable->id;
+            $this->save();
+            
+            // Mark table as occupied when order is confirmed
+            if (in_array($this->status, [self::STATUS_CONFIRMED, self::STATUS_PREPARING])) {
+                $availableTable->markOccupied();
+            }
+        }
+    }
+     /**
+     * UPDATED: Update table status based on order status
+     */
+    public function updateTableStatus(): void
+    {
+        if (!$this->table || $this->order_type !== self::TYPE_DINE_IN) {
+            return;
+        }
+
+        switch ($this->status) {
+            case self::STATUS_CONFIRMED:
+            case self::STATUS_PREPARING:
+            case self::STATUS_READY:
+                $this->table->markOccupied();
+                break;
+                
+            case self::STATUS_COMPLETED:
+            case self::STATUS_CANCELLED:
+                $this->table->markAvailable();
+                break;
+                
+            default:
+                // For pending status, don't change table status yet
+                break;
+        }
+    }
+
+    /**
      * Get total items count
      */
     public function getTotalItemsAttribute(): int
@@ -788,7 +853,7 @@ class Order extends Model
     }
 
     /**
-     * Update order status
+     * UPDATED: Override updateStatus to handle table status
      */
     public function updateStatus(string $status, string $notes = null): bool
     {
@@ -801,8 +866,9 @@ class Order extends Model
         
         $result = $this->save();
         
-        // Log status change
+        // Update table status when order status changes
         if ($result && $oldStatus !== $status) {
+            $this->updateTableStatus();
             $this->logStatusChange($oldStatus, $status, $notes);
         }
         
@@ -844,8 +910,8 @@ class Order extends Model
         return $this->updateStatus(self::STATUS_COMPLETED);
     }
 
-    /**
-     * Get order summary for display
+     /**
+     * UPDATED: Get order summary for display (includes table info)
      */
     public function getSummary(): array
     {
@@ -861,6 +927,9 @@ class Order extends Model
             'order_time' => $this->order_time->format('d/m/Y H:i'),
             'estimated_ready' => $this->estimated_ready_time?->format('H:i'),
             'is_overdue' => $this->is_overdue,
+            'table_name' => $this->getTableName(), // ADDED
+            'table_number' => $this->table?->table_number, // ADDED
+            'table_location' => $this->table?->full_location, // ADDED
         ];
     }
 
