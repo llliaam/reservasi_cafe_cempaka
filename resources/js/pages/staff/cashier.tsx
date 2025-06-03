@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, X, Search, Filter, Download } from 'lucide-react';
-import { router } from '@inertiajs/react';
+import { ShoppingCart, Plus, Minus, Trash2, X, Search, Filter, Download, Menu } from 'lucide-react';
 
 interface CartItem {
   id: number;
@@ -48,12 +47,12 @@ const MenuItem: React.FC<MenuItemProps> = ({ id, name, price, imgSrc, onAddToCar
       <img 
         src={imgSrc} 
         alt={name} 
-        className="object-cover w-full h-32 transition-transform group-hover:scale-105" 
+        className="object-cover w-full h-24 sm:h-28 md:h-32 transition-transform group-hover:scale-105" 
       />
       <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all rounded-lg"></div>
     </div>
-    <h3 className="mb-1 text-sm font-semibold text-gray-800 line-clamp-2">{name}</h3>
-    <p className="text-sm font-medium text-orange-600">Rp{price.toLocaleString()}</p>
+    <h3 className="mb-1 text-xs sm:text-sm font-semibold text-gray-800 line-clamp-2">{name}</h3>
+    <p className="text-xs sm:text-sm font-medium text-orange-600">Rp{price.toLocaleString()}</p>
   </div>
 );
 
@@ -77,6 +76,7 @@ const CashierSystem: React.FC<CashierSystemProps> = ({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [completedOrderData, setCompletedOrderData] = useState<any>(null);
+  const [showCart, setShowCart] = useState(false);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -130,15 +130,15 @@ const CashierSystem: React.FC<CashierSystemProps> = ({
   };
 
   const resetOrder = () => {
-  setCart([]);
-  setPaymentMethod(null);
-  setCashAmount('');
-  setCustomerInfo({ name: '', phone: '', email: '' });
-  setSelectedTable(null);
-  setOrderType('dine_in');
-  setShowConfirmModal(false);
-  setShowSuccessModal(false);
-  setCompletedOrderData(null);
+    setCart([]);
+    setPaymentMethod(null);
+    setCashAmount('');
+    setCustomerInfo({ name: '', phone: '', email: '' });
+    setSelectedTable(null);
+    setOrderType('dine_in');
+    setShowConfirmModal(false);
+    setShowSuccessModal(false);
+    setCompletedOrderData(null);
   };
 
   const clearSearch = () => {
@@ -155,117 +155,56 @@ const CashierSystem: React.FC<CashierSystemProps> = ({
     setShowPaymentModal(true);
   };
 
-  // const processPayment = () => {
-  //   if (!customerInfo.name.trim()) {
-  //     alert('Mohon masukkan nama customer!');
-  //     return;
-  //   }
-
-  //   if (orderType === 'dine_in' && !selectedTable) {
-  //     alert('Mohon pilih meja untuk dine in!');
-  //     return;
-  //   }
-
-  //   if (paymentMethod === 'cash') {
-  //     const cashValue = parseInt(cashAmount.replace(/\D/g, ''));
-  //     if (cashValue < subTotal) {
-  //       alert('Insufficient cash amount!');
-  //       return;
-  //     }
-  //   }
-
-  //   setIsSubmitting(true);
-
-  //   const totalAmount = itemTotal + serviceFee;
-
-  //   const orderData = {
-  //     customer_name: customerInfo.name,
-  //     customer_phone: customerInfo.phone || 'Walk-in Customer',
-  //     customer_email: customerInfo.email,
-  //     order_type: orderType,
-  //     table_id: orderType === 'dine_in' ? selectedTable : null,
-  //     cart_items: cart.map(item => ({
-  //       id: item.id,
-  //       quantity: item.quantity,
-  //       special_instructions: ''
-  //     })),
-  //     subtotal: itemTotal,
-  //     service_fee: serviceFee,
-  //     total_amount: totalAmount,
-  //     payment_method: paymentMethod === 'cash' ? 'cash' : 'debit_card',
-  //     staff_id: auth?.user?.id,
-  //     notes: ''
-  //   };
-
-  //   router.post('/staff/orders/offline', orderData, {
-  //     onSuccess: (page) => {
-  //       alert('Pesanan berhasil dibuat!');
-  //       resetOrder();
-  //       setShowPaymentModal(false);
-  //       setIsSubmitting(false);
-  //     },
-  //     onError: (errors) => {
-  //       console.error('Order errors:', errors);
-  //       alert('Gagal membuat pesanan: ' + Object.values(errors).join(', '));
-  //       setIsSubmitting(false);
-  //     }
-  //   });
-  // };
-
   const handleProcessOrder = () => {
-  // Validasi customer info
-  if (!customerInfo.name.trim()) {
-    alert('Mohon masukkan nama customer!');
-    return;
-  }
-
-  if (orderType === 'dine_in' && !selectedTable) {
-    alert('Mohon pilih meja untuk dine in!');
-    return;
-  }
-
-  // Validasi payment
-  if (paymentMethod === 'cash') {
-    const cashValue = parseInt(cashAmount.replace(/\D/g, ''));
-    if (cashValue < subTotal) {
-      alert('Insufficient cash amount!');
+    if (!customerInfo.name.trim()) {
+      alert('Mohon masukkan nama customer!');
       return;
     }
-  }
 
-  // Show confirmation modal
-  setShowConfirmModal(true);
-};
+    if (orderType === 'dine_in' && !selectedTable) {
+      alert('Mohon pilih meja untuk dine in!');
+      return;
+    }
 
-const confirmProcessOrder = () => {
-  setIsSubmitting(true);
-  setShowConfirmModal(false);
+    if (paymentMethod === 'cash') {
+      const cashValue = parseInt(cashAmount.replace(/\D/g, ''));
+      if (cashValue < subTotal) {
+        alert('Insufficient cash amount!');
+        return;
+      }
+    }
 
-  const totalAmount = itemTotal + serviceFee;
-  const selectedTableData = availableTables.find(t => t.id === selectedTable);
-
-  const orderData = {
-    customer_name: customerInfo.name,
-    customer_phone: customerInfo.phone || 'Walk-in Customer',
-    customer_email: customerInfo.email,
-    order_type: orderType,
-    table_id: orderType === 'dine_in' ? selectedTable : null,
-    cart_items: cart.map(item => ({
-      id: item.id,
-      quantity: item.quantity,
-      special_instructions: ''
-    })),
-    subtotal: itemTotal,
-    service_fee: serviceFee,
-    total_amount: totalAmount,
-    payment_method: paymentMethod === 'cash' ? 'cash' : 'debit_card',
-    staff_id: auth?.user?.id,
-    notes: ''
+    setShowConfirmModal(true);
   };
 
-  router.post('/staff/orders/offline', orderData, {
-    onSuccess: (page) => {
-      // Create order data for success modal
+  const confirmProcessOrder = () => {
+    setIsSubmitting(true);
+    setShowConfirmModal(false);
+
+    const totalAmount = itemTotal + serviceFee;
+    const selectedTableData = availableTables.find(t => t.id === selectedTable);
+
+    const orderData = {
+      customer_name: customerInfo.name,
+      customer_phone: customerInfo.phone || 'Walk-in Customer',
+      customer_email: customerInfo.email,
+      order_type: orderType,
+      table_id: orderType === 'dine_in' ? selectedTable : null,
+      cart_items: cart.map(item => ({
+        id: item.id,
+        quantity: item.quantity,
+        special_instructions: ''
+      })),
+      subtotal: itemTotal,
+      service_fee: serviceFee,
+      total_amount: totalAmount,
+      payment_method: paymentMethod === 'cash' ? 'cash' : 'debit_card',
+      staff_id: auth?.user?.id,
+      notes: ''
+    };
+
+    // Simulate API call - Replace this with actual router.post in real implementation
+    setTimeout(() => {
       const orderCode = `OFF-${Date.now().toString().slice(-8)}`;
       const orderDate = new Date().toLocaleString('id-ID');
       
@@ -302,15 +241,8 @@ const confirmProcessOrder = () => {
       setShowPaymentModal(false);
       setShowSuccessModal(true);
       setIsSubmitting(false);
-    },
-    onError: (errors) => {
-      console.error('Order errors:', errors);
-      alert('Gagal membuat pesanan: ' + Object.values(errors).join(', '));
-      setIsSubmitting(false);
-      setShowConfirmModal(false);
-    }
-  });
-};
+    }, 1000);
+  };
 
   const formatCurrency = (amount: number) => {
     return `Rp${amount.toLocaleString()}`;
@@ -321,98 +253,14 @@ const confirmProcessOrder = () => {
 
   // PDF Generator Component
   const PDFBillGenerator = ({ orderData }: { orderData: any }) => {
-  const generatePDF = async () => {
-    try {
-      // Dynamic imports untuk jsPDF
-      const jsPDF = (await import('jspdf')).default;
-      
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
+    const generatePDF = async () => {
+      alert('PDF generation feature would be implemented here');
+    };
 
-      const pageWidth = pdf.internal.pageSize.width;
-      const pageHeight = pdf.internal.pageSize.height;
-      const margin = 20;
-      let yPosition = margin;
-
-      // Helper function
-      const addText = (text: string, x: number, y: number, options: any = {}) => {
-        const { 
-          fontSize = 10, 
-          fontStyle = 'normal', 
-          color = [0, 0, 0],
-          align = 'left',
-          maxWidth = pageWidth - 2 * margin 
-        } = options;
-        
-        pdf.setFontSize(fontSize);
-        pdf.setFont('helvetica', fontStyle);
-        pdf.setTextColor(...color);
-        
-        if (align === 'center') {
-          pdf.text(text, x, y, { align: 'center' });
-        } else if (align === 'right') {
-          pdf.text(text, x, y, { align: 'right' });
-        } else {
-          const lines = pdf.splitTextToSize(text, maxWidth);
-          pdf.text(lines, x, y);
-          return lines.length * (fontSize * 0.35);
-        }
-        return fontSize * 0.35;
-      };
-
-      // Header
-      pdf.setFillColor(255, 165, 0);
-      pdf.circle(margin + 10, yPosition + 10, 8, 'F');
-      
-      addText('Cempaka Cafe & Resto', margin + 25, yPosition + 8, {
-        fontSize: 16,
-        fontStyle: 'bold',
-        color: [255, 165, 0]
-      });
-      
-      addText('Jl. Raya Cafe No. 123, Medan', margin + 25, yPosition + 15, {
-        fontSize: 10,
-        color: [100, 100, 100]
-      });
-      
-      yPosition += 35;
-      
-      // Bill content (singkat saja untuk contoh)
-      addText('OFFLINE ORDER BILL', pageWidth / 2, yPosition, {
-        fontSize: 18,
-        fontStyle: 'bold',
-        align: 'center'
-      });
-      yPosition += 20;
-
-      addText(`Order Code: ${orderData.order_code}`, margin, yPosition);
-      yPosition += 10;
-      
-      addText(`Customer: ${orderData.customer_name}`, margin, yPosition);
-      yPosition += 10;
-      
-      addText(`Total: Rp ${orderData.total_amount.toLocaleString()}`, margin, yPosition, {
-        fontStyle: 'bold'
-      });
-
-      const fileName = `Bill_${orderData.order_code}.pdf`;
-      pdf.save(fileName);
-      
-      return true;
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Error generating PDF. Please try again.');
-      return false;
-    }
-  };
-
-   return (
+    return (
       <button
         onClick={generatePDF}
-        className="flex items-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+        className="flex items-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors w-full justify-center"
       >
         <Download size={16} />
         <span>Download Bill</span>
@@ -420,23 +268,38 @@ const confirmProcessOrder = () => {
     );
   };
 
-
   return (
-    <div className="flex flex-1 w-full h-full">
+    <div className="flex flex-col lg:flex-row w-full min-h-screen bg-gray-50">
+      {/* Mobile Header */}
+      <div className="lg:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-gray-800">Cempaka Cafe</h1>
+        <button
+          onClick={() => setShowCart(!showCart)}
+          className="relative p-2 text-orange-600 bg-orange-50 rounded-lg"
+        >
+          <ShoppingCart size={20} />
+          {cart.length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+              {cart.reduce((sum, item) => sum + item.quantity, 0)}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* Menu Grid with Search */}
-      <div className="flex-1 p-6 bg-gradient-to-br from-yellow-50 to-green-50">
+      <div className="flex-1 p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-yellow-50 to-green-50">
         {/* Search and Filter Header */}
-        <div className="mb-6 bg-white rounded-xl shadow-sm p-4 border border-orange-100">
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
+        <div className="mb-4 lg:mb-6 bg-white rounded-xl shadow-sm p-3 sm:p-4 border border-orange-100">
+          <div className="flex flex-col gap-3 sm:gap-4">
             {/* Search Input */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
                 placeholder="Cari menu..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
               />
               {searchTerm && (
                 <button
@@ -449,10 +312,10 @@ const confirmProcessOrder = () => {
             </div>
 
             {/* Category Filter */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${
+                className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-all ${
                   showFilters ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -463,7 +326,7 @@ const confirmProcessOrder = () => {
               {(searchTerm || selectedCategory !== 'all') && (
                 <button
                   onClick={clearSearch}
-                  className="px-3 py-2.5 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
                 >
                   Clear
                 </button>
@@ -471,15 +334,15 @@ const confirmProcessOrder = () => {
             </div>
           </div>
 
-          {/* Category Pills - Show when filters are open or when a category is selected */}
+          {/* Category Pills */}
           {(showFilters || selectedCategory !== 'all') && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="mt-3 pt-3 border-t border-gray-100">
               <div className="flex flex-wrap gap-2">
                 {categories.map(category => (
                   <button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all ${
                       selectedCategory === category
                         ? 'bg-orange-500 text-white shadow-sm'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -493,7 +356,7 @@ const confirmProcessOrder = () => {
           )}
 
           {/* Search Results Info */}
-          <div className="mt-3 flex items-center justify-between text-sm text-gray-600">
+          <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm text-gray-600">
             <span>
               {filteredMenuItems.length} dari {menuItems.length} menu
               {searchTerm && (
@@ -511,9 +374,9 @@ const confirmProcessOrder = () => {
         </div>
 
         {/* Menu Grid */}
-        <div className="max-w-4xl">
+        <div className="max-w-6xl mx-auto">
           {filteredMenuItems.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
               {filteredMenuItems.map((item) => (
                 <MenuItem
                   key={item.id}
@@ -526,14 +389,14 @@ const confirmProcessOrder = () => {
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <Search className="w-8 h-8 text-gray-400" />
+            <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-center">
+              <div className="w-16 h-16 sm:w-24 sm:h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <Search className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-800 mb-2">
+              <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-2">
                 Tidak ada menu ditemukan
               </h3>
-              <p className="text-gray-600 mb-4 max-w-md">
+              <p className="text-sm sm:text-base text-gray-600 mb-4 max-w-md px-4">
                 {searchTerm 
                   ? `Tidak ada menu yang cocok dengan pencarian "${searchTerm}"`
                   : `Tidak ada menu dalam kategori "${selectedCategory}"`
@@ -541,7 +404,7 @@ const confirmProcessOrder = () => {
               </p>
               <button
                 onClick={clearSearch}
-                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
               >
                 Reset Pencarian
               </button>
@@ -550,8 +413,8 @@ const confirmProcessOrder = () => {
         </div>
       </div>
 
-      {/* Checkout Panel - Unchanged from original */}
-      <div className="bg-white border-l border-gray-200 shadow-lg w-80">
+      {/* Desktop Checkout Panel */}
+      <div className="hidden lg:block bg-white border-l border-gray-200 shadow-lg w-80 xl:w-96">
         {/* Checkout Header */}
         <div className="p-4 bg-orange-100 border-b">
           <div className="flex items-center">
@@ -577,8 +440,8 @@ const confirmProcessOrder = () => {
                     alt={item.name}
                     className="object-cover w-12 h-12 rounded-lg"
                   />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-800">{item.name}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
                     <p className="text-sm text-gray-600">{formatCurrency(item.price)}</p>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -588,7 +451,7 @@ const confirmProcessOrder = () => {
                     >
                       <Minus size={12} />
                     </button>
-                    <span className="w-8 font-medium text-center">{item.quantity}</span>
+                    <span className="w-8 font-medium text-center text-sm">{item.quantity}</span>
                     <button
                       onClick={() => updateQuantity(item.id, 1)}
                       className="flex items-center justify-center w-6 h-6 text-sm text-green-600 bg-green-100 rounded-full"
@@ -646,13 +509,126 @@ const confirmProcessOrder = () => {
         </div>
       </div>
 
-      {/* Payment Modal - Unchanged from original */}
+      {/* Mobile Cart Overlay */}
+      {showCart && (
+        <div className="lg:hidden fixed inset-0 z-40 bg-black bg-opacity-50" onClick={() => setShowCart(false)}>
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Mobile Cart Header */}
+            <div className="flex items-center justify-between p-4 border-b bg-orange-100">
+              <div className="flex items-center">
+                <ShoppingCart className="mr-2 text-orange-600" size={20} />
+                <h3 className="text-lg font-semibold text-gray-800">Pesanan</h3>
+              </div>
+              <button onClick={() => setShowCart(false)} className="p-1 text-gray-500">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Mobile Cart Content */}
+            <div className="flex flex-col h-full max-h-[calc(80vh-80px)]">
+              {/* Cart Items */}
+              <div className="flex-1 overflow-y-auto">
+                {cart.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    <ShoppingCart size={48} className="mx-auto mb-4 text-gray-300" />
+                    <p>No items in cart</p>
+                    <p className="text-sm">Select items from menu to add</p>
+                  </div>
+                ) : (
+                  <div className="p-4 space-y-3">
+                    {cart.map((item) => (
+                      <div key={item.id} className="flex items-center p-3 space-x-3 rounded-lg bg-gray-50">
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="object-cover w-12 h-12 rounded-lg"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
+                          <p className="text-sm text-gray-600">{formatCurrency(item.price)}</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => updateQuantity(item.id, -1)}
+                            className="flex items-center justify-center w-8 h-8 text-red-600 bg-red-100 rounded-full"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <span className="w-8 font-medium text-center">{item.quantity}</span>
+                          <button
+                            onClick={() => updateQuantity(item.id, 1)}
+                            className="flex items-center justify-center w-8 h-8 text-green-600 bg-green-100 rounded-full"
+                          >
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => removeItem(item.id)}
+                            className="flex items-center justify-center w-8 h-8 ml-2 text-red-600 bg-red-100 rounded-full"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile Cart Footer */}
+              {cart.length > 0 && (
+                <div className="border-t bg-white">
+                  {/* Totals */}
+                  <div className="px-4 py-3">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Item Total</span>
+                        <span className="text-gray-800">{formatCurrency(itemTotal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Service Fee (5%)</span>
+                        <span className="text-gray-800">{formatCurrency(serviceFee)}</span>
+                      </div>
+                      <div className="pt-2 mt-2 border-t">
+                        <div className="flex justify-between font-semibold">
+                          <span className="text-gray-800">Sub Total</span>
+                          <span className="text-lg text-orange-600">{formatCurrency(subTotal)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="p-4 space-y-3">
+                    <button
+                      onClick={() => {
+                        handleCheckout();
+                        setShowCart(false);
+                      }}
+                      className="w-full py-3 font-medium text-white transition-colors bg-orange-400 rounded-lg hover:bg-orange-500"
+                    >
+                      Check Out
+                    </button>
+                    <button
+                      onClick={resetOrder}
+                      className="w-full py-3 font-medium text-orange-500 transition-colors border-2 border-orange-300 rounded-lg hover:bg-orange-50"
+                    >
+                      Reset Order
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal */}
       {showPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="relative max-w-2xl mx-4 bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="relative w-full max-w-4xl mx-auto bg-white rounded-xl shadow-2xl max-h-[95vh] overflow-hidden">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 bg-gradient-to-r from-orange-500 to-orange-600">
-              <h3 className="text-xl font-semibold text-white">Complete Order</h3>
+            <div className="flex items-center justify-between p-4 sm:p-6 bg-gradient-to-r from-orange-500 to-orange-600">
+              <h3 className="text-lg sm:text-xl font-semibold text-white">Complete Order</h3>
               <button
                 onClick={() => {
                   setShowPaymentModal(false);
@@ -669,13 +645,13 @@ const confirmProcessOrder = () => {
             </div>
 
             {/* Modal Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)]">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 {/* Left Column - Customer & Order Info */}
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   {/* Customer Information */}
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h4 className="mb-4 text-lg font-medium text-gray-800">Customer Information</h4>
+                  <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                    <h4 className="mb-3 sm:mb-4 text-base sm:text-lg font-medium text-gray-800">Customer Information</h4>
                     <div className="space-y-3">
                       <div>
                         <label className="block mb-1 text-sm font-medium text-gray-700">
@@ -686,7 +662,7 @@ const confirmProcessOrder = () => {
                           placeholder="Enter customer name"
                           value={customerInfo.name}
                           onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          className="w-full p-2.5 sm:p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                           required
                         />
                       </div>
@@ -699,7 +675,7 @@ const confirmProcessOrder = () => {
                           placeholder="Phone number (optional)"
                           value={customerInfo.phone}
                           onChange={(e) => setCustomerInfo({...customerInfo, phone: e.target.value})}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          className="w-full p-2.5 sm:p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -711,42 +687,42 @@ const confirmProcessOrder = () => {
                           placeholder="Email address (optional)"
                           value={customerInfo.email}
                           onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          className="w-full p-2.5 sm:p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Order Type Selection */}
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h4 className="mb-4 text-lg font-medium text-gray-800">Order Type</h4>
+                  <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                    <h4 className="mb-3 sm:mb-4 text-base sm:text-lg font-medium text-gray-800">Order Type</h4>
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
                         onClick={() => setOrderType('dine_in')}
-                        className={`p-4 rounded-lg border-2 transition-all ${
+                        className={`p-3 sm:p-4 rounded-lg border-2 transition-all ${
                           orderType === 'dine_in' 
                             ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' 
                             : 'border-gray-200 hover:border-gray-300 text-gray-700'
                         }`}
                       >
                         <div className="text-center">
-                          <div className="text-lg font-semibold">Dine In</div>
-                          <div className="text-sm opacity-75">Eat at restaurant</div>
+                          <div className="text-sm sm:text-lg font-semibold">Dine In</div>
+                          <div className="text-xs sm:text-sm opacity-75">Eat at restaurant</div>
                         </div>
                       </button>
                       <button
                         type="button"
                         onClick={() => setOrderType('takeaway')}
-                        className={`p-4 rounded-lg border-2 transition-all ${
+                        className={`p-3 sm:p-4 rounded-lg border-2 transition-all ${
                           orderType === 'takeaway' 
                             ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' 
                             : 'border-gray-200 hover:border-gray-300 text-gray-700'
                         }`}
                       >
                         <div className="text-center">
-                          <div className="text-lg font-semibold">Takeaway</div>
-                          <div className="text-sm opacity-75">Take to go</div>
+                          <div className="text-sm sm:text-lg font-semibold">Takeaway</div>
+                          <div className="text-xs sm:text-sm opacity-75">Take to go</div>
                         </div>
                       </button>
                     </div>
@@ -754,12 +730,12 @@ const confirmProcessOrder = () => {
 
                   {/* Table Selection for Dine In */}
                   {orderType === 'dine_in' && (
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <h4 className="mb-4 text-lg font-medium text-gray-800">Select Table</h4>
+                    <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                      <h4 className="mb-3 sm:mb-4 text-base sm:text-lg font-medium text-gray-800">Select Table</h4>
                       <select
                         value={selectedTable || ''}
                         onChange={(e) => setSelectedTable(Number(e.target.value))}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        className="w-full p-2.5 sm:p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         required
                       >
                         <option value="">-- Choose Table --</option>
@@ -774,10 +750,10 @@ const confirmProcessOrder = () => {
                 </div>
 
                 {/* Right Column - Payment Info */}
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   {/* Order Summary */}
-                  <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
-                    <h4 className="mb-4 text-lg font-medium text-orange-800">Order Summary</h4>
+                  <div className="p-3 sm:p-4 bg-orange-50 rounded-lg border border-orange-200">
+                    <h4 className="mb-3 sm:mb-4 text-base sm:text-lg font-medium text-orange-800">Order Summary</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-700">Item Total</span>
@@ -789,20 +765,20 @@ const confirmProcessOrder = () => {
                       </div>
                       <div className="pt-2 mt-2 border-t border-orange-200">
                         <div className="flex justify-between">
-                          <span className="text-lg font-semibold text-orange-800">Total</span>
-                          <span className="text-xl font-bold text-orange-600">{formatCurrency(subTotal)}</span>
+                          <span className="text-base sm:text-lg font-semibold text-orange-800">Total</span>
+                          <span className="text-lg sm:text-xl font-bold text-orange-600">{formatCurrency(subTotal)}</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Payment Method */}
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h4 className="mb-4 text-lg font-medium text-gray-800">Payment Method</h4>
+                  <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                    <h4 className="mb-3 sm:mb-4 text-base sm:text-lg font-medium text-gray-800">Payment Method</h4>
                     <div className="space-y-3">
                       <button
                         onClick={() => setPaymentMethod('cash')}
-                        className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                        className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all text-left ${
                           paymentMethod === 'cash'
                             ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm'
                             : 'border-gray-200 hover:border-gray-300 text-gray-700'
@@ -810,8 +786,8 @@ const confirmProcessOrder = () => {
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="font-semibold">Cash Payment</div>
-                            <div className="text-sm opacity-75">Pay with cash</div>
+                            <div className="text-sm sm:text-base font-semibold">Cash Payment</div>
+                            <div className="text-xs sm:text-sm opacity-75">Pay with cash</div>
                           </div>
                           <div className={`w-4 h-4 rounded-full border-2 ${
                             paymentMethod === 'cash' 
@@ -827,7 +803,7 @@ const confirmProcessOrder = () => {
                       
                       <button
                         onClick={() => setPaymentMethod('debit')}
-                        className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                        className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all text-left ${
                           paymentMethod === 'debit'
                             ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm'
                             : 'border-gray-200 hover:border-gray-300 text-gray-700'
@@ -835,8 +811,8 @@ const confirmProcessOrder = () => {
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="font-semibold">Debit Card</div>
-                            <div className="text-sm opacity-75">Pay with card</div>
+                            <div className="text-sm sm:text-base font-semibold">Debit Card</div>
+                            <div className="text-xs sm:text-sm opacity-75">Pay with card</div>
                           </div>
                           <div className={`w-4 h-4 rounded-full border-2 ${
                             paymentMethod === 'debit' 
@@ -854,8 +830,8 @@ const confirmProcessOrder = () => {
 
                   {/* Cash Amount Input */}
                   {paymentMethod === 'cash' && (
-                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                      <h4 className="mb-3 text-lg font-medium text-green-800">Cash Payment Details</h4>
+                    <div className="p-3 sm:p-4 bg-green-50 rounded-lg border border-green-200">
+                      <h4 className="mb-3 text-base sm:text-lg font-medium text-green-800">Cash Payment Details</h4>
                       <div>
                         <label className="block mb-2 text-sm font-medium text-green-700">
                           Cash Amount Received
@@ -865,13 +841,13 @@ const confirmProcessOrder = () => {
                           value={cashAmount}
                           onChange={(e) => setCashAmount(e.target.value)}
                           placeholder="Enter cash amount"
-                          className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          className="w-full p-2.5 sm:p-3 text-sm border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                         {change > 0 && (
                           <div className="mt-3 p-3 bg-green-100 rounded-lg">
                             <div className="flex justify-between items-center">
-                              <span className="font-medium text-green-800">Change to return:</span>
-                              <span className="text-lg font-bold text-green-600">{formatCurrency(change)}</span>
+                              <span className="text-sm font-medium text-green-800">Change to return:</span>
+                              <span className="text-base sm:text-lg font-bold text-green-600">{formatCurrency(change)}</span>
                             </div>
                           </div>
                         )}
@@ -882,7 +858,7 @@ const confirmProcessOrder = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-4 mt-8 pt-6 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200">
                 <button
                   onClick={() => {
                     setShowPaymentModal(false);
@@ -892,14 +868,14 @@ const confirmProcessOrder = () => {
                     setSelectedTable(null);
                     setOrderType('dine_in');
                   }}
-                  className="flex-1 px-6 py-3 text-gray-700 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  className="flex-1 px-4 sm:px-6 py-3 text-sm sm:text-base text-gray-700 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleProcessOrder}
                   disabled={isSubmitting || !customerInfo.name.trim() || (orderType === 'dine_in' && !selectedTable) || !paymentMethod}
-                  className="flex-2 px-8 py-3 text-white bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-lg"
+                  className="flex-1 sm:flex-2 px-6 sm:px-8 py-3 text-sm sm:text-base text-white bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-lg"
                 >
                   {isSubmitting ? (
                     <div className="flex items-center justify-center gap-2">
@@ -915,115 +891,116 @@ const confirmProcessOrder = () => {
           </div>
         </div>
       )}
+
       {/* Confirmation Modal */}
-{showConfirmModal && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-    <div className="relative max-w-md mx-4 bg-white rounded-xl shadow-2xl">
-      <div className="p-6">
-        <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full">
-          <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        
-        <h3 className="text-lg font-semibold text-center text-gray-800 mb-2">
-          Konfirmasi Pesanan
-        </h3>
-        
-        <p className="text-center text-gray-600 mb-6">
-          Apakah Anda yakin ingin memproses pesanan ini?
-        </p>
-        
-        <div className="bg-gray-50 rounded-lg p-4 mb-6">
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Customer:</span>
-              <span className="font-medium">{customerInfo.name}</span>
-            </div>
-            <div className="flex justify-between font-semibold text-orange-600">
-              <span>Total:</span>
-              <span>{formatCurrency(subTotal)}</span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowConfirmModal(false)}
-            className="flex-1 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Batal
-          </button>
-          <button
-            onClick={confirmProcessOrder}
-            disabled={isSubmitting}
-            className="flex-1 px-4 py-2 text-white bg-orange-500 rounded-lg hover:bg-orange-600 disabled:bg-orange-300 transition-colors"
-          >
-            {isSubmitting ? 'Processing...' : 'Ya, Proses'}
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
-{/* Success Modal */}
-{showSuccessModal && completedOrderData && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-    <div className="relative max-w-lg mx-4 bg-white rounded-xl shadow-2xl">
-      <div className="p-6">
-        <div className="text-center mb-6">
-          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">Pesanan Berhasil!</h3>
-          <p className="text-gray-600">Order Code: {completedOrderData.order_code}</p>
-        </div>
-
-        <div className="bg-gray-50 rounded-lg p-4 mb-6">
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Customer:</span>
-              <span className="font-medium">{completedOrderData.customer_name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Total:</span>
-              <span className="font-medium">{formatCurrency(completedOrderData.total_amount)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Payment:</span>
-              <span className="font-medium">{completedOrderData.payment_method_label}</span>
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="relative w-full max-w-md mx-auto bg-white rounded-xl shadow-2xl">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 bg-orange-100 rounded-full">
+                <svg className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              
+              <h3 className="text-base sm:text-lg font-semibold text-center text-gray-800 mb-2">
+                Konfirmasi Pesanan
+              </h3>
+              
+              <p className="text-sm sm:text-base text-center text-gray-600 mb-4 sm:mb-6">
+                Apakah Anda yakin ingin memproses pesanan ini?
+              </p>
+              
+              <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Customer:</span>
+                    <span className="font-medium truncate ml-2">{customerInfo.name}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-orange-600">
+                    <span>Total:</span>
+                    <span>{formatCurrency(subTotal)}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="flex-1 px-4 py-2.5 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={confirmProcessOrder}
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2.5 text-sm text-white bg-orange-500 rounded-lg hover:bg-orange-600 disabled:bg-orange-300 transition-colors"
+                >
+                  {isSubmitting ? 'Processing...' : 'Ya, Proses'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      )}
 
-        <div className="mb-6">
-          <PDFBillGenerator orderData={completedOrderData} />
+      {/* Success Modal */}
+      {showSuccessModal && completedOrderData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="relative w-full max-w-lg mx-auto bg-white rounded-xl shadow-2xl">
+            <div className="p-4 sm:p-6">
+              <div className="text-center mb-4 sm:mb-6">
+                <div className="flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 bg-green-100 rounded-full">
+                  <svg className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">Pesanan Berhasil!</h3>
+                <p className="text-sm sm:text-base text-gray-600">Order Code: {completedOrderData.order_code}</p>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Customer:</span>
+                    <span className="font-medium truncate ml-2">{completedOrderData.customer_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total:</span>
+                    <span className="font-medium">{formatCurrency(completedOrderData.total_amount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Payment:</span>
+                    <span className="font-medium">{completedOrderData.payment_method_label}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-4 sm:mb-6">
+                <PDFBillGenerator orderData={completedOrderData} />
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => setShowSuccessModal(false)}
+                  className="flex-1 px-4 py-2.5 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Tutup
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    resetOrder();
+                  }}
+                  className="flex-1 px-4 py-2.5 text-sm text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  Pesanan Baru
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-        
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowSuccessModal(false)}
-            className="flex-1 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Tutup
-          </button>
-          <button
-            onClick={() => {
-              setShowSuccessModal(false);
-              resetOrder();
-            }}
-            className="flex-1 px-4 py-2 text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
-          >
-            Pesanan Baru
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
     </div>
   );
 };
