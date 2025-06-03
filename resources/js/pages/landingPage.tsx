@@ -1,3 +1,4 @@
+//landingPage.tsx
 import { Head } from '@inertiajs/react';
 import Navbar from '@/components/navbar';
 import WelcomeSection from '@/components/welcomeSection';

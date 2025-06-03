@@ -217,7 +217,7 @@ const ErrorModal: React.FC<ErrorModalProps> = ({
   };
 
   const errorContent = getErrorContent();
-  
+
   const getColorClasses = (color: string) => {
     const colors = {
       blue: 'bg-blue-500 text-blue-100 border-blue-600',
@@ -233,11 +233,11 @@ const ErrorModal: React.FC<ErrorModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate-pulse-once">
         {/* Header */}
         <div className={`${getColorClasses(errorContent.color)} p-6 rounded-t-xl text-center border-b-2`}>
-          <div className="text-4xl mb-3">{errorContent.icon}</div>
+          <div className="mb-3 text-4xl">{errorContent.icon}</div>
           <h2 className="text-xl font-bold">{errorContent.title}</h2>
         </div>
 
@@ -245,15 +245,15 @@ const ErrorModal: React.FC<ErrorModalProps> = ({
         <div className="p-6">
           {/* Main Message */}
           <div className="mb-6">
-            <p className="text-gray-700 text-center leading-relaxed">
+            <p className="leading-relaxed text-center text-gray-700">
               {errorContent.message}
             </p>
           </div>
 
           {/* Solutions */}
           <div className="mb-6">
-            <h3 className="font-semibold text-gray-800 mb-3 flex items-center">
-              <svg className="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <h3 className="flex items-center mb-3 font-semibold text-gray-800">
+              <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
               Cara Mengatasi:
@@ -261,7 +261,7 @@ const ErrorModal: React.FC<ErrorModalProps> = ({
             <ul className="space-y-2">
               {errorContent.solutions.map((solution, index) => (
                 <li key={index} className="flex items-start text-sm text-gray-600">
-                  <span className="inline-block w-2 h-2 bg-blue-400 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                  <span className="flex-shrink-0 inline-block w-2 h-2 mt-2 mr-3 bg-blue-400 rounded-full"></span>
                   <span>{solution}</span>
                 </li>
               ))}
@@ -269,20 +269,20 @@ const ErrorModal: React.FC<ErrorModalProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <button
               onClick={() => {
                 onClose();
                 if (onRetry) onRetry();
               }}
-              className={`flex-1 py-3 ${errorContent.color === 'red' ? 'bg-red-500 hover:bg-red-600' : 
+              className={`flex-1 py-3 ${errorContent.color === 'red' ? 'bg-red-500 hover:bg-red-600' :
                          errorContent.color === 'yellow' ? 'bg-yellow-500 hover:bg-yellow-600' :
                          errorContent.color === 'blue' ? 'bg-blue-500 hover:bg-blue-600' :
                          errorContent.color === 'green' ? 'bg-green-500 hover:bg-green-600' :
                          errorContent.color === 'purple' ? 'bg-purple-500 hover:bg-purple-600' :
                          errorContent.color === 'indigo' ? 'bg-indigo-500 hover:bg-indigo-600' :
                          errorContent.color === 'orange' ? 'bg-orange-500 hover:bg-orange-600' :
-                         'bg-gray-500 hover:bg-gray-600'} 
+                         'bg-gray-500 hover:bg-gray-600'}
                        text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -290,24 +290,24 @@ const ErrorModal: React.FC<ErrorModalProps> = ({
               </svg>
               {errorContent.buttonText}
             </button>
-            
+
             <button
               onClick={onClose}
-              className="flex-1 sm:flex-none sm:px-6 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-colors"
+              className="flex-1 py-3 font-medium text-gray-700 transition-colors bg-gray-200 rounded-lg sm:flex-none sm:px-6 hover:bg-gray-300"
             >
               Tutup
             </button>
           </div>
 
           {/* Help Text */}
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="p-3 mt-4 border border-blue-200 rounded-lg bg-blue-50">
             <div className="flex items-start">
               <svg className="w-4 h-4 text-blue-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <p className="text-xs text-blue-800 font-medium">Butuh Bantuan?</p>
-                <p className="text-xs text-blue-700 mt-1">
+                <p className="text-xs font-medium text-blue-800">Butuh Bantuan?</p>
+                <p className="mt-1 text-xs text-blue-700">
                   Hubungi WhatsApp: <strong>0812-3456-7890</strong> atau email: <strong>help@cempakacafe.com</strong>
                 </p>
               </div>
@@ -362,19 +362,19 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="bg-green-500 text-white p-6 rounded-t-xl text-center">
-          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="p-6 text-center text-white bg-green-500 rounded-t-xl">
+          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-white rounded-full">
             <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
           <h2 className="text-2xl font-bold">Reservasi Berhasil!</h2>
-          <p className="text-green-100 mt-2">Terima kasih atas pesanan Anda</p>
+          <p className="mt-2 text-green-100">Terima kasih atas pesanan Anda</p>
           {reservationCode && (
-            <div className="bg-green-600 rounded-lg p-2 mt-3">
+            <div className="p-2 mt-3 bg-green-600 rounded-lg">
               <p className="text-sm">Kode Reservasi:</p>
               <p className="text-lg font-bold">{reservationCode}</p>
             </div>
@@ -384,15 +384,15 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
         {/* Body */}
         <div className="p-6">
           {needsConfirmation && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <div className="p-4 mb-6 border border-yellow-200 rounded-lg bg-yellow-50">
               <div className="flex items-start">
                 <svg className="w-5 h-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
                 <div>
                   <h4 className="font-medium text-yellow-800">Menunggu Konfirmasi</h4>
-                  <p className="text-sm text-yellow-700 mt-1">
-                    Reservasi Anda sedang menunggu konfirmasi dari staff kami. 
+                  <p className="mt-1 text-sm text-yellow-700">
+                    Reservasi Anda sedang menunggu konfirmasi dari staff kami.
                     Kami akan menghubungi Anda dalam 24 jam untuk konfirmasi pembayaran.
                   </p>
                 </div>
@@ -401,28 +401,28 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
           )}
 
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Detail Reservasi</h3>
-            
+            <h3 className="mb-4 text-lg font-semibold text-gray-800">Detail Reservasi</h3>
+
             <div className="space-y-3">
               <div className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-gray-600">Paket</span>
                 <span className="font-medium text-gray-800">{selectedPackage.name}</span>
               </div>
-              
+
               <div className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-gray-600">Tanggal & Waktu</span>
                 <span className="font-medium text-gray-800">{reservation.date}, {reservation.time}</span>
               </div>
-              
+
               <div className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-gray-600">Jumlah Orang</span>
                 <span className="font-medium text-gray-800">{reservation.numberOfPeople} orang</span>
               </div>
-              
+
               <div className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-gray-600">Lokasi</span>
                 <span className="font-medium text-gray-800">
-                  {reservation.tableLocation === 'indoor' ? 'Indoor' : 
+                  {reservation.tableLocation === 'indoor' ? 'Indoor' :
                    reservation.tableLocation === 'outdoor' ? 'Outdoor' : 'Ruang Private'}
                 </span>
               </div>
@@ -431,7 +431,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
                 <span className="text-gray-600">Metode Pembayaran</span>
                 <span className="font-medium text-gray-800">{paymentMethod}</span>
               </div>
-              
+
               {selectedMenuItems.length > 0 && (
                 <div className="py-2 border-b border-gray-100">
                   <div className="flex justify-between mb-2">
@@ -445,24 +445,24 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
                         <span className="text-gray-600">{formatPrice(item.price * (item.quantity || 1))}</span>
                       </div>
                     ))}
-                    <div className="flex justify-between text-sm font-medium border-t border-gray-100 pt-1">
+                    <div className="flex justify-between pt-1 text-sm font-medium border-t border-gray-100">
                       <span className="text-gray-600">Subtotal Menu:</span>
                       <span className="text-gray-800">{formatPrice(menuSubtotal)}</span>
                     </div>
                   </div>
                 </div>
               )}
-              
-              <div className="flex justify-between py-3 text-lg text-gray-800 font-bold bg-yellow-50 px-3 rounded-lg">
+
+              <div className="flex justify-between px-3 py-3 text-lg font-bold text-gray-800 rounded-lg bg-yellow-50">
                 <span>Total Pembayaran</span>
                 <span className="text-yellow-600">{formatPrice(reservation.totalPrice)}</span>
               </div>
             </div>
           </div>
 
-          <div className="bg-blue-50 p-4 rounded-lg mb-6">
-            <h4 className="font-medium text-blue-800 mb-2">Informasi Penting:</h4>
-            <ul className="text-sm text-blue-700 space-y-1">
+          <div className="p-4 mb-6 rounded-lg bg-blue-50">
+            <h4 className="mb-2 font-medium text-blue-800">Informasi Penting:</h4>
+            <ul className="space-y-1 text-sm text-blue-700">
               <li>• Harap datang 15 menit sebelum waktu reservasi</li>
               <li>• Bawa bukti reservasi ini saat datang</li>
               <li>• Hubungi kami jika ada perubahan</li>
@@ -471,10 +471,10 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <button
               onClick={handleViewReservations}
-              className="flex-1 py-3 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+              className="flex items-center justify-center flex-1 gap-2 py-3 font-medium text-white transition-colors bg-blue-500 rounded-lg hover:bg-blue-600"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -483,7 +483,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
             </button>
             <button
               onClick={handleDownloadPDF}
-              className="flex-1 py-3 bg-yellow-500 text-white font-medium rounded-lg hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2"
+              className="flex items-center justify-center flex-1 gap-2 py-3 font-medium text-white transition-colors bg-yellow-500 rounded-lg hover:bg-yellow-600"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -494,7 +494,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
 
           <button
             onClick={onClose}
-            className="w-full mt-3 py-2 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-colors"
+            className="w-full py-2 mt-3 font-medium text-white transition-colors bg-gray-500 rounded-lg hover:bg-gray-600"
           >
             Tutup
           </button>
@@ -559,28 +559,28 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
   // VALIDASI NOMOR TELEPON
   const validatePhoneNumber = (phone: string): boolean => {
     if (!phone?.trim()) return false;
-    
+
     const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
     const phonePatterns = [
       /^(\+62|62|0)[8-9][0-9]{8,11}$/, // Indonesian mobile numbers
       /^(\+62|62|0)[2-7][0-9]{7,10}$/   // Indonesian landline numbers
     ];
-    
+
     return phonePatterns.some(pattern => pattern.test(cleanPhone));
   };
 
   const handleConfirmReservation = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     console.log('🎬 handleConfirmReservation called');
-    
+
     // ✅ VALIDASI CUSTOMER FORM DENGAN ERROR MODAL
     if (customerFormRef?.current) {
       console.log('🔍 Validating customer form...');
-      
+
       // Panggil validasi dari CustomerForm
       const isValid = customerFormRef.current.validateAndFocus();
-      
+
       if (!isValid) {
         console.log('❌ Customer form validation failed');
         showError('validation_failed');
@@ -589,34 +589,34 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
     } else if (customerData) {
       // Fallback validation dengan error modal yang spesifik
       console.log('🔍 Fallback validation...');
-      
+
       if (!customerData.customer_name?.trim()) {
         showError('empty_name');
         return;
       }
-      
+
       if (!customerData.customer_phone?.trim()) {
         showError('empty_phone');
         return;
       }
-      
+
       if (!validatePhoneNumber(customerData.customer_phone)) {
         showError('invalid_phone');
         return;
       }
-      
+
       if (!customerData.customer_email?.trim()) {
         showError('empty_email');
         return;
       }
-      
+
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(customerData.customer_email)) {
         showError('invalid_email');
         return;
       }
     }
-    
+
     console.log('✅ Customer form validation passed');
 
     // Validasi bukti pembayaran
@@ -638,26 +638,26 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
 
       // Call the parent submit handler
       const result = await handleSubmit(e, paymentData);
-      
+
       console.log('🎉 handleSubmit resolved with:', result);
 
       // LANGSUNG set state untuk modal success
       const reservationCode = result?.reservation_code || `RSV-${Date.now()}`;
-      
+
       console.log('🔥 Setting success modal state...');
-      
+
       setReservationResult({
         reservation_code: reservationCode,
         success: true
       });
-      
+
       setShowSuccessModal(true);
-      
+
       console.log('✅ Success modal state set! Should show now.');
 
     } catch (error) {
       console.error('💥 Error in handleConfirmReservation:', error);
-      
+
       // Tentukan jenis error dan tampilkan modal yang sesuai
       if (error.response?.status === 500) {
         showError('server_error');
@@ -678,15 +678,15 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
       } else {
         // FALLBACK: Jika error tidak dikenal, tetap coba tampilkan success
         console.log('🔄 Unknown error, but trying success modal anyway...');
-        
+
         setReservationResult({
           reservation_code: `RSV-${Date.now()}`,
           success: true
         });
-        
+
         setShowSuccessModal(true);
       }
-      
+
     } finally {
       setLocalSubmitting(false);
     }
@@ -695,15 +695,15 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
   // Handle retry dari error modal
   const handleRetry = () => {
     console.log('🔄 Retrying from error modal...');
-    
+
     // Reset states
     setShowErrorModal(false);
     setErrorType('');
     setPaymentError('');
-    
+
     // Depending on error type, take appropriate action
-    if (errorType === 'empty_name' || errorType === 'empty_phone' || 
-        errorType === 'invalid_phone' || errorType === 'empty_email' || 
+    if (errorType === 'empty_name' || errorType === 'empty_phone' ||
+        errorType === 'invalid_phone' || errorType === 'empty_email' ||
         errorType === 'invalid_email' || errorType === 'validation_failed') {
       // Scroll to customer form
       if (customerFormRef?.current) {
@@ -727,13 +727,13 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
   const getBankInfo = () => {
     if (paymentMethod === 'transfer') {
       return (
-        <div className="mt-3 p-4 bg-blue-50 rounded-lg">
-          <h4 className="font-medium text-blue-800 mb-2">Informasi Transfer:</h4>
-          <div className="text-sm text-blue-700 space-y-1">
+        <div className="p-4 mt-3 rounded-lg bg-blue-50">
+          <h4 className="mb-2 font-medium text-blue-800">Informasi Transfer:</h4>
+          <div className="space-y-1 text-sm text-blue-700">
             <p><strong>Bank BCA</strong></p>
             <p>No. Rekening: 1234567890</p>
             <p>Atas Nama: Cempaka Cafe</p>
-            <p className="text-xs mt-2 text-blue-600">
+            <p className="mt-2 text-xs text-blue-600">
               *Silakan upload bukti transfer setelah melakukan pembayaran
             </p>
           </div>
@@ -760,9 +760,9 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
 
   return (
     <>
-      <div className="bg-white rounded-xl shadow-md p-6 sticky top-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Ringkasan Pesanan</h2>
-        
+      <div className="sticky p-6 bg-white shadow-md rounded-xl top-6">
+        <h2 className="mb-4 text-xl font-bold text-gray-800">Ringkasan Pesanan</h2>
+
         <div className="space-y-3">
           {/* Package Info */}
           <div className="flex justify-between pb-3 border-b border-gray-200">
@@ -772,7 +772,7 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
               <div className="text-sm text-gray-600">{formatPrice(selectedPackage.price)}</div>
             </div>
           </div>
-          
+
           {/* Date & Time */}
           <div className="flex justify-between pb-3 border-b border-gray-200">
             <span className="text-gray-600">Tanggal & Waktu</span>
@@ -780,44 +780,44 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
               {reservation.date}, {reservation.time}
             </span>
           </div>
-          
+
           {/* Number of People */}
           <div className="flex justify-between pb-3 border-b border-gray-200">
             <span className="text-gray-600">Jumlah Orang</span>
             <span className="font-medium text-gray-800">{reservation.numberOfPeople} orang</span>
           </div>
-          
+
           {/* Table Location */}
           <div className="flex justify-between pb-3 border-b border-gray-200">
             <span className="text-gray-600">Lokasi</span>
             <span className="font-medium text-gray-800">
-              {reservation.tableLocation === 'indoor' ? 'Indoor' : 
+              {reservation.tableLocation === 'indoor' ? 'Indoor' :
                reservation.tableLocation === 'outdoor' ? 'Outdoor' : 'Ruang Private'}
             </span>
           </div>
-          
+
           {/* Menu Items Detail */}
           {selectedMenuItems && selectedMenuItems.length > 0 && (
             <div className="pb-3 border-b border-gray-200">
               <div className="flex justify-between mb-2">
-                <span className="text-gray-600 font-medium">Menu Tambahan</span>
+                <span className="font-medium text-gray-600">Menu Tambahan</span>
                 <span className="text-sm text-gray-500">{selectedMenuItems.length} item</span>
               </div>
-              <div className="space-y-2 pl-2">
+              <div className="pl-2 space-y-2">
                 {selectedMenuItems.map((item) => (
                   <div key={item.id} className="flex justify-between text-sm">
                     <div className="flex-1">
                       <div className="text-gray-700">{item.name}</div>
-                      <div className="text-gray-500 text-xs">
+                      <div className="text-xs text-gray-500">
                         {formatPrice(item.price)} x {item.quantity}
                       </div>
                     </div>
-                    <div className="text-gray-800 font-medium">
+                    <div className="font-medium text-gray-800">
                       {formatPrice(item.price * (item.quantity || 1))}
                     </div>
                   </div>
                 ))}
-                <div className="flex justify-between text-sm font-medium border-t border-gray-100 pt-2 mt-2">
+                <div className="flex justify-between pt-2 mt-2 text-sm font-medium border-t border-gray-100">
                   <span className="text-gray-600">Subtotal Menu:</span>
                   <span className="text-gray-800">{formatPrice(menuSubtotal)}</span>
                 </div>
@@ -831,14 +831,14 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
             <div className="flex items-center">
               {hasProofOfPayment ? (
                 <>
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 mr-1 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span className="text-sm text-green-600 font-medium">Tersedia</span>
+                  <span className="text-sm font-medium text-green-600">Tersedia</span>
                 </>
               ) : (
                 <>
-                  <svg className="w-4 h-4 text-gray-400 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                   </svg>
                   <span className="text-sm text-gray-400">Belum ada</span>
@@ -846,22 +846,22 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
               )}
             </div>
           </div>
-          
+
           {/* Total Price */}
           <div className="pt-3">
-            <div className="flex justify-between text-lg text-gray-800 font-bold">
+            <div className="flex justify-between text-lg font-bold text-gray-800">
               <span>Total</span>
-              <span className="text-yellow-600">{formatPrice(reservation.totalPrice)}</span>
+              <span className="text-yellow-500">{formatPrice(reservation.totalPrice)}</span>
             </div>
-            
+
             {/* Payment Method Section */}
             <div className="mt-6">
-              <h3 className="font-medium text-gray-800 mb-3">Metode Pembayaran</h3>
+              <h3 className="mb-3 font-medium text-gray-800">Metode Pembayaran</h3>
               <div className="relative">
                 <select
                   value={paymentMethod}
                   onChange={(e) => handlePaymentMethodChange(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-700 focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 appearance-none cursor-pointer"
+                  className="w-full p-3 text-gray-700 bg-white border border-gray-300 rounded-lg appearance-none cursor-pointer focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400"
                 >
                   {paymentOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -875,20 +875,20 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
                   </svg>
                 </div>
               </div>
-              
+
               {/* Bank Info */}
               {getBankInfo()}
 
               {/* Payment Requirements */}
               {requiresProof && (
-                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="p-3 mt-3 border border-yellow-200 rounded-lg bg-yellow-50">
                   <div className="flex items-start">
                     <svg className="w-4 h-4 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div>
-                      <p className="text-sm text-yellow-800 font-medium">Bukti pembayaran diperlukan</p>
-                      <p className="text-xs text-yellow-700 mt-1">
+                      <p className="text-sm font-medium text-yellow-800">Bukti pembayaran diperlukan</p>
+                      <p className="mt-1 text-xs text-yellow-700">
                         Upload bukti pembayaran di bagian atas sebelum konfirmasi reservasi
                       </p>
                     </div>
@@ -898,7 +898,7 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
 
               {/* Error Message (hanya untuk fallback) */}
               {paymentError && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="p-3 mt-3 border border-red-200 rounded-lg bg-red-50">
                   <div className="flex items-start">
                     <svg className="w-4 h-4 text-red-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -908,20 +908,20 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
                 </div>
               )}
             </div>
-            
+
             <button
               type="button"
               onClick={handleConfirmReservation}
               disabled={isCurrentlySubmitting}
               className={`w-full mt-6 py-3 font-medium rounded-lg transition-colors ${
                 isCurrentlySubmitting
-                  ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                  : 'bg-yellow-500 text-white hover:bg-yellow-600'
+                  ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                  : 'bg-orange-400 text-white hover:bg-orange-600'
               }`}
             >
               {isCurrentlySubmitting ? (
                 <div className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 mr-3 -ml-1 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -933,9 +933,9 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
             </button>
 
             {/* Additional Info */}
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+            <div className="p-3 mt-4 rounded-lg bg-blue-50">
               <div className="text-xs text-blue-800">
-                <p className="font-medium mb-1">Informasi Penting:</p>
+                <p className="mb-1 font-medium">Informasi Penting:</p>
                 <ul className="space-y-1 text-blue-700">
                   <li>• Pastikan data pemesan sudah lengkap dan benar</li>
                   <li>• Reservasi minimal 2 hari sebelumnya</li>

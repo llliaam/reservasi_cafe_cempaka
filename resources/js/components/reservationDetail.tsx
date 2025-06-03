@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 
-const ReservationDetails = ({ 
-  reservation, 
+const ReservationDetails = ({
+  reservation,
   specialRequests,
   handleReservationChange,
   handleInputChange,
@@ -25,8 +25,8 @@ const ReservationDetails = ({
   // Generate available time options based on selected date
   const getAvailableTimeOptions = () => {
     const allTimes = [
-      "10:00", "11:00", "12:00", "13:00", "14:00", 
-      "15:00", "16:00", "17:00", "18:00", "19:00", 
+      "10:00", "11:00", "12:00", "13:00", "14:00",
+      "15:00", "16:00", "17:00", "18:00", "19:00",
       "20:00", "21:00", "22:00"
     ];
 
@@ -49,12 +49,12 @@ const ReservationDetails = ({
   const availableTimes = getAvailableTimeOptions();
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6">
-      <h2 className="text-xl font-bold text-gray-800 mb-4">Detail Reservasi</h2>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+    <div className="p-6 bg-white shadow-md rounded-xl">
+      <h2 className="mb-4 text-xl font-bold text-gray-800">Detail Reservasi</h2>
+
+      <div className="grid grid-cols-1 gap-4 mb-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="reservation_date" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="reservation_date" className="block mb-1 text-sm font-medium text-gray-700">
             Tanggal Reservasi
           </label>
           <input
@@ -67,13 +67,13 @@ const ReservationDetails = ({
             className="w-full px-4 py-2 text-gray-800 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
             required
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="mt-1 text-xs text-gray-500">
             Data dari form sebelumnya: {reservation.reservation_date || 'Belum dipilih'}
           </p>
         </div>
-        
+
         <div>
-          <label htmlFor="reservation_time" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="reservation_time" className="block mb-1 text-sm font-medium text-gray-700">
             Jam Reservasi
           </label>
           <select
@@ -94,14 +94,14 @@ const ReservationDetails = ({
               <option value="">Tidak ada jam tersedia</option>
             )}
           </select>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="mt-1 text-xs text-gray-500">
             Data dari form sebelumnya: {reservation.reservation_time || 'Belum dipilih'}
           </p>
         </div>
       </div>
-      
+
       <div className="mb-4">
-        <label htmlFor="table_location" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="table_location" className="block mb-1 text-sm font-medium text-gray-700">
           Lokasi Meja
         </label>
         <select
@@ -116,13 +116,13 @@ const ReservationDetails = ({
           <option value="private">Ruang Private</option>
         </select>
       </div>
-      
+
       <div className="mb-4">
-        <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="type" className="block mb-1 text-sm font-medium text-gray-700">
           Jenis Reservasi
         </label>
-        <select 
-          name="type" 
+        <select
+          name="type"
           id="type"
           value={reservation.type || 'private'}
           onChange={handleReservationChange}
@@ -132,9 +132,9 @@ const ReservationDetails = ({
           <option value="acara">Acara</option>
         </select>
       </div>
-      
+
       <div>
-        <label htmlFor="special_requests" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="special_requests" className="block mb-1 text-sm font-medium text-gray-700">
           Permintaan Khusus
         </label>
         <textarea
