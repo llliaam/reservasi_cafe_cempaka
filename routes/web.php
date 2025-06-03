@@ -145,6 +145,10 @@ Route::middleware(['auth', 'verified', 'role:staff,admin'])->prefix('staff')->na
     // Route::patch('/orders/{order}/status', [OrderController::class, 'updateOrderStatus'])->name('orders.update-status');
     Route::get('/orders/{order}', [OrderController::class, 'staffShow'])->name('orders.show');
     Route::patch('/orders/{order}/status', [StaffController::class, 'updateOrderStatus'])->name('orders.update-status');
+
+     // ===== STAFF OFFLINE ORDER =====
+    Route::post('/orders/offline', [OrderController::class, 'storeOfflineOrder'])->name('orders.offline');
+    Route::get('/tables/available-now', [RestaurantTableController::class, 'getAvailableTablesNow'])->name('tables.available-now');
     
     // ===== STAFF RESERVATION MANAGEMENT (PURE INERTIA) =====
     Route::get('/reservations', [StaffController::class, 'reservationsManagement'])->name('reservations.management');
