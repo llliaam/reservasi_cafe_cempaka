@@ -7,6 +7,10 @@ use App\Models\Reservation;
 use App\Models\RestaurantTable;
 use App\Models\User;
 use App\Models\UserReview;
+use App\Models\MenuItem;
+use App\Models\MenuCategory;
+use App\Models\OfflineOrder;      
+use App\Models\OfflineOrderItem;  
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -162,7 +166,45 @@ class StaffController extends Controller
         $reservationsData = $this->getReservationsData($request);
         $tablesData = $this->getTablesDataWithRealtime(); // RESTORED: Use realtime method
         $ordersData = $this->getOrdersData($request);
-        
+        $offlineOrdersData = $this->getOfflineOrdersData($request);
+
+        // Gabungkan online dan offline orders
+        $allOrdersData = $ordersData->concat($offlineOrdersData)->sortByDesc('order_time');
+
+         try {
+            $menuItems = MenuItem::with('category')
+                ->where('is_available', true)
+                ->orderBy('sort_order')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'name' => $item->name,
+                        'price' => $item->price,
+                        'image' => $item->image_url ?? 'default.jpg',
+                        'category' => $item->category->name ?? 'Uncategorized'
+                    ];
+                });
+
+            // ADDED: Get available tables untuk dine-in orders
+            $availableTables = RestaurantTable::where('status', 'available')
+                ->orderBy('table_number')
+                ->get()
+                ->map(function ($table) {
+                    return [
+                        'id' => $table->id,
+                        'meja_name' => $table->meja_name ?? "Meja {$table->table_number}",
+                        'capacity' => $table->capacity,
+                        'location' => $table->full_location ?? 'Unknown'
+                    ];
+                });
+
+        } catch (\Exception $e) {
+            \Log::error('Error loading cashier data: ' . $e->getMessage());
+            $menuItems = collect([]);
+            $availableTables = collect([]);
+        }
+            
         // Return StaffPage with all data including reservations
         return Inertia::render('staff/staffPage', [
             'dashboardData' => [
@@ -175,7 +217,9 @@ class StaffController extends Controller
             // ADDED: Pass reservations data to StaffPage
             'reservationsData' => $reservationsData,
             'tablesData' => $tablesData,
-            'ordersData' => $ordersData,
+            'ordersData' => $allOrdersData,
+            'availableTables' => $availableTables,
+            'menuItems' => $menuItems,
             'reservationFilters' => [
                 'status' => $request->status ?? 'all',
                 'date' => $request->date ?? ''
@@ -266,6 +310,58 @@ private function getTablesData()
 
     } catch (\Exception $e) {
         \Log::error('Error getting tables data: ' . $e->getMessage());
+        return collect([]);
+    }
+}
+
+private function getOfflineOrdersData(Request $request)
+{
+    try {
+        $query = OfflineOrder::with(['staff', 'items.menuItem', 'table'])
+            ->orderBy('order_time', 'desc');
+
+        $orders = $query->get();
+
+        $transformedOrders = $orders->map(function ($order) {
+            return [
+                'id' => $order->id,
+                'order_code' => $order->order_code,
+                'customer_name' => $order->customer_name,
+                'customer_phone' => $order->customer_phone,
+                'customer_email' => $order->customer_email,
+                'order_type' => $order->order_type,
+                'order_type_label' => $order->order_type === 'dine_in' ? 'Makan di Tempat' : 'Bawa Pulang',
+                'status' => $order->status,
+                'status_label' => $order->status_label,
+                'payment_method' => $order->payment_method,
+                'payment_method_label' => $order->payment_method === 'cash' ? 'Tunai' : 'Kartu Debit',
+                'payment_status' => $order->payment_status,
+                'subtotal' => $order->subtotal,
+                'service_fee' => $order->service_fee,
+                'total_amount' => $order->total_amount,
+                'formatted_total' => $order->formatted_total,
+                'order_time' => $order->order_time->format('d/m/Y H:i'),
+                'items_count' => $order->items->sum('quantity'),
+                'main_item' => $order->items->first()?->menu_item_name ?? 'Unknown Item',
+                'table_name' => $order->table?->meja_name,
+                'staff_name' => $order->staff?->name,
+                'order_source' => 'Offline (Staff)',
+                'items' => $order->items->map(function ($item) {
+                    return [
+                        'menu_name' => $item->menu_item_name,
+                        'quantity' => $item->quantity,
+                        'price' => $item->menu_item_price,
+                        'subtotal' => $item->subtotal,
+                        'special_instructions' => $item->special_instructions
+                    ];
+                })
+            ];
+        });
+
+        return $transformedOrders;
+
+    } catch (\Exception $e) {
+        \Log::error('Error getting offline orders data: ' . $e->getMessage());
         return collect([]);
     }
 }

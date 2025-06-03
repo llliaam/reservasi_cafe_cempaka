@@ -38,7 +38,9 @@ class Order extends Model
         'completed_at',
         'rating',
         'review',
-        'reviewed_at'
+        'reviewed_at',
+        'table_id',
+        'created_by_staff'
     ];
 
     protected $casts = [
@@ -233,6 +235,14 @@ class Order extends Model
     public function table(): BelongsTo
     {
         return $this->belongsTo(RestaurantTable::class, 'table_id');
+    }
+
+    /**
+     * Relasi dengan Staff yang membuat offline order
+     */
+    public function createdByStaff(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_staff');
     }
 
     /**
@@ -779,6 +789,36 @@ public function updateTableStatus(): void
     }
 
     // ==================== HELPER METHODS ====================
+
+    /**
+ * Check if this is an offline order (created by staff)
+ */
+public function isOfflineOrder(): bool
+{
+    return is_null($this->user_id) && !is_null($this->created_by_staff);
+}
+
+/**
+ * Check if this is an online order (created by customer)
+ */
+public function isOnlineOrder(): bool
+{
+    return !is_null($this->user_id) && is_null($this->created_by_staff);
+}
+
+/**
+ * Get order source label
+ */
+public function getOrderSourceAttribute(): string
+{
+    if ($this->isOfflineOrder()) {
+        return 'Offline (Staff)';
+    } elseif ($this->isOnlineOrder()) {
+        return 'Online (Customer)';
+    } else {
+        return 'Unknown';
+    }
+}
 
     /**
      * Check if order can be cancelled

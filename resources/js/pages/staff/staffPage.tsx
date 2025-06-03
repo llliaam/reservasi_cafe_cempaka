@@ -37,6 +37,21 @@
     status?: string;
   }
 
+  interface Product {
+  id: number;
+  name: string;
+  price: number;
+  category: string;
+  image: string;
+}
+
+interface AvailableTable {
+  id: number;
+  meja_name: string;
+  capacity: number;
+  location: string;
+}
+
   // ADDED: Interfaces for reservations and tables
   interface Reservation {
     id: number;
@@ -80,28 +95,34 @@
   }
 
   interface StaffPageProps {
-    dashboardData?: {
-      todayStats: DashboardStats;
-      hourlyData: HourlyData[];
-      recentActivities: RecentActivity[];
-      pendingOrdersCount: number;
-      todayReservationsCount: number;
-    };
-    // ADDED: Props for reservations data
-    reservationsData?: Reservation[];
-    tablesData?: Table[];
-    ordersData?: any[];
-    reservationFilters?: {
-      status?: string;
-      date?: string;
-    };
-  }
+  dashboardData?: {
+    todayStats: DashboardStats;
+    hourlyData: HourlyData[];
+    recentActivities: RecentActivity[];
+    pendingOrdersCount: number;
+    todayReservationsCount: number;
+  };
+  reservationsData?: Reservation[];
+  tablesData?: Table[];
+  ordersData?: any[];
+  // TAMBAH PROPS INI:
+  menuItems?: Product[];
+  availableTables?: AvailableTable[];
+  auth?: { user: { id: number; name: string; role: string; } };
+  reservationFilters?: {
+    status?: string;
+    date?: string;
+  };
+}
 
   const StaffPage: React.FC<StaffPageProps> = ({ 
     dashboardData,
     reservationsData,
     tablesData,
     ordersData,
+    menuItems = [],
+    availableTables = [],
+    auth,
     reservationFilters 
   }) => {
     const [activePage, setActivePage] = useState<ActivePage>('dashboard');
@@ -139,7 +160,11 @@
             </div>
           );
         case 'cashier':
-          return <CashierSystem />;
+        return <CashierSystem 
+          menuItems={menuItems}
+          availableTables={availableTables}
+          auth={auth}
+        />;
         case 'online-orders':
           return <OnlineOrdersPage ordersData={ordersData} />;
         case 'staff-reservasi':
@@ -153,32 +178,32 @@
       }
     };
 
-    const menuItems = [
-      { 
-        id: 'dashboard', 
-        label: 'Dashboard', 
-        icon: Home,
-        description: 'Ringkasan & Analytics'
-      },
-      { 
-        id: 'cashier', 
-        label: 'Kasir', 
-        icon: CreditCard,
-        description: 'Sistem Point of Sale'
-      },
-      { 
-        id: 'online-orders', 
-        label: 'History Pesanan', 
-        icon: History,
-        description: 'Kelola pesanan customer'
-      },
-      { 
-        id: 'staff-reservasi', 
-        label: 'Reservasi', 
-        icon: UserCheck,
-        description: 'Manajemen reservasi'
-      }
-    ];
+    const navigationMenu = [
+  { 
+    id: 'dashboard', 
+    label: 'Dashboard', 
+    icon: Home,
+    description: 'Ringkasan & Analytics'
+  },
+  { 
+    id: 'cashier', 
+    label: 'Kasir', 
+    icon: CreditCard,
+    description: 'Sistem Point of Sale'
+  },
+  { 
+    id: 'online-orders', 
+    label: 'History Pesanan', 
+    icon: History,
+    description: 'Kelola pesanan customer'
+  },
+  { 
+    id: 'staff-reservasi', 
+    label: 'Reservasi', 
+    icon: UserCheck,
+    description: 'Manajemen reservasi'
+  }
+];
 
     const getButtonStyle = (page: ActivePage) => {
       const isActive = activePage === page;
@@ -237,20 +262,20 @@
                 </p>
               </div>
               
-              {menuItems.map((item) => {
-                const IconComponent = item.icon;
-                const isActive = activePage === item.id;
-                
-                return (
-                  <button
-                    key={item.id}
-                    className={getButtonStyle(item.id as ActivePage)}
-                    onClick={() => {
-                      setActivePage(item.id as ActivePage);
-                      setSidebarOpen(false); // Close sidebar on mobile after selection
-                    }}
-                    aria-label={`Navigate to ${item.label}`}
-                  >
+              {navigationMenu.map((item) => {
+                    const IconComponent = item.icon;
+                    const isActive = activePage === item.id;
+                    
+                    return (
+                      <button
+                        key={item.id}
+                        className={getButtonStyle(item.id as ActivePage)}
+                        onClick={() => {
+                          setActivePage(item.id as ActivePage);
+                          setSidebarOpen(false);
+                        }}
+                        aria-label={`Navigate to ${item.label}`}
+                      >
                     <div className="flex items-center space-x-3 w-full">
                       <div className={`p-2 rounded-lg ${isActive ? 'bg-white/20' : 'bg-amber-100'}`}>
                         <IconComponent className={`w-5 h-5 ${isActive ? 'text-white' : 'text-amber-600'}`} />
