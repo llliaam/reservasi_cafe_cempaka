@@ -1,9 +1,7 @@
-//navbar.tsx
-
 import { useState, useEffect } from 'react';
 import { Link as ScrollLink } from 'react-scroll';
 import { type SharedData } from '@/types';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, usePage, router } from '@inertiajs/react'; // Tambahkan router import
 
 const Navbar = () => {
     const { auth } = usePage<SharedData>().props;
@@ -11,10 +9,33 @@ const Navbar = () => {
     const [isSticky, setIsSticky] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [activeSection, setActiveSection] = useState('home');
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false); // Tambahkan loading state
 
     const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
     const closeSidebar = () => setIsSidebarOpen(false);
+    const openLogoutModal = () => setShowLogoutModal(true);
+    const closeLogoutModal = () => setShowLogoutModal(false);
+
+    // Perbaiki fungsi handleLogout
+    const handleLogout = () => {
+        setIsLoggingOut(true);
+        closeLogoutModal();
+        closeSidebar();
+
+        // Gunakan Inertia router untuk logout POST request
+        router.post(route('logout'), {}, {
+            onFinish: () => {
+                setIsLoggingOut(false);
+            },
+            onError: () => {
+                setIsLoggingOut(false);
+                // Handle error jika diperlukan
+                console.error('Logout failed');
+            }
+        });
+    };
 
     useEffect(() => {
         const handleScroll = () => {
@@ -231,6 +252,83 @@ const Navbar = () => {
                 </div>
             </nav>
 
+            {/* Logout Confirmation Modal */}
+            {showLogoutModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 transition-all duration-300 bg-black/70 backdrop-blur-sm"
+                        onClick={closeLogoutModal}
+                    />
+
+                    {/* Modal */}
+                    <div className="relative z-10 w-full max-w-md mx-4 overflow-hidden transition-all duration-500 transform scale-100 bg-white shadow-2xl rounded-2xl dark:bg-gray-900 animate-bounce-in">
+                        {/* Header dengan gradient */}
+                        <div className="relative p-6 overflow-hidden bg-gradient-to-br from-red-500 via-orange-500 to-yellow-500">
+                            <div className="absolute inset-0 opacity-20 bg-gradient-to-br from-red-400/20 to-yellow-400/20 backdrop-blur-sm"></div>
+                            <div className="relative flex items-center space-x-4">
+                                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm">
+                                    <svg className="w-6 h-6 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-2.692-.833-3.464 0L3.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-white drop-shadow-lg">Konfirmasi Logout</h3>
+                                    <p className="text-sm text-white/90">Apakah Anda yakin ingin keluar?</p>
+                                </div>
+                            </div>
+                            <div className="absolute w-20 h-20 rounded-full -bottom-1 -right-1 bg-white/10 blur-xl"></div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6">
+                            <div className="flex items-center mb-6 space-x-3">
+                                <div className="flex items-center justify-center w-10 h-10 bg-orange-100 rounded-full dark:bg-orange-900/30">
+                                    <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p className="font-medium text-gray-900 dark:text-gray-100">{auth?.user?.name}</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">{auth?.user?.email}</p>
+                                </div>
+                            </div>
+
+                            <p className="mb-6 text-gray-600 dark:text-gray-300">
+                                Anda akan keluar dari akun Cempaka Cafe. Pastikan semua pekerjaan telah tersimpan sebelum melanjutkan.
+                            </p>
+
+                            {/* Action Buttons */}
+                            <div className="flex space-x-3">
+                                <button
+                                    onClick={closeLogoutModal}
+                                    disabled={isLoggingOut}
+                                    className="flex-1 px-4 py-3 font-semibold text-gray-700 transition-all duration-300 bg-gray-100 border border-gray-200 rounded-xl hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    onClick={handleLogout}
+                                    disabled={isLoggingOut}
+                                    className="flex-1 px-4 py-3 font-semibold text-white transition-all duration-300 transform rounded-xl bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 hover:scale-105 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                >
+                                    {isLoggingOut ? (
+                                        <div className="flex items-center justify-center space-x-2">
+                                            <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                            <span>Logging out...</span>
+                                        </div>
+                                    ) : (
+                                        'Ya, Logout'
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Enhanced Overlay */}
             {isSidebarOpen && (
                 <div
@@ -334,11 +432,8 @@ const Navbar = () => {
 
                     {/* Enhanced Logout Button */}
                     <div className="p-4 border-t border-gray-200/50 dark:border-gray-700/50">
-                        <Link
-                            href={route('logout')}
-                            method="post"
-                            as="button"
-                            onClick={closeSidebar}
+                        <button
+                            onClick={openLogoutModal}
                             className="flex items-center w-full px-4 py-3 text-left text-red-600 transition-all duration-300 dark:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 group hover:scale-105"
                         >
                             <div className="flex items-center space-x-3">
@@ -349,10 +444,33 @@ const Navbar = () => {
                                 </div>
                                 <span className="font-medium">Logout</span>
                             </div>
-                        </Link>
+                        </button>
                     </div>
                 </div>
             )}
+
+            {/* Custom Animation Styles */}
+            <style jsx>{`
+                @keyframes bounce-in {
+                    0% {
+                        transform: scale(0.3);
+                        opacity: 0;
+                    }
+                    50% {
+                        transform: scale(1.05);
+                    }
+                    70% {
+                        transform: scale(0.9);
+                    }
+                    100% {
+                        transform: scale(1);
+                        opacity: 1;
+                    }
+                }
+                .animate-bounce-in {
+                    animation: bounce-in 0.5s ease-out;
+                }
+            `}</style>
         </>
     );
 };
