@@ -9,7 +9,7 @@ import PackageSelector from '@/components/packageSelector';
 import ReservationDetails from '@/components/reservationDetail';
 import MenuSelector from '@/components/menuSelector';
 import MenuPopup from '@/components/menuPopup';
-import OrderSummary from '@/components/orderSummary'; 
+import OrderSummary from '@/components/orderSummary';
 
 interface Package {
   id: number;
@@ -67,7 +67,7 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
   const [proofPreview, setProofPreview] = useState(null);
   const [additionalPreviews, setAdditionalPreviews] = useState([]);
   const [errors, setErrors] = useState([]);
-  
+
   const proofInputRef = useRef(null);
   const additionalInputRef = useRef(null);
 
@@ -77,15 +77,15 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
   const validateFile = (file) => {
     const maxSize = 2048 * 1024; // 2MB in bytes
     const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
-    
+
     if (!allowedTypes.includes(file.type)) {
       return 'File harus berupa gambar (JPG, PNG, GIF)';
     }
-    
+
     if (file.size > maxSize) {
       return 'Ukuran file maksimal 2MB';
     }
-    
+
     return null;
   };
 
@@ -101,12 +101,12 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
 
     setErrors([]);
     setProofOfPayment(file);
-    
+
     // Create preview
     const reader = new FileReader();
     reader.onload = (e) => setProofPreview(e.target.result);
     reader.readAsDataURL(file);
-    
+
     if (onProofOfPaymentChange) {
       onProofOfPaymentChange(file);
     }
@@ -116,7 +116,7 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
     const files = Array.from(e.target.files);
     const validFiles = [];
     const newErrors = [];
-    
+
     if (files.length > 5) {
       newErrors.push('Maksimal 5 gambar tambahan');
       return;
@@ -138,7 +138,7 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
 
     setErrors([]);
     setAdditionalImages(validFiles);
-    
+
     // Create previews
     const previews = [];
     validFiles.forEach((file, index) => {
@@ -149,14 +149,14 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
           name: file.name,
           url: e.target.result
         });
-        
+
         if (previews.length === validFiles.length) {
           setAdditionalPreviews(previews);
         }
       };
       reader.readAsDataURL(file);
     });
-    
+
     if (onAdditionalImagesChange) {
       onAdditionalImagesChange(validFiles);
     }
@@ -176,25 +176,25 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
   const removeAdditionalImage = (index) => {
     const newFiles = additionalImages.filter((_, i) => i !== index);
     const newPreviews = additionalPreviews.filter((_, i) => i !== index);
-    
+
     setAdditionalImages(newFiles);
     setAdditionalPreviews(newPreviews);
-    
+
     if (onAdditionalImagesChange) {
       onAdditionalImagesChange(newFiles);
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border p-6 space-y-6">
+    <div className="p-6 space-y-6 bg-white border rounded-lg shadow-sm">
       <h3 className="text-lg font-semibold text-gray-800">Upload Gambar</h3>
-      
+
       {/* Error Messages */}
       {errors.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-          <div className="text-red-800 text-sm">
-            <p className="font-semibold mb-1">Error:</p>
-            <ul className="list-disc list-inside space-y-1">
+        <div className="p-3 border border-red-200 rounded-lg bg-red-50">
+          <div className="text-sm text-red-800">
+            <p className="mb-1 font-semibold">Error:</p>
+            <ul className="space-y-1 list-disc list-inside">
               {errors.map((error, index) => (
                 <li key={index}>{error}</li>
               ))}
@@ -206,22 +206,22 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
       {/* Proof of Payment */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-md font-medium text-gray-700">
+          <h4 className="font-medium text-gray-700 text-md">
             Bukti Pembayaran {isProofRequired && <span className="text-red-500">*</span>}
           </h4>
           {isProofRequired && (
-            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+            <span className="px-2 py-1 text-xs text-yellow-800 bg-yellow-100 rounded-full">
               Wajib
             </span>
           )}
         </div>
-        
-        <p className="text-sm text-gray-600 mb-3">
-          {isProofRequired 
-            ? "Upload bukti transfer atau pembayaran reservasi Anda" 
+
+        <p className="mb-3 text-sm text-gray-600">
+          {isProofRequired
+            ? "Upload bukti transfer atau pembayaran reservasi Anda"
             : "Opsional - Upload bukti pembayaran jika sudah melakukan transfer"}
         </p>
-        
+
         {!proofPreview ? (
           <div className={`border-2 border-dashed rounded-lg p-6 text-center hover:border-gray-400 transition-colors ${
             isProofRequired ? 'border-yellow-300 bg-yellow-50' : 'border-gray-300'
@@ -246,7 +246,7 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
               </svg>
               <span>Pilih Bukti Pembayaran</span>
             </button>
-            <p className="text-sm text-gray-500 mt-2">JPG, PNG, GIF - Maksimal 2MB</p>
+            <p className="mt-2 text-sm text-gray-500">JPG, PNG, GIF - Maksimal 2MB</p>
           </div>
         ) : (
           <div className="relative">
@@ -258,25 +258,25 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
             <button
               type="button"
               onClick={removeProofOfPayment}
-              className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition-colors"
+              className="absolute p-1 text-white transition-colors bg-red-600 rounded-full top-2 right-2 hover:bg-red-700"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <p className="text-sm text-gray-600 text-center mt-2">{proofOfPayment?.name}</p>
+            <p className="mt-2 text-sm text-center text-gray-600">{proofOfPayment?.name}</p>
           </div>
         )}
       </div>
 
       {/* Additional Images */}
       <div>
-        <h4 className="text-md font-medium text-gray-700 mb-3">Gambar Tambahan (Opsional)</h4>
-        <p className="text-sm text-gray-600 mb-3">
+        <h4 className="mb-3 font-medium text-gray-700 text-md">Gambar Tambahan (Opsional)</h4>
+        <p className="mb-3 text-sm text-gray-600">
           Upload gambar permintaan dekorasi khusus atau referensi lainnya (maksimal 5 gambar)
         </p>
-        
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors mb-4">
+
+        <div className="p-6 mb-4 text-center transition-colors border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400">
           <input
             ref={additionalInputRef}
             type="file"
@@ -289,40 +289,40 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
           <button
             type="button"
             onClick={() => additionalInputRef.current?.click()}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center space-x-2 mx-auto"
+            className="flex items-center px-4 py-2 mx-auto space-x-2 text-white transition-colors duration-200 bg-green-600 rounded-lg hover:bg-green-700"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
             <span>Pilih Gambar Tambahan</span>
           </button>
-          <p className="text-sm text-gray-500 mt-2">JPG, PNG, GIF - Maksimal 2MB per file</p>
+          <p className="mt-2 text-sm text-gray-500">JPG, PNG, GIF - Maksimal 2MB per file</p>
         </div>
 
         {/* Additional Images Preview */}
         {additionalPreviews.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
             {additionalPreviews.map((preview) => (
               <div key={preview.id} className="relative group">
-                <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                <div className="overflow-hidden bg-gray-100 rounded-lg aspect-square">
                   <img
                     src={preview.url}
                     alt={preview.name}
-                    className="w-full h-full object-cover"
+                    className="object-cover w-full h-full"
                   />
                 </div>
-                
+
                 <button
                   type="button"
                   onClick={() => removeAdditionalImage(preview.id)}
-                  className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  className="absolute p-1 text-white transition-opacity duration-200 bg-red-600 rounded-full opacity-0 top-2 right-2 group-hover:opacity-100"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
-                
-                <p className="text-xs text-gray-600 mt-1 truncate" title={preview.name}>
+
+                <p className="mt-1 text-xs text-gray-600 truncate" title={preview.name}>
                   {preview.name}
                 </p>
               </div>
@@ -337,17 +337,17 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
 const ReservationPage = () => {
   // PERBAIKAN: Gunakan destructuring dengan fallback
   const pageProps = usePage<PageProps>().props;
-  const { 
-    auth, 
-    packages = [], 
-    menuItems = {}, 
-    defaultData = {}, 
-    userProfile = {}, 
-    queryParams = {}, 
-    flash = {}, 
-    errors = {} 
+  const {
+    auth,
+    packages = [],
+    menuItems = {},
+    defaultData = {},
+    userProfile = {},
+    queryParams = {},
+    flash = {},
+    errors = {}
   } = pageProps;
-  
+
   // PERBAIKAN: Siapkan default values dengan fallback yang aman
   const safeDefaults = {
     customer_name: defaultData?.customer_name || userProfile?.name || '',
@@ -367,17 +367,17 @@ const ReservationPage = () => {
     proof_of_payment: null,
     additional_images: []
   };
-  
+
   // PERBAIKAN: Form handling dengan data yang aman
   const { data, setData, post, processing } = useForm(safeDefaults);
-  
+
   // State untuk popup menu
   const [showMenuPopup, setShowMenuPopup] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("food");
-  
+
   // State untuk item menu yang dipilih
   const [selectedMenuItems, setSelectedMenuItems] = useState([]);
-  
+
   // State untuk gambar
   const [proofOfPaymentFile, setProofOfPaymentFile] = useState(null);
   const [additionalImagesFiles, setAdditionalImagesFiles] = useState([]);
@@ -398,7 +398,7 @@ const ReservationPage = () => {
     const { name, value } = e.target;
     setData(name as keyof typeof data, value);
   };
-  
+
   // Handle perubahan paket
   const handlePackageChange = (packageId: number) => {
     const selectedPackage = packages.find(pkg => pkg.id === packageId);
@@ -421,18 +421,18 @@ const ReservationPage = () => {
       total_price: selectedPackage.price + calculateMenuSubtotal()
     }));
   };
-  
+
   // Handle perubahan reservasi
   const handleReservationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setData(name as keyof typeof data, value);
   };
-  
+
   // Toggle popup menu
   const toggleMenuPopup = () => {
     setShowMenuPopup(!showMenuPopup);
   };
-  
+
   // Handle penambahan menu
 const handleAddMenuItem = (item: MenuItem) => {
   const existingItemIndex = selectedMenuItems.findIndex(menuItem => menuItem.id === item.id);
@@ -444,16 +444,16 @@ const handleAddMenuItem = (item: MenuItem) => {
   } else {
     updatedItems = [...selectedMenuItems, { ...item, quantity: 1 }];
   }
-  
+
   setSelectedMenuItems(updatedItems);
-  
+
   // Kalkulasi langsung dengan updatedItems
   const selectedPackage = packages.find(pkg => pkg.id === data.package_id);
   const packagePrice = selectedPackage?.price || 0;
-  const menuTotal = updatedItems.reduce((total, menuItem) => 
+  const menuTotal = updatedItems.reduce((total, menuItem) =>
     total + (menuItem.price * (menuItem.quantity || 1)), 0
   );
-  
+
   // Update langsung
   setData(prev => ({
     ...prev,
@@ -469,7 +469,7 @@ const handleAddMenuItem = (item: MenuItem) => {
     console.log('Current data.total_price:', data.total_price);
 };
 
-  
+
   // Handle pengurangan menu
 const handleRemoveMenuItem = (itemId: number) => {
   const existingItemIndex = selectedMenuItems.findIndex(menuItem => menuItem.id === itemId);
@@ -481,16 +481,16 @@ const handleRemoveMenuItem = (itemId: number) => {
     } else {
       updatedItems = updatedItems.filter(item => item.id !== itemId);
     }
-    
+
     setSelectedMenuItems(updatedItems);
-    
+
     // Kalkulasi langsung dengan updatedItems
     const selectedPackage = packages.find(pkg => pkg.id === data.package_id);
     const packagePrice = Number(selectedPackage?.price) || 0;
-    const menuTotal = updatedItems.reduce((total, menuItem) => 
+    const menuTotal = updatedItems.reduce((total, menuItem) =>
       total + (menuItem.price * (menuItem.quantity || 1)), 0
     );
-    
+
     // Update langsung
     setData(prev => ({
       ...prev,
@@ -505,7 +505,7 @@ const handleRemoveMenuItem = (itemId: number) => {
     console.log('==========================');
   }
 };
-  
+
   // Hitung subtotal menu
   const calculateMenuSubtotal = (): number => {
     return selectedMenuItems.reduce(
@@ -513,7 +513,7 @@ const handleRemoveMenuItem = (itemId: number) => {
       0
     );
   };
-  
+
   // Format harga ke Rupiah
  const formatPrice = (price: number): string => {
   return new Intl.NumberFormat('id-ID', {
@@ -539,12 +539,12 @@ const handleRemoveMenuItem = (itemId: number) => {
   const handlePaymentMethodChange = (method) => {
     setData('payment_method', method);
   };
-  
+
   // Handle submit form using Inertia.js
-  
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>, paymentData?: any) => {
   e.preventDefault();
-  
+
   if (!auth?.user) {
     alert("Anda harus login terlebih dahulu untuk membuat reservasi.");
     return Promise.reject('Not authenticated');
@@ -567,9 +567,9 @@ const handleRemoveMenuItem = (itemId: number) => {
       forceFormData: true,
       onSuccess: (page) => {
         console.log('✅ SUCCESS! Page props:', page.props);
-        
+
         // Coba extract reservation code dari berbagai lokasi
-        const reservationCode = 
+        const reservationCode =
           page.props?.reservation?.reservation_code ||
           page.props?.flash?.reservation_code ||
           page.props?.reservation_code ||
@@ -585,7 +585,7 @@ const handleRemoveMenuItem = (itemId: number) => {
       },
       onError: (errors) => {
         console.error('❌ Error:', errors);
-        
+
         // BAHKAN jika error, tetap coba resolve (karena data mungkin tersimpan)
         if (Object.keys(errors).length === 0) {
           console.log('🔄 Empty error, assuming success');
@@ -606,12 +606,12 @@ const handleRemoveMenuItem = (itemId: number) => {
     return (
       <>
         <Head title="Reservasi" />
-        <div className="bg-green-50 min-h-screen py-10 px-4 sm:px-6">
+        <div className="min-h-screen px-4 py-10 bg-green-50 sm:px-6">
           <div className="max-w-5xl mx-auto">
             <div className="flex items-center justify-center min-h-96">
               <div className="text-center">
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-                  <h2 className="text-lg font-semibold text-yellow-800 mb-2">No Packages Available</h2>
+                <div className="p-6 border border-yellow-200 rounded-lg bg-yellow-50">
+                  <h2 className="mb-2 text-lg font-semibold text-yellow-800">No Packages Available</h2>
                   <p className="text-yellow-600">Tidak ada paket reservasi yang tersedia saat ini.</p>
                 </div>
               </div>
@@ -626,43 +626,43 @@ const handleRemoveMenuItem = (itemId: number) => {
     <>
       <Head title="Reservasi" />
 
-      <div className="bg-green-50 min-h-screen py-10 px-4 sm:px-6">
+      <div className="min-h-screen px-4 py-10 bg-green-50 sm:px-6">
         <div className="max-w-5xl mx-auto">
           {/* Back Button */}
           <div className="mb-6">
-            <Link 
-              href="/" 
-              className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-200"
+            <Link
+              href="/"
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 transition-colors duration-200 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 hover:text-gray-900"
             >
-              <svg 
-                className="w-4 h-4 mr-2" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24" 
+              <svg
+                className="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
                 xmlns="http://www.w3.org/2000/svg"
               >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M15 19l-7-7 7-7" 
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
                 />
               </svg>
               Kembali ke Beranda
             </Link>
           </div>
 
-          <h1 className="text-3xl font-bold text-gray-800 mb-2 text-center">Detail Reservasi</h1>
-          <p className="text-gray-600 mb-8 text-center">Lengkapi informasi reservasi Anda di Cempaka Cafe</p>
-          
+          <h1 className="mb-2 text-3xl font-bold text-center text-gray-800">Detail Reservasi</h1>
+          <p className="mb-8 text-center text-gray-600">Lengkapi informasi reservasi Anda di Cempaka Cafe</p>
+
           {/* User Info Display */}
           {userProfile?.name && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="p-4 mb-6 border border-blue-200 rounded-lg bg-blue-50">
               <div className="flex items-center">
-                <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                <span className="text-blue-800 font-medium">
+                <span className="font-medium text-blue-800">
                   Reservasi atas nama: {userProfile.name} ({userProfile.email})
                 </span>
               </div>
@@ -671,23 +671,23 @@ const handleRemoveMenuItem = (itemId: number) => {
 
           {/* Flash Messages */}
           {flash?.success && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <div className="p-4 mb-6 border border-green-200 rounded-lg bg-green-50">
               <div className="text-green-800">{flash.success}</div>
             </div>
           )}
 
           {flash?.error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="p-4 mb-6 border border-red-200 rounded-lg bg-red-50">
               <div className="text-red-800">{flash.error}</div>
             </div>
           )}
 
           {/* Validation Errors */}
           {Object.keys(errors).length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="p-4 mb-6 border border-red-200 rounded-lg bg-red-50">
               <div className="text-red-800">
                 <p className="font-semibold">Error:</p>
-                <ul className="list-disc list-inside mt-1">
+                <ul className="mt-1 list-disc list-inside">
                   {Object.values(errors).map((error, index) => (
                     <li key={index}>{error}</li>
                   ))}
@@ -695,39 +695,39 @@ const handleRemoveMenuItem = (itemId: number) => {
               </div>
             </div>
           )}
-          
+
           <form onSubmit={handleSubmit}>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid gap-6 md:grid-cols-3">
               {/* Form dan Paket - 2 kolom di desktop */}
-              <div className="md:col-span-2 space-y-6">
+              <div className="space-y-6 md:col-span-2">
                 {/* Form Data Pelanggan */}
-                <CustomerForm 
-                  customerData={data} 
+                <CustomerForm
+                  customerData={data}
                   handleInputChange={handleInputChange}
                   isLoggedIn={!!auth?.user}
                   userProfile={userProfile}
                 />
-                
+
                 {/* Paket Reservasi */}
-                <PackageSelector 
+                <PackageSelector
                   packages={packages}
-                  selectedPackageId={data.package_id} 
-                  onPackageSelect={handlePackageChange} 
+                  selectedPackageId={data.package_id}
+                  onPackageSelect={handlePackageChange}
                   formatPrice={formatPrice}
                 />
-                
+
                 {/* Detail Reservasi */}
-                <ReservationDetails 
-                  reservation={data} 
+                <ReservationDetails
+                  reservation={data}
                   specialRequests={data.special_requests}
-                  handleReservationChange={handleReservationChange} 
-                  handleInputChange={handleInputChange} 
+                  handleReservationChange={handleReservationChange}
+                  handleInputChange={handleInputChange}
                 />
-                
+
                 {/* Menu Tambahan */}
-                <MenuSelector 
-                  selectedMenuItems={selectedMenuItems} 
-                  handleAddMenuItem={handleAddMenuItem} 
+                <MenuSelector
+                  selectedMenuItems={selectedMenuItems}
+                  handleAddMenuItem={handleAddMenuItem}
                   handleRemoveMenuItem={handleRemoveMenuItem}
                   toggleMenuPopup={toggleMenuPopup}
                   calculateMenuSubtotal={calculateMenuSubtotal}
@@ -741,10 +741,10 @@ const handleRemoveMenuItem = (itemId: number) => {
                   selectedPaymentMethod={data.payment_method}
                 />
               </div>
-              
+
               {/* Ringkasan Pesanan - 1 kolom di desktop */}
               <div className="md:col-span-1">
-                <OrderSummary 
+                <OrderSummary
                   selectedPackage={packages.find(pkg => pkg.id === data.package_id)}
                   reservation={{
                     // Mapping data structure untuk OrderSummary
@@ -766,9 +766,9 @@ const handleRemoveMenuItem = (itemId: number) => {
             </div>
           </form>
         </div>
-        
+
         {/* Popup Menu */}
-        <MenuPopup 
+        <MenuPopup
           showPopup={showMenuPopup}
           closePopup={toggleMenuPopup}
           menuItems={menuItems}
