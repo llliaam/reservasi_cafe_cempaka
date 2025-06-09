@@ -38,7 +38,9 @@ class Order extends Model
         'completed_at',
         'rating',
         'review',
-        'reviewed_at'
+        'reviewed_at',
+        'table_id',
+        'created_by_staff'
     ];
 
     protected $casts = [
@@ -233,6 +235,14 @@ class Order extends Model
     public function table(): BelongsTo
     {
         return $this->belongsTo(RestaurantTable::class, 'table_id');
+    }
+
+    /**
+     * Relasi dengan Staff yang membuat offline order
+     */
+    public function createdByStaff(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_staff');
     }
 
     /**
@@ -685,29 +695,39 @@ class Order extends Model
      /**
      * UPDATED: Update table status based on order status
      */
-    public function updateTableStatus(): void
-    {
-        if (!$this->table || $this->order_type !== self::TYPE_DINE_IN) {
-            return;
-        }
-
-        switch ($this->status) {
-            case self::STATUS_CONFIRMED:
-            case self::STATUS_PREPARING:
-            case self::STATUS_READY:
-                $this->table->markOccupied();
-                break;
-                
-            case self::STATUS_COMPLETED:
-            case self::STATUS_CANCELLED:
-                $this->table->markAvailable();
-                break;
-                
-            default:
-                // For pending status, don't change table status yet
-                break;
-        }
+    // === PERBAIKI METHOD updateTableStatus ===
+public function updateTableStatus(): void
+{
+    // CEK APAKAH ADA TABLE DAN ORDER TYPE DINE IN
+    if (!$this->table_id || $this->order_type !== self::TYPE_DINE_IN) {
+        return;
     }
+
+    // AMBIL TABLE OBJECT, BUKAN STRING
+    $table = $this->table; // Ini akan return RestaurantTable object melalui relationship
+    
+    if (!$table) {
+        return; // Table tidak ditemukan
+    }
+
+    switch ($this->status) {
+        case self::STATUS_CONFIRMED:
+        case self::STATUS_PREPARING:
+        case self::STATUS_READY:
+            // PASTIKAN GUNAKAN METHOD YANG ADA DI MODEL RestaurantTable
+            $table->update(['status' => 'occupied']);
+            break;
+            
+        case self::STATUS_COMPLETED:
+        case self::STATUS_CANCELLED:
+            $table->update(['status' => 'available']);
+            break;
+            
+        default:
+            // For pending status, don't change table status yet
+            break;
+    }
+}
 
     /**
      * Get total items count
@@ -769,6 +789,36 @@ class Order extends Model
     }
 
     // ==================== HELPER METHODS ====================
+
+    /**
+ * Check if this is an offline order (created by staff)
+ */
+public function isOfflineOrder(): bool
+{
+    return is_null($this->user_id) && !is_null($this->created_by_staff);
+}
+
+/**
+ * Check if this is an online order (created by customer)
+ */
+public function isOnlineOrder(): bool
+{
+    return !is_null($this->user_id) && is_null($this->created_by_staff);
+}
+
+/**
+ * Get order source label
+ */
+public function getOrderSourceAttribute(): string
+{
+    if ($this->isOfflineOrder()) {
+        return 'Offline (Staff)';
+    } elseif ($this->isOnlineOrder()) {
+        return 'Online (Customer)';
+    } else {
+        return 'Unknown';
+    }
+}
 
     /**
      * Check if order can be cancelled

@@ -36,6 +36,10 @@ Route::get('/menuPage', [OrderController::class, 'index'])->name('Menu Caffe');
 */
 Route::middleware('guest')->group(function () {
     // Login, Register, dll akan otomatis redirect berdasarkan role jika sudah login
+
+    // ===== OTP ROUTES FOR EMAIL VERIFICATION =====
+    Route::post('send-otp', [\App\Http\Controllers\Auth\RegisteredUserController::class, 'sendOtp'])->name('send-otp');
+    Route::post('verify-otp', [\App\Http\Controllers\Auth\RegisteredUserController::class, 'verifyOtp'])->name('verify-otp');
 });
 
 /*
@@ -104,7 +108,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 */
 
 Route::middleware(['auth', 'verified', 'role:customer'])->group(function () {
-    
+
     // ===== FAVORITES MANAGEMENT (Only customers have favorites) =====
     Route::get('/my-favorites', [FavoriteMenuController::class, 'index'])->name('favorites.index');
     Route::post('/favorites/{menuItem}/toggle', [FavoriteMenuController::class, 'toggle'])->name('favorites.toggle');
@@ -136,21 +140,26 @@ Route::middleware(['auth', 'verified', 'role:customer'])->group(function () {
 */
 
 Route::middleware(['auth', 'verified', 'role:staff,admin'])->prefix('staff')->name('staff.')->group(function () {
-    
+
      // ===== STAFF DASHBOARD/REPORTS =====
     Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
-    
+
     // ===== STAFF ORDER MANAGEMENT =====
     Route::get('/orders', [OrderController::class, 'staffIndex'])->name('orders.index');
-    Route::patch('/orders/{order}/status', [OrderController::class, 'updateOrderStatus'])->name('orders.update-status');
+    // Route::patch('/orders/{order}/status', [OrderController::class, 'updateOrderStatus'])->name('orders.update-status');
     Route::get('/orders/{order}', [OrderController::class, 'staffShow'])->name('orders.show');
-    
+    Route::patch('/orders/{order}/status', [StaffController::class, 'updateOrderStatus'])->name('orders.update-status');
+
+     // ===== STAFF OFFLINE ORDER =====
+    Route::post('/orders/offline', [OrderController::class, 'storeOfflineOrder'])->name('orders.offline');
+    Route::get('/tables/available-now', [RestaurantTableController::class, 'getAvailableTablesNow'])->name('tables.available-now');
+
     // ===== STAFF RESERVATION MANAGEMENT (PURE INERTIA) =====
     Route::get('/reservations', [StaffController::class, 'reservationsManagement'])->name('reservations.management');
     Route::patch('/reservations/{id}/status', [StaffController::class, 'updateReservationStatus'])->name('reservations.update-status');
     Route::patch('/reservations/{id}/assign-table', [StaffController::class, 'assignTableToReservation'])->name('reservations.assign-table');
     Route::get('/reservations/{id}/available-tables', [StaffController::class, 'getAvailableTablesForReservation'])->name('reservations.available-tables');
-    
+
     // ===== STAFF TABLE MANAGEMENT (PURE INERTIA) =====
     Route::patch('/tables/{tableId}/status', [StaffController::class, 'updateTableStatus'])->name('tables.update-status');
     Route::get('/reservations/today', [StaffController::class, 'getTodayReservations'])->name('reservations.today');
@@ -165,30 +174,30 @@ Route::middleware(['auth', 'verified', 'role:staff,admin'])->prefix('staff')->na
 */
 
 Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
-    
+
     // ===== ADMIN ORDER MANAGEMENT =====
     Route::get('/orders', [OrderController::class, 'adminIndex'])->name('orders.index');
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
     Route::delete('/orders/{order}', [OrderController::class, 'destroy'])->name('orders.destroy');
-    
+
     // ===== ADMIN RESERVATION MANAGEMENT =====
     Route::get('/reservations', [ReservationController::class, 'adminIndex'])->name('reservations.index');
     Route::patch('/reservations/{reservation}/status', [ReservationController::class, 'updateStatus'])->name('reservations.update-status');
     Route::delete('/reservations/{reservation}', [ReservationController::class, 'adminDestroy'])->name('reservations.destroy');
-    
+
     // ===== ADMIN REVIEW MANAGEMENT =====
     Route::post('/reviews/{id}/response', [ReviewController::class, 'addAdminResponse'])->name('reviews.add-response');
     Route::delete('/reviews/{id}/response', [ReviewController::class, 'removeAdminResponse'])->name('reviews.remove-response');
     Route::patch('/reviews/{id}/featured', [ReviewController::class, 'markAsFeatured'])->name('reviews.mark-featured');
     Route::patch('/reviews/{id}/verified', [ReviewController::class, 'markAsVerified'])->name('reviews.mark-verified');
     Route::delete('/reviews/{id}', [ReviewController::class, 'adminDestroy'])->name('reviews.destroy');
-    
+
     // ===== ADMIN USER MANAGEMENT =====
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::get('/users/{user}', [UserController::class, 'show'])->name('users.show');
     Route::patch('/users/{user}/role', [UserController::class, 'updateRole'])->name('users.update-role');
     Route::patch('/users/{user}/status', [UserController::class, 'updateStatus'])->name('users.update-status');
-    
+
     // ===== ADMIN MENU MANAGEMENT =====
     Route::get('/menu', [MenuItemController::class, 'adminIndex'])->name('menu.index');
     Route::post('/menu', [MenuItemController::class, 'store'])->name('menu.store');
@@ -197,7 +206,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::put('/menu/{menuItem}', [MenuItemController::class, 'update'])->name('menu.update');
     Route::delete('/menu/{menuItem}', [MenuItemController::class, 'destroy'])->name('menu.destroy');
     Route::patch('/menu/{menuItem}/status', [MenuItemController::class, 'updateStatus'])->name('menu.update-status');
-    
+
     // ===== ADMIN TABLE MANAGEMENT (NEW) =====
     Route::get('/tables', [RestaurantTableController::class, 'index'])->name('tables.index');
     Route::post('/tables', [RestaurantTableController::class, 'store'])->name('tables.store');
@@ -214,13 +223,13 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::get('/tables/available', [RestaurantTableController::class, 'getAvailableTables'])->name('tables.available');
     Route::post('/tables/{table}/assign-reservation', [RestaurantTableController::class, 'assignToReservation'])->name('tables.assign-reservation');
     Route::get('/tables/statistics', [RestaurantTableController::class, 'getStatistics'])->name('tables.statistics');
-    
+
     // ===== ADMIN ANALYTICS & REPORTS =====
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
     Route::get('/reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
     Route::get('/reports/customers', [ReportController::class, 'customers'])->name('reports.customers');
     Route::get('/reports/menu', [ReportController::class, 'menu'])->name('reports.menu');
-    
+
     // ===== ADMIN SETTINGS =====
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
@@ -236,24 +245,24 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
 Route::middleware(['auth', 'verified'])->group(function () {
     // This will automatically assign tables when reservations are created
     // The auto-assignment is handled in the Reservation model's boot method
-    
+
     // Staff-specific reservation management pages
     Route::middleware('role:staff,admin')->group(function () {
         Route::get('/staff/reservations-management', function () {
             return Inertia::render('staff/staffReservasi');
         })->name('staff.reservations.management');
-        
+
         Route::get('/staff/tables-overview', function () {
             return Inertia::render('staff/TablesOverview');
         })->name('staff.tables.overview');
     });
-    
+
     // Admin-specific table management pages
     Route::middleware('role:admin')->group(function () {
         Route::get('/admin/tables-management', function () {
             return Inertia::render('admin/tables/Index');
         })->name('admin.tables.management');
-        
+
         Route::get('/admin/reservations-overview', function () {
             return Inertia::render('admin/reservations/Overview');
         })->name('admin.reservations.overview');
@@ -290,7 +299,16 @@ if (app()->environment('local')) {
                 'isCustomer' => $user->isCustomer(),
             ]);
         });
-        
+
+        Route::get('/update-tables-realtime', function() {
+        $updated = \App\Models\RestaurantTable::updateAllRealtimeStatuses();
+        return response()->json([
+            'success' => true,
+            'updated_tables' => $updated,
+            'message' => "Updated {$updated} tables with realtime status"
+        ]);
+        })->middleware(['auth', 'role:staff,admin']);
+
         // Test table assignment
         Route::get('/test-table-assignment', function () {
             $reservation = \App\Models\Reservation::with(['package', 'table'])->first();
@@ -303,14 +321,14 @@ if (app()->environment('local')) {
             }
             return response()->json(['message' => 'No reservations found']);
         });
-        
+
         // Test available tables
         Route::get('/test-available-tables', function () {
             $tables = \App\Models\RestaurantTable::available()
                 ->byLocation('indoor')
                 ->minCapacity(2)
                 ->get();
-                
+
             return response()->json([
                 'available_tables' => $tables->map(function ($table) {
                     return $table->getSummary();
@@ -319,6 +337,13 @@ if (app()->environment('local')) {
         });
     });
 }
+
+/*
+|--------------------------------------------------------------------------
+| papi 5 mei
+|--------------------------------------------------------------------------
+*/
+
 
 /*
 |--------------------------------------------------------------------------

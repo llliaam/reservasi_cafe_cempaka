@@ -224,7 +224,7 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
 
         {!proofPreview ? (
           <div className={`border-2 border-dashed rounded-lg p-6 text-center hover:border-gray-400 transition-colors ${
-            isProofRequired ? 'border-yellow-300 bg-yellow-50' : 'border-gray-300'
+            isProofRequired ? 'border-orange-300 bg-orange-50' : 'border-gray-300'
           }`}>
             <input
               ref={proofInputRef}
@@ -238,7 +238,7 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
               type="button"
               onClick={() => proofInputRef.current?.click()}
               className={`px-4 py-2 text-white rounded-lg transition-colors duration-200 flex items-center space-x-2 mx-auto ${
-                isProofRequired ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-blue-600 hover:bg-blue-700'
+                isProofRequired ? 'bg-orange-400 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -276,7 +276,11 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
           Upload gambar permintaan dekorasi khusus atau referensi lainnya (maksimal 5 gambar)
         </p>
 
+<<<<<<< HEAD
         <div className="p-6 mb-4 text-center transition-colors border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400">
+=======
+        <div className="p-6 mb-4 text-center transition-colors border-2 border-orange-300 border-dashed rounded-lg bg-orange-50 hover:border-orange-400">
+>>>>>>> main
           <input
             ref={additionalInputRef}
             type="file"
@@ -289,7 +293,11 @@ const ImageUploadSection = ({ onProofOfPaymentChange, onAdditionalImagesChange, 
           <button
             type="button"
             onClick={() => additionalInputRef.current?.click()}
+<<<<<<< HEAD
             className="flex items-center px-4 py-2 mx-auto space-x-2 text-white transition-colors duration-200 bg-green-600 rounded-lg hover:bg-green-700"
+=======
+            className="flex items-center px-4 py-2 mx-auto space-x-2 text-white transition-colors duration-200 bg-orange-400 rounded-lg hover:bg-orange-700"
+>>>>>>> main
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -626,7 +634,11 @@ const handleRemoveMenuItem = (itemId: number) => {
     <>
       <Head title="Reservasi" />
 
+<<<<<<< HEAD
       <div className="min-h-screen px-4 py-10 bg-green-50 sm:px-6">
+=======
+      <div className="min-h-screen px-4 py-10 bg-yellow-50 sm:px-6">
+>>>>>>> main
         <div className="max-w-5xl mx-auto">
           {/* Back Button */}
           <div className="mb-6">

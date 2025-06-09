@@ -27,7 +27,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
+            'email' => ['required', 'string'], // Changed from 'email' to 'string' to allow phone numbers
             'password' => ['required', 'string'],
         ];
     }
@@ -41,7 +41,17 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        $credentials = $this->only('email', 'password');
+
+        // Determine if the input is email or phone number
+        $loginField = $this->getLoginField($credentials['email']);
+
+        $loginCredentials = [
+            $loginField => $credentials['email'],
+            'password' => $credentials['password']
+        ];
+
+        if (! Auth::attempt($loginCredentials, $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -50,6 +60,20 @@ class LoginRequest extends FormRequest
         }
 
         RateLimiter::clear($this->throttleKey());
+    }
+
+    /**
+     * Determine if the login input is email or phone number
+     */
+    private function getLoginField(string $input): string
+    {
+        // Check if input is a valid email format
+        if (filter_var($input, FILTER_VALIDATE_EMAIL)) {
+            return 'email';
+        }
+
+        // If not email, treat as phone number
+        return 'phone';
     }
 
     /**

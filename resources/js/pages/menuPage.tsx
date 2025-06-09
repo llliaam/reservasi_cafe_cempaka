@@ -2,13 +2,13 @@
 import React, { useState } from 'react';
 import { Head, usePage, useForm, router } from '@inertiajs/react';
 import { type SharedData } from '@/types';
-import Header from '@/components/header';
+import Navbar from '@/components/navbar';
 import ProductGrid from '@/components/productGrid';
 import CartSidebar from '@/components/cartSidebar';
 import MenuReviews from '@/components/menuReview';
-import { 
-    Star, 
-    MessageCircle, 
+import {
+    Star,
+    MessageCircle,
     Eye,
     X,
     ArrowLeft
@@ -39,7 +39,7 @@ interface PageProps extends SharedData {
 
 const MenuPage: React.FC = () => {
   const { auth, menuItems, categories, favoriteIds, flash } = usePage<PageProps>().props;
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Menu');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -61,30 +61,30 @@ const [successOrderData, setSuccessOrderData] = useState<{
     if (!imageFilename) {
       return "/images/poto_menu/default-menu.jpg";
     }
-    
+
     if (imageFilename.startsWith('http')) {
       return imageFilename;
     }
-    
+
     return `/images/poto_menu/${imageFilename}`;
   };
 
   // Function untuk fallback gambar yang gagal load
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>, menuName: string) => {
     const target = e.target as HTMLImageElement;
-    
+
     // Coba fallback ke gambar default dulu
     if (!target.src.includes('default-menu.jpg')) {
       target.src = '/images/poto_menu/default-menu.jpg';
       return;
     }
-    
+
     // Jika default-menu.jpg juga gagal, buat simple colored div
     target.style.display = 'none';
     const parent = target.parentElement;
     if (parent && !parent.querySelector('.fallback-div')) {
       const fallbackDiv = document.createElement('div');
-      fallbackDiv.className = 'fallback-div absolute inset-0 flex items-center justify-center bg-yellow-400 text-white font-bold text-lg';
+      fallbackDiv.className = 'absolute inset-0 flex items-center justify-center text-lg font-bold text-white bg-yellow-400 fallback-div';
       const initials = menuName.split(' ').map(word => word[0]).join('').substring(0, 2).toUpperCase();
       fallbackDiv.textContent = initials || 'M';
       parent.appendChild(fallbackDiv);
@@ -127,8 +127,8 @@ const [successOrderData, setSuccessOrderData] = useState<{
   const handleAddToCart = (product: Product) => {
     const existingItem = cart.find(item => item.id === product.id);
     if (existingItem) {
-      setCart(cart.map(item => 
-        item.id === product.id 
+      setCart(cart.map(item =>
+        item.id === product.id
           ? { ...item, quantity: item.quantity + 1 }
           : item
       ));
@@ -141,8 +141,8 @@ const [successOrderData, setSuccessOrderData] = useState<{
     if (newQuantity === 0) {
       setCart(cart.filter(item => item.id !== productId));
     } else {
-      setCart(cart.map(item => 
-        item.id === productId 
+      setCart(cart.map(item =>
+        item.id === productId
           ? { ...item, quantity: newQuantity }
           : item
       ));
@@ -150,8 +150,8 @@ const [successOrderData, setSuccessOrderData] = useState<{
   };
 
   const updateCartInstructions = (productId: number, instructions: string) => {
-    setCart(cart.map(item => 
-      item.id === productId 
+    setCart(cart.map(item =>
+      item.id === productId
         ? { ...item, special_instructions: instructions }
         : item
     ));
@@ -159,7 +159,7 @@ const [successOrderData, setSuccessOrderData] = useState<{
 
   const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
-  
+
   // Calculate fees
   const deliveryFee = orderType === 'delivery' ? 10000 : 0;
   const serviceFee = Math.round(cartTotal * 0.05); // 5% service fee
@@ -171,7 +171,7 @@ const [successOrderData, setSuccessOrderData] = useState<{
       alert('Silakan pilih menu terlebih dahulu sebelum melakukan checkout.');
       return;
     }
-    
+
     if (!auth?.user) {
       window.location.href = '/login';
       return;
@@ -185,7 +185,7 @@ const [successOrderData, setSuccessOrderData] = useState<{
 
 const handleSubmitOrder = (e: React.FormEvent) => {
   e.preventDefault();
-  
+
   // Validation
   if (!data.customer_name || !data.customer_phone || !data.customer_email) {
     alert('Mohon lengkapi semua informasi pelanggan yang diperlukan.');
@@ -210,7 +210,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
 
   // Prepare FormData untuk file upload
   const formData = new FormData();
-  
+
   // Add basic order data
   formData.append('customer_name', data.customer_name);
   formData.append('customer_phone', data.customer_phone);
@@ -246,7 +246,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
     },
     onSuccess: (page) => {
       console.log('Order success:', page);
-      
+
       // Set success data untuk modal
       setSuccessOrderData({
         orderCode: 'ORD-' + Date.now(), // Fallback, seharusnya dari response
@@ -254,13 +254,13 @@ const handleSubmitOrder = (e: React.FormEvent) => {
         paymentMethod: data.payment_method,
         total: totalAmount
       });
-      
+
       // Reset form dan tutup checkout
       setCart([]);
       setShowCheckout(false);
       setIsCartOpen(false);
       reset();
-      
+
       // Show success modal
       setShowSuccessModal(true);
     },
@@ -288,7 +288,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
             />
           ))}
         </div>
-        <span className="text-sm text-gray-600 ml-1">
+        <span className="ml-1 text-sm text-gray-600">
           ({reviewCount || 0})
         </span>
       </div>
@@ -298,34 +298,34 @@ const handleSubmitOrder = (e: React.FormEvent) => {
   return (
     <>
       <Head title="Menu - Cempaka Cafe" />
-      
+
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
-        <Header 
-          cartCount={cartCount} 
-          onCartClick={() => setIsCartOpen(true)} 
+        <Navbar
+          cartCount={cartCount}
+          onCartClick={() => setIsCartOpen(true)}
         />
-        
+
         {/* Flash Messages */}
         {flash?.success && (
-          <div className="container mx-auto px-4 pt-4">
-            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+          <div className="container px-4 pt-4 mx-auto">
+            <div className="px-4 py-3 mb-4 text-green-700 bg-green-100 border border-green-400 rounded">
               {flash.success}
             </div>
           </div>
         )}
 
         {flash?.error && (
-          <div className="container mx-auto px-4 pt-4">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="container px-4 pt-4 mx-auto">
+            <div className="px-4 py-3 mb-4 text-red-700 bg-red-100 border border-red-400 rounded">
               {flash.error}
             </div>
           </div>
         )}
-        
-        <main className="container mx-auto px-4 py-8">
+
+        <main className="container px-4 py-8 mx-auto">
           {/* Search & Category */}
           <div className="mb-8">
-            <div className="bg-white rounded-2xl shadow-lg p-4 mb-4">
+            <div className="p-4 mb-4 bg-white shadow-lg rounded-2xl">
               <input
                 type="text"
                 placeholder="Cari menu favorit..."
@@ -334,8 +334,8 @@ const handleSubmitOrder = (e: React.FormEvent) => {
                 className="w-full p-3 border-2 border-gray-100 rounded-xl focus:border-orange-400 focus:ring-0"
               />
             </div>
-            
-            <div className="flex space-x-4 overflow-x-auto pb-4">
+
+            <div className="flex pb-4 space-x-4 overflow-x-auto">
               {allCategories.map((category) => (
                 <button
                   key={category}
@@ -353,7 +353,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
           </div>
 
           {/* Use ProductGrid Component */}
-          <ProductGrid 
+          <ProductGrid
             products={filteredProducts}
             onAddToCart={handleAddToCart}
             onShowDetail={showProductDetails}
@@ -362,9 +362,9 @@ const handleSubmitOrder = (e: React.FormEvent) => {
 
         {/* Product Detail Modal with Reviews */}
         {showProductDetail && selectedProduct && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
             <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+              <div className="sticky top-0 flex items-center justify-between p-4 bg-white border-b border-gray-200">
                 <button
                   onClick={() => setShowProductDetail(false)}
                   className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
@@ -372,59 +372,59 @@ const handleSubmitOrder = (e: React.FormEvent) => {
                   <ArrowLeft className="w-4 h-4" />
                   Kembali
                 </button>
-                <button 
+                <button
                   onClick={() => setShowProductDetail(false)}
                   className="text-gray-500 hover:text-gray-700"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
-              
+
               <div className="p-6">
                 {/* Product Info */}
-                <div className="grid md:grid-cols-2 gap-8 mb-8">
+                <div className="grid gap-8 mb-8 md:grid-cols-2">
                   <div className="relative">
                     <img
                       src={getMenuImagePath(selectedProduct.image)}
                       alt={selectedProduct.name}
-                      className="w-full h-64 object-cover rounded-xl"
+                      className="object-cover w-full h-64 rounded-xl"
                       onError={(e) => handleImageError(e, selectedProduct.name)}
                     />
                   </div>
-                  
+
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                    <h2 className="mb-4 text-2xl font-bold text-gray-900">
                       {selectedProduct.name}
                     </h2>
-                    
+
                     <div className="mb-4">
                       {renderStars(selectedProduct.rating, selectedProduct.review_count)}
                     </div>
-                    
-                    <div className="text-3xl font-bold text-orange-600 mb-4">
+
+                    <div className="mb-4 text-3xl font-bold text-orange-600">
                       Rp {selectedProduct.price.toLocaleString('id-ID')}
                     </div>
-                    
+
                     {selectedProduct.description && (
-                      <p className="text-gray-600 mb-6 leading-relaxed">
+                      <p className="mb-6 leading-relaxed text-gray-600">
                         {selectedProduct.description}
                       </p>
                     )}
-                    
+
                     <button
                       onClick={() => {
                         handleAddToCart(selectedProduct);
                         setShowProductDetail(false);
                       }}
-                      className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white py-3 px-6 rounded-xl font-medium hover:from-orange-600 hover:to-amber-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                      className="w-full px-6 py-3 font-medium text-white transition-all duration-200 shadow-lg bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl hover:from-orange-600 hover:to-amber-600 hover:shadow-xl"
                     >
                       Tambah ke Keranjang
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Reviews Section */}
-                <MenuReviews 
+                <MenuReviews
                   menuItemId={selectedProduct.id}
                   menuItemName={selectedProduct.name}
                 />
@@ -433,7 +433,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
           </div>
         )}
 
-        <CartSidebar 
+        <CartSidebar
           isOpen={isCartOpen}
           onClose={() => setIsCartOpen(false)}
           cart={cart}
@@ -445,12 +445,12 @@ const handleSubmitOrder = (e: React.FormEvent) => {
 
 {/* Checkout Modal */}
 {showCheckout && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
     <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
       <div className="p-6">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">Checkout</h2>
-          <button 
+          <button
             onClick={() => setShowCheckout(false)}
             className="text-gray-500 hover:text-gray-700"
           >
@@ -462,14 +462,14 @@ const handleSubmitOrder = (e: React.FormEvent) => {
           <div className="space-y-4">
             {/* Show validation errors */}
             {errors.order && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              <div className="px-4 py-3 text-red-700 bg-red-100 border border-red-400 rounded">
                 {errors.order}
               </div>
             )}
 
             {/* Order Type */}
             <div>
-              <label className="block text-sm font-medium mb-2">Tipe Pesanan</label>
+              <label className="block mb-2 text-sm font-medium">Tipe Pesanan</label>
               <div className="grid grid-cols-3 gap-2">
                 {['dine_in', 'takeaway', 'delivery'].map((type) => (
                   <button
@@ -480,12 +480,12 @@ const handleSubmitOrder = (e: React.FormEvent) => {
                       setData('order_type', type);
                     }}
                     className={`p-2 text-xs rounded-lg border ${
-                      orderType === type 
-                        ? 'bg-orange-500 text-white border-orange-500' 
+                      orderType === type
+                        ? 'bg-orange-500 text-white border-orange-500'
                         : 'bg-white text-gray-700 border-gray-300'
                     }`}
                   >
-                    {type === 'dine_in' ? 'Makan di Tempat' : 
+                    {type === 'dine_in' ? 'Makan di Tempat' :
                      type === 'takeaway' ? 'Bawa Pulang' : 'Delivery'}
                   </button>
                 ))}
@@ -503,7 +503,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
                 required
               />
               {errors.customer_name && (
-                <p className="text-red-500 text-sm">{errors.customer_name}</p>
+                <p className="text-sm text-red-500">{errors.customer_name}</p>
               )}
 
               <input
@@ -523,7 +523,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
                 className={`w-full p-3 border rounded-lg ${errors.customer_email ? 'border-red-500' : ''}`}
                 required
               />
-              
+
               {orderType === 'delivery' && (
                 <textarea
                   placeholder="Alamat Pengiriman *"
@@ -534,7 +534,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
                   required
                 />
               )}
-              
+
               <textarea
                 placeholder="Catatan (opsional)"
                 value={data.notes}
@@ -546,11 +546,11 @@ const handleSubmitOrder = (e: React.FormEvent) => {
 
             {/* Payment Methods */}
             <div>
-              <label className="block text-sm font-medium mb-3">Metode Pembayaran</label>
-              
+              <label className="block mb-3 text-sm font-medium">Metode Pembayaran</label>
+
               {/* Bayar di Tempat */}
               <div className="mb-4">
-                <div className="text-xs font-medium text-gray-600 mb-2">Bayar di Tempat</div>
+                <div className="mb-2 text-xs font-medium text-gray-600">Bayar di Tempat</div>
                 <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
                     type="radio"
@@ -561,7 +561,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
                     className="mr-3"
                   />
                   <div className="flex items-center">
-                    <span className="text-2xl mr-3">💵</span>
+                    <span className="mr-3 text-2xl">💵</span>
                     <span className="font-medium">Bayar di Tempat</span>
                   </div>
                 </label>
@@ -569,7 +569,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
 
               {/* E-Wallet */}
               <div className="mb-4">
-                <div className="text-xs font-medium text-gray-600 mb-2">E-Wallet</div>
+                <div className="mb-2 text-xs font-medium text-gray-600">E-Wallet</div>
                 <div className="space-y-2">
                   {[
                     { value: 'dana', label: 'DANA', icon: '💙' },
@@ -587,7 +587,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
                         className="mr-3"
                       />
                       <div className="flex items-center">
-                        <span className="text-2xl mr-3">{method.icon}</span>
+                        <span className="mr-3 text-2xl">{method.icon}</span>
                         <span className="font-medium">{method.label}</span>
                       </div>
                     </label>
@@ -597,7 +597,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
 
               {/* Mobile Banking */}
               <div className="mb-4">
-                <div className="text-xs font-medium text-gray-600 mb-2">Mobile/Internet Banking</div>
+                <div className="mb-2 text-xs font-medium text-gray-600">Mobile/Internet Banking</div>
                 <div className="space-y-2">
                   {[
                     { value: 'bca', label: 'BCA', icon: '🔵' },
@@ -616,7 +616,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
                         className="mr-3"
                       />
                       <div className="flex items-center">
-                        <span className="text-2xl mr-3">{method.icon}</span>
+                        <span className="mr-3 text-2xl">{method.icon}</span>
                         <span className="font-medium">{method.label}</span>
                       </div>
                     </label>
@@ -628,7 +628,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
             {/* Upload Payment Proof untuk non-cash */}
             {data.payment_method !== 'cash' && (
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label className="block mb-2 text-sm font-medium">
                   Bukti Pembayaran <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -643,15 +643,15 @@ const handleSubmitOrder = (e: React.FormEvent) => {
                   className="w-full p-3 border rounded-lg"
                   required={data.payment_method !== 'cash'}
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="mt-1 text-xs text-gray-500">
                   Upload screenshot bukti transfer/pembayaran (JPG, PNG, max 2MB)
                 </p>
               </div>
             )}
 
             {/* Order Summary */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-medium mb-2">Ringkasan Pesanan</h3>
+            <div className="p-4 rounded-lg bg-gray-50">
+              <h3 className="mb-2 font-medium">Ringkasan Pesanan</h3>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span>Subtotal ({cartCount} item)</span>
@@ -696,22 +696,22 @@ const handleSubmitOrder = (e: React.FormEvent) => {
 
 {/* Success Modal */}
 {showSuccessModal && successOrderData && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-xl max-w-md w-full">
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+    <div className="w-full max-w-md bg-white rounded-xl">
       <div className="p-6 text-center">
         {/* Success Icon */}
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full">
           <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
 
         {/* Success Message */}
-        <h2 className="text-xl font-bold text-gray-900 mb-2">
+        <h2 className="mb-2 text-xl font-bold text-gray-900">
           Pesanan Berhasil Dibuat! 🎉
         </h2>
-        
-        <div className="bg-gray-50 rounded-lg p-4 mb-4 text-left">
+
+        <div className="p-4 mb-4 text-left rounded-lg bg-gray-50">
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Kode Pesanan:</span>
@@ -738,13 +738,13 @@ const handleSubmitOrder = (e: React.FormEvent) => {
 
         {/* Payment Status Info */}
         {successOrderData.paymentMethod === 'cash' ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <div className="p-3 mb-4 border border-blue-200 rounded-lg bg-blue-50">
             <p className="text-sm text-blue-800">
               💡 Silakan bayar saat pesanan siap atau saat makan di tempat
             </p>
           </div>
         ) : (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+          <div className="p-3 mb-4 border border-green-200 rounded-lg bg-green-50">
             <p className="text-sm text-green-800">
               ✅ Bukti pembayaran berhasil diupload. Pesanan akan segera diproses oleh staff.
             </p>
@@ -752,9 +752,9 @@ const handleSubmitOrder = (e: React.FormEvent) => {
         )}
 
         {/* What's Next */}
-        <div className="text-left mb-4">
-          <h3 className="font-medium text-gray-900 mb-2">Selanjutnya:</h3>
-          <ul className="text-sm text-gray-600 space-y-1">
+        <div className="mb-4 text-left">
+          <h3 className="mb-2 font-medium text-gray-900">Selanjutnya:</h3>
+          <ul className="space-y-1 text-sm text-gray-600">
             <li>• Staff akan mengkonfirmasi pesanan Anda</li>
             <li>• Anda akan mendapat notifikasi saat pesanan siap</li>
             <li>• Silakan datang ke lokasi untuk mengambil pesanan</li>
@@ -770,24 +770,24 @@ const handleSubmitOrder = (e: React.FormEvent) => {
               // Redirect ke halaman order detail jika ada
               // window.location.href = `/orders/${successOrderData.orderCode}`;
             }}
-            className="w-full bg-orange-500 text-white py-3 rounded-lg font-medium hover:bg-orange-600 transition-all"
+            className="w-full py-3 font-medium text-white transition-all bg-orange-500 rounded-lg hover:bg-orange-600"
           >
             Lihat Detail Pesanan
           </button>
-          
+
           <button
             onClick={() => {
               setShowSuccessModal(false);
               setSuccessOrderData(null);
             }}
-            className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-200 transition-all"
+            className="w-full py-3 font-medium text-gray-700 transition-all bg-gray-100 rounded-lg hover:bg-gray-200"
           >
             Lanjut Belanja
           </button>
         </div>
 
         {/* Contact Info */}
-        <div className="mt-4 pt-4 border-t border-gray-200">
+        <div className="pt-4 mt-4 border-t border-gray-200">
           <p className="text-xs text-gray-500">
             Ada pertanyaan? Hubungi kami di <span className="font-medium">0812-3456-7890</span>
           </p>
@@ -801,7 +801,7 @@ const handleSubmitOrder = (e: React.FormEvent) => {
         {cartCount > 0 && (
           <button
             onClick={() => setIsCartOpen(true)}
-            className="lg:hidden fixed bottom-6 right-6 bg-gradient-to-r from-orange-500 to-amber-500 text-white p-4 rounded-full shadow-2xl z-40"
+            className="fixed z-40 p-4 text-white rounded-full shadow-2xl lg:hidden bottom-6 right-6 bg-gradient-to-r from-orange-500 to-amber-500"
           >
             🛒 {cartCount}
           </button>
