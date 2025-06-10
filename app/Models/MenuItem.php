@@ -85,7 +85,7 @@ class MenuItem extends Model
     }
     
     // Fallback terakhir ke gambar umum
-    return asset('images/poto_menu/no-image.jpg');
+    return '';
 }
 
     /**
@@ -164,5 +164,39 @@ class MenuItem extends Model
     public function canBeDeleted(): bool
     {
         return !$this->reservationMenuItems()->exists();
+    }
+
+    /**
+     * Generate filename for uploaded image
+     */
+    public static function generateImageFilename($originalName, $menuName)
+    {
+        $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+        $cleanMenuName = Str::slug($menuName);
+        $timestamp = time();
+        return $cleanMenuName . '-' . $timestamp . '.' . $extension;
+    }
+
+    /**
+     * Save uploaded image
+     */
+    public static function saveMenuImage($uploadedFile, $menuName)
+    {
+        if (!$uploadedFile) return null;
+        
+        $filename = self::generateImageFilename($uploadedFile->getClientOriginalName(), $menuName);
+        $uploadedFile->move(public_path('images/poto_menu'), $filename);
+        
+        return $filename;
+    }
+
+    /**
+     * Delete menu image
+     */
+    public function deleteImage()
+    {
+        if ($this->image && file_exists(public_path('images/poto_menu/' . $this->image))) {
+            unlink(public_path('images/poto_menu/' . $this->image));
+        }
     }
 }

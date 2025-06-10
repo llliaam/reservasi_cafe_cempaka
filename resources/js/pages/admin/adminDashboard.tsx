@@ -1,5 +1,6 @@
-// pages/AdminDashboard.tsx
+// pages/AdminDashboard.tsx - Responsive Version
 import React, { useState, useEffect } from 'react';
+import { router } from '@inertiajs/react';
 import Sidebar from '@/components/admin/sidebar';
 import TopBar from '@/components/admin/topbar';
 import DashboardContent from '@/components/admin/dashboardContent';
@@ -16,266 +17,644 @@ import {
   Star, 
   Calendar, 
   TrendingUp, 
-  Upload 
+  Upload,
+  Check,          
+  X,              
+  XCircle,        
+  AlertCircle,    
+  CheckCircle,    
+  Trash2,         
+  Eye,
+  Edit3,
+  Menu,
+  ChevronLeft             
 } from 'lucide-react';
 
-const AdminDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+interface ReservationData {
+  id: number;
+  reservation_code: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  package_name: string;
+  table_name?: string;
+  table_number?: number;
+  date: string;
+  time: string;
+  guests: number;
+  status: string;
+  payment_method: string;
+  payment_method_label: string;
+  total_price: string;
+  special_requests?: string;
+  table_location: string;
+  location_detail?: string;
+  proof_of_payment?: string;
+  can_be_confirmed: boolean;
+  can_be_cancelled: boolean;
+  requires_payment_confirmation: boolean;
+  package_price: number;
+  menu_subtotal: number;
+  raw_date: string;
+  raw_time: string;
+}
+
+interface AdminDashboardProps {
+  user: any;
+  stats: any;
+  notifications: any[];
+  recentActivity: any[];
+  reservations: ReservationData[];
+  orders?: any[];          
+  customers?: any[];       
+  staff?: any[];          
+  menuItems?: any[];
+  menuCategories?: any[];    
+  packages?: any[];
+  
+}
+
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
+  user, 
+  stats, 
+  notifications, 
+  recentActivity, 
+  reservations: initialReservations,
+  orders: initialOrders = [],
+  customers: initialCustomers = [],
+  staff: initialStaff = [],
+  menuItems: initialMenuItems = [],
+  menuCategories = [],
+  packages: initialPackages = []
+}) => {
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('admin_active_tab') || 'dashboard';
+    }
+    return 'dashboard';
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState('');
   const [modalData, setModalData] = useState<any>(null);
+  const [menuItems, setMenuItems] = useState(initialMenuItems);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [isAddPackageOpen, setIsAddPackageOpen] = useState(false);
+  const [isEditPackageOpen, setIsEditPackageOpen] = useState(false);
+  const [editPackageData, setEditPackageData] = useState({
+    id: null,
+    name: '',
+    price: '',
+    duration: '',
+    max_people: '',
+    description: '',
+    includes: '',
+    image: null as File | null,
+    current_image: ''
+  });
+  const [isSubmittingEditPackage, setIsSubmittingEditPackage] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [reservations, setReservations] = useState<ReservationData[]>(initialReservations || []);
+  const [orders, setOrders] = useState(initialOrders);
+  const [customers, setCustomers] = useState(initialCustomers);
+  const [staff, setStaff] = useState(initialStaff);
+  const [packages, setPackages] = useState(initialPackages);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
+  const [showAlert, setShowAlert] = useState(false);
+  const [newPackageData, setNewPackageData] = useState({
+  name: '',
+  price: '',
+  duration: '',
+  max_people: '',
+  description: '',
+  includes: '',
+  image: null as File | null
+});
+  const [isSubmittingPackage, setIsSubmittingPackage] = useState(false);
+    const [alertConfig, setAlertConfig] = useState({
+      title: '',
+      message: '',
+      confirmText: '',
+      onConfirm: () => {},
+      type: 'danger'
+    });
+    const [newMenuData, setNewMenuData] = useState({
+    name: '',
+    category_id: '',
+    price: '',
+    description: '',
+    image: null as File | null
+    });
+    const [editMenuData, setEditMenuData] = useState({
+    id: null,
+    name: '',
+    category_id: '',
+    price: '',
+    description: '',
+    image: null as File | null,
+    current_image: '' // untuk menyimpan gambar yang sudah ada
+    });
+  const [isEditMenuOpen, setIsEditMenuOpen] = useState(false);
+  const [isSubmittingEditMenu, setIsSubmittingEditMenu] = useState(false);
+  const [showEditPackageConfirm, setShowEditPackageConfirm] = useState(false);
+  const [pendingEditPackageData, setPendingEditPackageData] = useState(null);
+  
+  const [isSubmittingMenu, setIsSubmittingMenu] = useState(false);
+  
+  // Mobile sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Mock data for orders
-  const [mockOrders] = useState([
-    { 
-      id: 'ORD-001', 
-      customerName: 'Budi Santoso', 
-      phone: '081234567890',
-      service: 'Nasi Goreng Special, Es Teh Manis', 
-      items: ['Nasi Goreng Special', 'Es Teh Manis'],
-      type: 'dine-in',
-      status: 'completed', 
-      price: 35000, 
-      date: '2024-03-20',
-      paymentMethod: 'Cash',
-      notes: 'Extra pedas'
-    },
-    { 
-      id: 'ORD-002', 
-      customerName: 'Siti Rahayu', 
-      phone: '087654321098',
-      service: 'Mie Ayam, Jus Alpukat', 
-      items: ['Mie Ayam', 'Jus Alpukat'],
-      type: 'takeaway',
-      status: 'processing', 
-      price: 42000, 
-      date: '2024-03-20',
-      paymentMethod: 'E-Wallet',
-      notes: 'Tidak pakai bawang'
-    },
-    { 
-      id: 'ORD-003', 
-      customerName: 'Ahmad Fadli', 
-      phone: '085678901234',
-      service: 'Paket Reservasi Ulang Tahun', 
-      items: ['Paket Reservasi Ulang Tahun'],
-      type: 'reservation',
-      status: 'pending', 
-      price: 500000, 
-      date: '2024-03-21',
-      paymentMethod: 'Transfer Bank',
-      notes: 'Untuk 20 orang'
-    },
-    { 
-      id: 'ORD-004', 
-      customerName: 'Dewi Lestari', 
-      phone: '089012345678',
-      service: 'Ayam Bakar, Sop Buah', 
-      items: ['Ayam Bakar', 'Sop Buah'],
-      type: 'dine-in',
-      status: 'ready', 
-      price: 55000, 
-      date: '2024-03-20',
-      paymentMethod: 'Cash',
-      notes: ''
-    },
-    { 
-      id: 'ORD-005', 
-      customerName: 'Rudi Hermawan', 
-      phone: '082345678901',
-      service: 'Coffee Latte, Croissant', 
-      items: ['Coffee Latte', 'Croissant'],
-      type: 'takeaway',
-      status: 'completed', 
-      price: 38000, 
-      date: '2024-03-20',
-      paymentMethod: 'Debit Card',
-      notes: 'Extra shot espresso'
+  useEffect(() => {
+    localStorage.setItem('admin_active_tab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+  return () => {
+    if (newMenuData.image) {
+      URL.revokeObjectURL(URL.createObjectURL(newMenuData.image));
     }
-  ]);
+  };
+}, [newMenuData.image]);
 
-  // Mock data for menu items
-  const [menuItems, setMenuItems] = useState([
-    { 
-      id: 1, 
-      name: 'Nasi Goreng Special', 
-      category: 'Makanan', 
-      price: 28000, 
-      description: 'Nasi goreng dengan telur, ayam, dan sayuran segar',
-      status: 'available', 
-      popularity: 95,
-      image: '/images/nasi-goreng.jpg'
-    },
-    { 
-      id: 2, 
-      name: 'Mie Ayam', 
-      category: 'Makanan', 
-      price: 25000, 
-      description: 'Mie dengan topping ayam cincang dan pangsit',
-      status: 'available', 
-      popularity: 88,
-      image: '/images/mie-ayam.jpg'
-    },
-    { 
-      id: 3, 
-      name: 'Es Teh Manis', 
-      category: 'Minuman', 
-      price: 8000, 
-      description: 'Teh manis dingin segar',
-      status: 'available', 
-      popularity: 92,
-      image: '/images/es-teh.jpg'
-    },
-    { 
-      id: 4, 
-      name: 'Jus Alpukat', 
-      category: 'Minuman', 
-      price: 18000, 
-      description: 'Jus alpukat segar dengan susu',
-      status: 'available', 
-      popularity: 85,
-      image: '/images/jus-alpukat.jpg'
-    },
-    { 
-      id: 5, 
-      name: 'Ayam Bakar', 
-      category: 'Makanan', 
-      price: 35000, 
-      description: 'Ayam bakar dengan bumbu khas Cafe Cempaka',
-      status: 'available', 
-      popularity: 90,
-      image: '/images/ayam-bakar.jpg'
-    },
-    { 
-      id: 6, 
-      name: 'Coffee Latte', 
-      category: 'Minuman', 
-      price: 25000, 
-      description: 'Espresso dengan steamed milk',
-      status: 'available', 
-      popularity: 87,
-      image: '/images/coffee-latte.jpg'
+  // Close sidebar when clicking outside on mobile
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const sidebar = document.getElementById('mobile-sidebar');
+      const menuButton = document.getElementById('mobile-menu-button');
+      
+      if (
+        isSidebarOpen &&
+        sidebar &&
+        !sidebar.contains(event.target as Node) &&
+        menuButton &&
+        !menuButton.contains(event.target as Node)
+      ) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSidebarOpen]);
+
+  // Close sidebar when tab changes on mobile
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [activeTab]);
+
+  // Function to refresh reservations data
+  const refreshReservations = async () => {
+    setIsRefreshing(true);
+    try {
+      router.reload({
+        only: ['reservations'],
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: (page) => {
+          if (page.props.reservations) {
+            setReservations(page.props.reservations);
+          }
+          console.log('Data reservasi berhasil diperbarui');
+        },
+        onError: (errors) => {
+          console.error('Error refreshing data:', errors);
+        }
+      });
+    } catch (error) {
+      console.error('Error refreshing reservations:', error);
+    } finally {
+      setIsRefreshing(false);
     }
-  ]);
+  };
 
-  // Mock data for customers
-  const [mockCustomers] = useState([
-    { 
-      id: 1, 
-      name: 'Budi Santoso', 
-      phone: '081234567890', 
-      email: 'budi@email.com', 
-      address: 'Jl. Sudirman No. 123',
-      totalOrders: 15, 
-      totalSpent: 450000, 
-      status: 'active', 
-      lastOrder: '2024-03-20',
-      joinDate: '2023-01-15'
+  const handleToggleMenuStatus = (id: number) => {
+  const menuItem = menuItems.find(item => item.id === id);
+  if (!menuItem) return;
+
+  router.patch(`/admin/menu/${id}/toggle-status`, {
+    is_available: !menuItem.is_available
+  }, {
+    preserveState: true,
+    preserveScroll: true,
+    onSuccess: (page) => {
+      if (page.props.menuItems) {
+        setMenuItems(page.props.menuItems);
+      }
+      console.log('Status menu berhasil diupdate');
     },
-    { 
-      id: 2, 
-      name: 'Siti Rahayu', 
-      phone: '087654321098', 
-      email: 'siti@email.com', 
-      address: 'Jl. Gatot Subroto No. 45',
-      totalOrders: 25, 
-      totalSpent: 750000, 
-      status: 'vip', 
-      lastOrder: '2024-03-19',
-      joinDate: '2022-12-10'
-    },
-    { 
-      id: 3, 
-      name: 'Ahmad Fadli', 
-      phone: '085678901234', 
-      email: 'ahmad@email.com', 
-      address: 'Jl. Asia Afrika No. 67',
-      totalOrders: 8, 
-      totalSpent: 280000, 
-      status: 'active', 
-      lastOrder: '2024-03-15',
-      joinDate: '2023-05-20'
-    },
-    { 
-      id: 4, 
-      name: 'Dewi Lestari', 
-      phone: '089012345678', 
-      email: 'dewi@email.com', 
-      address: 'Jl. Diponegoro No. 89',
-      totalOrders: 5, 
-      totalSpent: 150000, 
-      status: 'inactive', 
-      lastOrder: '2024-01-10',
-      joinDate: '2023-08-05'
+    onError: (errors) => {
+      console.error('Error updating menu status:', errors);
     }
-  ]);
+  });
+};
 
-  // Mock data for staff
-  const [mockStaff] = useState([
-    { 
-      id: 1, 
-      name: 'Andi Wijaya', 
-      position: 'Head Chef', 
-      phone: '081234567890', 
-      email: 'andi@cafecempaka.com',
-      salary: 5000000, 
-      performance: 95, 
-      status: 'active', 
-      joinDate: '2022-01-15'
+  const showImageInModal = (imageUrl: string) => {
+    setImageUrl(imageUrl);
+    setShowImageModal(true);
+  };
+
+  const showConfirmAlert = (config: any) => {
+    setAlertConfig(config);
+    setShowAlert(true);
+  };
+
+  const handleConfirmReservation = (reservationId: number) => {
+    showConfirmAlert({
+      title: 'Konfirmasi Reservasi',
+      message: 'Apakah Anda yakin ingin mengonfirmasi reservasi ini?',
+      confirmText: 'Ya, Konfirmasi',
+      type: 'success',
+      onConfirm: () => {
+        router.patch(`/admin/reservations/${reservationId}/status`, {
+          status: 'confirmed'
+        }, {
+          preserveState: true,
+          preserveScroll: true,
+          onSuccess: (page) => {
+            if (page.props.reservations) {
+              setReservations(page.props.reservations);
+            }
+            
+            const updatedReservation = page.props.reservations?.find((r: any) => r.id === reservationId);
+            if (updatedReservation && modalData && modalData.id === reservationId) {
+              setModalData(updatedReservation);
+            }
+            
+            console.log('Reservasi berhasil dikonfirmasi');
+          },
+          onError: (errors) => {
+            console.error('Error confirming reservation:', errors);
+          }
+        });
+        setShowAlert(false);
+      }
+    });
+  };
+
+  const handleCancelReservation = (reservationId: number) => {
+    showConfirmAlert({
+      title: 'Batalkan Reservasi',
+      message: 'Apakah Anda yakin ingin membatalkan reservasi ini?',
+      confirmText: 'Ya, Batalkan',
+      type: 'warning',
+      onConfirm: () => {
+        router.patch(`/admin/reservations/${reservationId}/status`, {
+          status: 'cancelled'
+        }, {
+          preserveState: true,
+          preserveScroll: true,
+          onSuccess: (page) => {
+            if (page.props.reservations) {
+              setReservations(page.props.reservations);
+            }
+            
+            const updatedReservation = page.props.reservations?.find((r: any) => r.id === reservationId);
+            if (updatedReservation && modalData && modalData.id === reservationId) {
+              setModalData(updatedReservation);
+            }
+            
+            console.log('Reservasi berhasil dibatalkan');
+          },
+          onError: (errors) => {
+            console.error('Error cancelling reservation:', errors);
+          }
+        });
+        setShowAlert(false);
+      }
+    });
+  };
+
+  const handleDeleteReservation = (reservationId: number) => {
+    showConfirmAlert({
+      title: 'Hapus Reservasi',
+      message: 'Apakah Anda yakin ingin menghapus reservasi ini? Tindakan ini tidak dapat dibatalkan.',
+      confirmText: 'Ya, Hapus',
+      type: 'danger',
+      onConfirm: () => {
+        router.delete(`/admin/reservations/${reservationId}`, {
+          preserveState: true,
+          preserveScroll: true,
+          onSuccess: (page) => {
+            if (page.props.reservations) {
+              setReservations(page.props.reservations);
+            }
+            closeModal();
+            console.log('Reservasi berhasil dihapus');
+          },
+          onError: (errors) => {
+            console.error('Error deleting reservation:', errors);
+          }
+        });
+        setShowAlert(false);
+      }
+    });
+  };
+
+  const handleAddMenu = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsSubmittingMenu(true);
+
+  const formData = new FormData();
+  formData.append('name', newMenuData.name);
+  formData.append('category_id', newMenuData.category_id);
+  formData.append('price', newMenuData.price);
+  formData.append('description', newMenuData.description);
+  if (newMenuData.image) {
+    formData.append('image', newMenuData.image);
+  }
+
+  router.post('/admin/menu/store', formData, {
+    preserveState: true,
+    preserveScroll: true,
+    onSuccess: (page) => {
+      if (page.props.menuItems) {
+        setMenuItems(page.props.menuItems);
+      }
+      setIsAddMenuOpen(false);
+      setNewMenuData({
+        name: '',
+        category_id: '',
+        price: '',
+        description: '',
+        image: null
+      });
+      console.log('Menu berhasil ditambahkan');
     },
-    { 
-      id: 2, 
-      name: 'Rina Susanti', 
-      position: 'Waitress', 
-      phone: '087654321098', 
-      email: 'rina@cafecempaka.com',
-      salary: 3000000, 
-      performance: 88, 
-      status: 'active', 
-      joinDate: '2023-03-10'
+    onError: (errors) => {
+      console.error('Error adding menu:', errors);
     },
-    { 
-      id: 3, 
-      name: 'Joko Prasetyo', 
-      position: 'Barista', 
-      phone: '085678901234', 
-      email: 'joko@cafecempaka.com',
-      salary: 3500000, 
-      performance: 92, 
-      status: 'active', 
-      joinDate: '2022-06-20'
-    },
-    { 
-      id: 4, 
-      name: 'Sari Indah', 
-      position: 'Cashier', 
-      phone: '089012345678', 
-      email: 'sari@cafecempaka.com',
-      salary: 3200000, 
-      performance: 85, 
-      status: 'active', 
-      joinDate: '2023-01-05'
+    onFinish: () => {
+      setIsSubmittingMenu(false);
     }
-  ]);
+  });
+};
 
-  // Mock notifications
-  const [notifications] = useState([
-    { id: 1, message: 'Pesanan baru dari Budi Santoso', type: 'order', time: '5 menit lalu' },
-    { id: 2, message: 'Stok Kopi hampir habis', type: 'inventory', time: '30 menit lalu' },
-    { id: 3, message: 'Reservasi untuk besok: 3 meja', type: 'reservation', time: '1 jam lalu' }
-  ]);
+  const handleAddPackage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingPackage(true);
 
-  // Calculate stats
-  const stats = {
-    totalOrders: mockOrders.length,
-    completedOrders: mockOrders.filter(o => o.status === 'completed').length,
-    totalRevenue: mockOrders.reduce((sum, order) => sum + order.price, 0),
-    totalCustomers: mockCustomers.length,
-    avgOrderValue: Math.round(mockOrders.reduce((sum, order) => sum + order.price, 0) / mockOrders.length),
-    monthlyGrowth: 12
+    const formData = new FormData();
+    formData.append('name', newPackageData.name);
+    formData.append('price', newPackageData.price);
+    formData.append('duration', newPackageData.duration);
+    formData.append('max_people', newPackageData.max_people);
+    formData.append('description', newPackageData.description);
+    formData.append('includes', newPackageData.includes);
+    
+    if (newPackageData.image) {
+      formData.append('image', newPackageData.image);
+    }
+
+    router.post('/admin/packages/store', formData, {
+      forceFormData: true,
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: (page) => {
+        // Update dari response server jika ada
+        if (page.props.packages) {
+          setPackages(page.props.packages);
+        } else {
+          // Fallback: tambah ke state manual
+          const newPackage = {
+            id: Date.now(),
+            name: newPackageData.name,
+            price: parseFloat(newPackageData.price),
+            duration: newPackageData.duration,
+            maxGuests: parseInt(newPackageData.max_people),
+            description: newPackageData.description,
+            facilities: newPackageData.includes.split(', ').filter(f => f.trim()),
+            menuIncluded: newPackageData.includes.split(', ').filter(f => f.trim()),
+            status: 'active',
+            popularity: 85,
+            totalBookings: 0,
+            createdAt: new Date().toISOString().split('T')[0]
+          };
+          setPackages([newPackage, ...packages]);
+        }
+        
+        setIsAddPackageOpen(false);
+        setNewPackageData({
+          name: '',
+          price: '',
+          duration: '',
+          max_people: '',
+          description: '',
+          includes: '',
+          image: null
+        });
+        console.log('Paket berhasil ditambahkan');
+      },
+      onError: (errors) => {
+        console.error('Error adding package:', errors);
+        alert('Gagal menambahkan paket!');
+      },
+      onFinish: () => {
+        setIsSubmittingPackage(false);
+      }
+    });
+  };
+
+const handlePackageInputChange = (field: string, value: string | File | null) => {
+  setNewPackageData(prev => ({
+    ...prev,
+    [field]: value
+  }));
+};
+
+const handleMenuInputChange = (field: string, value: string | File | null) => {
+  setNewMenuData(prev => ({
+    ...prev,
+    [field]: value
+  }));
+};
+
+const handleEditMenu = (menuData: any) => {
+  setEditMenuData({
+    id: menuData.id,
+    name: menuData.name,
+    category_id: menuData.category_id || '',
+    price: menuData.price.toString(),
+    description: menuData.description || '',
+    image: null,
+    current_image: menuData.image || ''
+  });
+  setIsEditMenuOpen(true);
+};
+
+const handleEditMenuInputChange = (field: string, value: string | File | null) => {
+  setEditMenuData(prev => ({
+    ...prev,
+    [field]: value
+  }));
+};
+
+const handleSubmitEditMenu = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsSubmittingEditMenu(true);
+
+  const formData = new FormData();
+  formData.append('name', editMenuData.name);
+  formData.append('category_id', editMenuData.category_id);
+  formData.append('price', editMenuData.price);
+  formData.append('description', editMenuData.description);
+  formData.append('_method', 'PUT'); // Laravel method spoofing
+  
+  if (editMenuData.image) {
+    formData.append('image', editMenuData.image);
+  }
+
+  router.post(`/admin/menu/${editMenuData.id}/update`, formData, {
+    forceFormData: true,
+    preserveState: true,
+    preserveScroll: true,
+    onSuccess: (page) => {
+      if (page.props.menuItems) {
+        setMenuItems(page.props.menuItems);
+      }
+      setIsEditMenuOpen(false);
+      setEditMenuData({
+        id: null,
+        name: '',
+        category_id: '',
+        price: '',
+        description: '',
+        image: null,
+        current_image: ''
+      });
+      console.log('Menu berhasil diupdate');
+    },
+    onError: (errors) => {
+      console.error('Error updating menu:', errors);
+    },
+    onFinish: () => {
+      setIsSubmittingEditMenu(false);
+    }
+  });
+};
+
+const handleEditPackage = (packageData: any) => {
+  setEditPackageData({
+    id: packageData.id,
+    name: packageData.name || '',
+    price: packageData.price ? packageData.price.toString() : '',
+    duration: packageData.duration || '',
+    max_people: packageData.maxGuests ? packageData.maxGuests.toString() : '',
+    description: packageData.description || '',
+    includes: packageData.facilities ? (Array.isArray(packageData.facilities) ? packageData.facilities.join(', ') : packageData.facilities) : '',
+    image: null,
+    current_image: packageData.image_url || ''
+  });
+  setIsEditPackageOpen(true);
+};
+
+const handleEditPackageInputChange = (field: string, value: string | File | null) => {
+  setEditPackageData(prev => ({
+    ...prev,
+    [field]: value
+  }));
+};
+
+ const handleSubmitEditPackage = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  // Simpan data untuk konfirmasi
+  setPendingEditPackageData(editPackageData);
+  setShowEditPackageConfirm(true);
+};
+
+// Tambahkan fungsi baru untuk eksekusi update
+const executeEditPackage = async () => {
+  if (!pendingEditPackageData) return;
+  
+  setIsSubmittingEditPackage(true);
+
+  const formData = new FormData();
+  formData.append('name', pendingEditPackageData.name);
+  formData.append('price', pendingEditPackageData.price);
+  formData.append('duration', pendingEditPackageData.duration);
+  formData.append('max_people', pendingEditPackageData.max_people);
+  formData.append('description', pendingEditPackageData.description);
+  formData.append('includes', pendingEditPackageData.includes);
+  formData.append('_method', 'PUT');
+  
+  if (pendingEditPackageData.image) {
+    formData.append('image', pendingEditPackageData.image);
+  }
+
+  router.post(`/admin/packages/${pendingEditPackageData.id}/update`, formData, {
+    forceFormData: true,
+    preserveState: true,
+    preserveScroll: true,
+    onSuccess: (page) => {
+      // Update dari response server jika ada
+      if (page.props.packages) {
+        setPackages(page.props.packages);
+      } else {
+        // Fallback: update state manual
+        const updatedPackages = packages.map(pkg => 
+          pkg.id === pendingEditPackageData.id ? {
+            ...pkg,
+            name: pendingEditPackageData.name,
+            price: parseFloat(pendingEditPackageData.price),
+            duration: pendingEditPackageData.duration,
+            maxGuests: parseInt(pendingEditPackageData.max_people),
+            description: pendingEditPackageData.description,
+            facilities: pendingEditPackageData.includes.split(', ').filter(f => f.trim()),
+            menuIncluded: pendingEditPackageData.includes.split(', ').filter(f => f.trim())
+          } : pkg
+        );
+        setPackages(updatedPackages);
+      }
+      
+      setIsEditPackageOpen(false);
+      setEditPackageData({
+        id: null,
+        name: '',
+        price: '',
+        duration: '',
+        max_people: '',
+        description: '',
+        includes: '',
+        image: null,
+        current_image: ''
+      });
+      setShowEditPackageConfirm(false);
+      setPendingEditPackageData(null);
+      console.log('Paket berhasil diupdate');
+    },
+    onError: (errors) => {
+      console.error('Error updating package:', errors);
+      alert('Gagal mengupdate paket!');
+      setShowEditPackageConfirm(false);
+    },
+    onFinish: () => {
+      setIsSubmittingEditPackage(false);
+    }
+  });
+};
+
+  // Calculate combined stats including reservations
+  const combinedStats = {
+    totalOrders: stats.total_orders || 0,
+    completedOrders: orders.filter(o => o.status === 'completed').length,
+    totalRevenue: stats.total_revenue || 0,
+    totalCustomers: stats.total_customers || 0,
+    totalReservations: reservations.length,
+    pendingReservations: reservations.filter(r => r.status === 'pending').length,
+    confirmedReservations: reservations.filter(r => r.status === 'confirmed').length,
+    avgOrderValue: stats.avg_order_value || 0,
+    monthlyGrowth: stats.monthly_growth || 0,
+    
+    reservationRevenue: reservations
+      .filter(r => r.status === 'completed')
+      .reduce((sum, r) => sum + parseFloat(r.total_price.replace(/[^\d]/g, '')), 0),
+    todayOrders: stats.today_orders || 0,
+    todayReservations: stats.today_reservations || 0,
+    newCustomersThisMonth: stats.new_customers_this_month || 0,
+    totalStaff: stats.total_staff || 0
   };
 
   // Helper functions
@@ -307,6 +686,8 @@ const AdminDashboard: React.FC = () => {
       case 'active': return 'Aktif';
       case 'inactive': return 'Tidak Aktif';
       case 'vip': return 'VIP';
+      case 'confirmed': return 'Dikonfirmasi';
+      case 'cancelled': return 'Dibatalkan';
       default: return status;
     }
   };
@@ -328,10 +709,29 @@ const AdminDashboard: React.FC = () => {
     if (!modalData) return null;
 
     switch (modalType) {
+
+     case 'editPackage':
+      // Set data edit package dan buka modal edit
+      setEditPackageData({
+        id: modalData.id,
+        name: modalData.name || '',
+        price: modalData.price ? modalData.price.toString() : '',
+        duration: modalData.duration || '',
+        max_people: modalData.maxGuests ? modalData.maxGuests.toString() : '',
+        description: modalData.description || '',
+        includes: modalData.facilities ? (Array.isArray(modalData.facilities) ? modalData.facilities.join(', ') : modalData.facilities) : '',
+        image: null,
+        current_image: modalData.image_url || ''
+      });
+      setIsEditPackageOpen(true);
+      closeModal();
+      return null;
+
       case 'order':
+         console.log('modalData:', modalData);
         return (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-600">ID Pesanan</p>
                 <p className="font-medium">{modalData.id}</p>
@@ -344,11 +744,11 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Pelanggan</p>
-                <p className="font-medium">{modalData.customerName}</p>
+                <p className="font-medium break-words">{modalData.customerName}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">No. Telepon</p>
-                <p className="font-medium">{modalData.phone}</p>
+                <p className="font-medium break-words">{modalData.phone}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Tipe Order</p>
@@ -363,26 +763,179 @@ const AdminDashboard: React.FC = () => {
               <p className="text-sm text-gray-600 mb-2">Items</p>
               <div className="bg-gray-50 p-3 rounded-lg">
                 {modalData.items?.map((item: string, index: number) => (
-                  <p key={index} className="text-sm">{item}</p>
+                  <p key={index} className="text-sm break-words">{item}</p>
                 ))}
               </div>
             </div>
             {modalData.notes && (
               <div>
                 <p className="text-sm text-gray-600">Catatan</p>
-                <p className="text-sm">{modalData.notes}</p>
+                <p className="text-sm break-words">{modalData.notes}</p>
               </div>
             )}
+            
+             {modalData.paymentProof && (
+            <div>
+              <p className="text-sm text-gray-600 mb-2">Bukti Pembayaran</p>
+              <div 
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => showImageInModal(modalData.paymentProof)}
+              >
+                <img 
+                  src={modalData.paymentProof} 
+                  alt="Bukti Pembayaran" 
+                  className="w-full max-w-sm h-48 object-cover rounded-lg border hover:shadow-md transition-shadow"
+                />
+                <p className="text-xs text-blue-600 mt-1">Klik untuk memperbesar</p>
+              </div>
+            </div>
+          )}
+            {/* Action Buttons */}
+            <div className="border-t pt-4">
+              <div className="flex justify-end">
+                <button
+                  onClick={closeModal}
+                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 text-sm"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'reservation':
+        return (
+          <div className="space-y-6">
+            {/* Detail Information */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Kode Reservasi</p>
+                  <p className="font-medium break-words">{modalData.reservation_code}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Status</p>
+                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(modalData.status)}`}>
+                    {getStatusText(modalData.status)}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Pelanggan</p>
+                  <p className="font-medium break-words">{modalData.customer_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">No. Telepon</p>
+                  <p className="font-medium break-words">{modalData.customer_phone}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Email</p>
+                  <p className="font-medium break-words">{modalData.customer_email}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Paket</p>
+                  <p className="font-medium break-words">{modalData.package_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Tanggal & Waktu</p>
+                  <p className="font-medium">{modalData.date} - {modalData.time}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Jumlah Tamu</p>
+                  <p className="font-medium">{modalData.guests} orang</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Meja</p>
+                  <p className="font-medium break-words">{modalData.table_name || 'Belum ditentukan'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Lokasi</p>
+                  <p className="font-medium break-words">{modalData.location_detail || modalData.table_location}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Harga</p>
+                  <p className="font-medium">{modalData.total_price}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Metode Pembayaran</p>
+                  <p className="font-medium break-words">{modalData.payment_method_label}</p>
+                </div>
+              </div>
+
+              {modalData.special_requests && (
+                <div>
+                  <p className="text-sm text-gray-600">Permintaan Khusus</p>
+                  <p className="text-sm bg-gray-50 p-3 rounded-lg break-words">{modalData.special_requests}</p>
+                </div>
+              )}
+
+              {modalData.proof_of_payment && (
+                <div>
+                  <p className="text-sm text-gray-600 mb-2">Bukti Pembayaran</p>
+                  <div 
+                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => showImageInModal(modalData.proof_of_payment)}
+                  >
+                    <img 
+                      src={modalData.proof_of_payment} 
+                      alt="Bukti Pembayaran" 
+                      className="w-full max-w-sm h-48 object-cover rounded-lg border hover:shadow-md transition-shadow"
+                    />
+                    <p className="text-xs text-blue-600 mt-1">Klik untuk memperbesar</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="border-t pt-4">
+              <div className="flex flex-wrap gap-3">
+                {modalData.can_be_confirmed && (
+                  <button
+                    onClick={() => handleConfirmReservation(modalData.id)}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center text-sm"
+                  >
+                    <Check className="w-4 h-4 mr-2" />
+                    Konfirmasi
+                  </button>
+                )}
+                
+                {modalData.can_be_cancelled && (
+                  <button
+                    onClick={() => handleCancelReservation(modalData.id)}
+                    className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 flex items-center text-sm"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Batalkan
+                  </button>
+                )}
+                
+                <button
+                  onClick={() => handleDeleteReservation(modalData.id)}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center text-sm"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Hapus
+                </button>
+                
+                <button
+                  onClick={closeModal}
+                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 text-sm"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
           </div>
         );
       
       case 'customer':
         return (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-600">Nama</p>
-                <p className="font-medium">{modalData.name}</p>
+                <p className="font-medium break-words">{modalData.name}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Status</p>
@@ -392,15 +945,15 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">No. Telepon</p>
-                <p className="font-medium">{modalData.phone}</p>
+                <p className="font-medium break-words">{modalData.phone}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Email</p>
-                <p className="font-medium">{modalData.email}</p>
+                <p className="font-medium break-words">{modalData.email}</p>
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                 <p className="text-sm text-gray-600">Alamat</p>
-                <p className="font-medium">{modalData.address}</p>
+                <p className="font-medium break-words">{modalData.address}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Pesanan</p>
@@ -425,22 +978,22 @@ const AdminDashboard: React.FC = () => {
       case 'staff':
         return (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-600">Nama</p>
-                <p className="font-medium">{modalData.name}</p>
+                <p className="font-medium break-words">{modalData.name}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Posisi</p>
-                <p className="font-medium">{modalData.position}</p>
+                <p className="font-medium break-words">{modalData.position}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">No. Telepon</p>
-                <p className="font-medium">{modalData.phone}</p>
+                <p className="font-medium break-words">{modalData.phone}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Email</p>
-                <p className="font-medium">{modalData.email}</p>
+                <p className="font-medium break-words">{modalData.email}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Gaji</p>
@@ -476,14 +1029,31 @@ const AdminDashboard: React.FC = () => {
         return (
           <div className="space-y-4">
             <div className="aspect-w-16 aspect-h-12 bg-gray-200 rounded-lg mb-4">
-              <div className="w-full h-48 bg-gray-200 flex items-center justify-center rounded-lg">
-                <Package className="w-12 h-12 text-gray-400" />
+              <div className="w-full h-48 bg-gray-200 flex items-center justify-center rounded-lg overflow-hidden">
+                {modalData.image_url ? (
+                  <img 
+                    src={modalData.image_url}
+                    alt={modalData.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const fallback = target.parentElement?.querySelector('.fallback-icon');
+                      if (fallback) {
+                        fallback.classList.remove('hidden');
+                      }
+                    }}
+                  />
+                ) : null}
+                <div className={`fallback-icon flex items-center justify-center w-full h-full ${modalData.image_url ? 'hidden' : ''}`}>
+                  <Package className="w-12 h-12 text-gray-400" />
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-600">Nama Menu</p>
-                <p className="font-medium">{modalData.name}</p>
+                <p className="font-medium break-words">{modalData.name}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Kategori</p>
@@ -509,81 +1079,29 @@ const AdminDashboard: React.FC = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Deskripsi</p>
-              <p className="text-sm">{modalData.description}</p>
+              <p className="text-sm break-words">{modalData.description}</p>
             </div>
-          </div>
-        );
-      
-      case 'reservation':
-        return (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">ID Reservasi</p>
-                <p className="font-medium">{modalData.id}</p>
+            
+            {/* Action Buttons */}
+            <div className="border-t pt-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => {
+                    handleEditMenu(modalData);
+                    closeModal();
+                  }}
+                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center justify-center text-sm"
+                >
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  Edit Menu
+                </button>
+                <button
+                  onClick={closeModal}
+                  className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 text-sm"
+                >
+                  Tutup
+                </button>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Status</p>
-                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                  modalData.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                  modalData.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                  modalData.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                  'bg-red-100 text-red-800'
-                }`}>
-                  {modalData.status === 'confirmed' ? 'Dikonfirmasi' :
-                   modalData.status === 'pending' ? 'Menunggu' :
-                   modalData.status === 'completed' ? 'Selesai' : 'Dibatalkan'}
-                </span>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Pelanggan</p>
-                <p className="font-medium">{modalData.customerName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">No. Telepon</p>
-                <p className="font-medium">{modalData.phone}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Tipe Reservasi</p>
-                <p className="font-medium">{modalData.type === 'acara' ? 'Acara' : 'Private Dining'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Paket</p>
-                <p className="font-medium">{modalData.packageName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Tanggal</p>
-                <p className="font-medium">{modalData.date}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Waktu</p>
-                <p className="font-medium">{modalData.time} ({modalData.duration})</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Jumlah Tamu</p>
-                <p className="font-medium">{modalData.guests} orang</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Lokasi</p>
-                <p className="font-medium">{modalData.location}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Harga</p>
-                <p className="font-medium">Rp {modalData.totalPrice.toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">DP Dibayar</p>
-                <p className="font-medium">Rp {modalData.downPayment.toLocaleString()}</p>
-              </div>
-            </div>
-            {modalData.notes && (
-              <div>
-                <p className="text-sm text-gray-600">Catatan</p>
-                <p className="text-sm bg-gray-50 p-3 rounded-lg">{modalData.notes}</p>
-              </div>
-            )}
-            <div className="pt-4 border-t">
-              <p className="text-sm text-gray-600">Dibuat pada: {modalData.createdAt}</p>
             </div>
           </div>
         );
@@ -591,10 +1109,10 @@ const AdminDashboard: React.FC = () => {
       case 'package':
         return (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-600">Nama Paket</p>
-                <p className="font-medium">{modalData.name}</p>
+                <p className="font-medium break-words">{modalData.name}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Tipe</p>
@@ -633,15 +1151,15 @@ const AdminDashboard: React.FC = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Deskripsi</p>
-              <p className="text-sm">{modalData.description}</p>
+              <p className="text-sm break-words">{modalData.description}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600 mb-2">Fasilitas</p>
               <div className="space-y-1">
                 {modalData.facilities?.map((facility: string, index: number) => (
                   <div key={index} className="flex items-center space-x-2">
-                    <Check className="w-4 h-4 text-green-600" />
-                    <span className="text-sm">{facility}</span>
+                    <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                    <span className="text-sm break-words">{facility}</span>
                   </div>
                 ))}
               </div>
@@ -651,8 +1169,8 @@ const AdminDashboard: React.FC = () => {
               <div className="space-y-1">
                 {modalData.menuIncluded?.map((menu: string, index: number) => (
                   <div key={index} className="flex items-center space-x-2">
-                    <Check className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm">{menu}</span>
+                    <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <span className="text-sm break-words">{menu}</span>
                   </div>
                 ))}
               </div>
@@ -666,37 +1184,58 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
+      {/* Mobile Sidebar Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <div className={`
+        fixed lg:static inset-y-0 left-0 z-30 lg:z-0
+        transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0 transition-transform duration-300 ease-in-out
+      `}>
+        <Sidebar 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab}
+          isMobile={true}
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+        />
+      </div>
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* TopBar */}
         <TopBar 
           activeTab={activeTab} 
           searchTerm={searchTerm} 
           setSearchTerm={setSearchTerm}
           notifications={notifications}
+          onMenuClick={() => setIsSidebarOpen(true)}
         />
         
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {activeTab === 'dashboard' && (
-            <DashboardContent 
-              stats={stats}
-              setActiveTab={setActiveTab}
-              openModal={openModal}
-              mockOrders={mockOrders}
-              mockMenuItems={menuItems}
-              getStatusColor={getStatusColor}
-              getStatusText={getStatusText}
-            />
-          )}
+              <DashboardContent 
+                stats={combinedStats}
+                setActiveTab={setActiveTab}
+                openModal={openModal}
+                orders={orders}
+                menuItems={menuItems}
+                getStatusColor={getStatusColor}
+                getStatusText={getStatusText}
+              />
+            )}
           
           {activeTab === 'orders' && (
             <OrdersContent 
-              mockOrders={mockOrders}
+              orders={orders}
               searchTerm={searchTerm}
               openModal={openModal}
               getStatusColor={getStatusColor}
@@ -712,36 +1251,40 @@ const AdminDashboard: React.FC = () => {
               openModal={openModal}
               setIsAddMenuOpen={setIsAddMenuOpen}
               getStatusColor={getStatusColor}
+              menuCategories={menuCategories} // Pastikan ini ada
+              onToggleStatus={handleToggleMenuStatus} // Pastikan ini juga ada
             />
           )}
           
           {activeTab === 'customers' && (
-            <CustomersContent 
-              mockCustomers={mockCustomers}
-              searchTerm={searchTerm}
-              openModal={openModal}
-              getStatusColor={getStatusColor}
-              getStatusText={getStatusText}
-            />
-          )}
+              <CustomersContent 
+                customers={customers}
+                searchTerm={searchTerm}
+                openModal={openModal}
+                getStatusColor={getStatusColor}
+                getStatusText={getStatusText}
+              />
+            )}
           
           {activeTab === 'staff' && (
-            <StaffContent 
-              mockStaff={mockStaff}
-              openModal={openModal}
-              getStatusColor={getStatusColor}
-              getStatusText={getStatusText}
-            />
-          )}
+              <StaffContent 
+                staff={staff}
+                openModal={openModal}
+                getStatusColor={getStatusColor}
+                getStatusText={getStatusText}
+              />
+            )}
           
-          {activeTab === 'packages' && (
-            <PackagesContent 
-              searchTerm={searchTerm}
-              openModal={openModal}
-              setIsAddPackageOpen={setIsAddPackageOpen}
-              getStatusColor={getStatusColor}
-            />
-          )}
+         {activeTab === 'packages' && (
+          <PackagesContent 
+            searchTerm={searchTerm}
+            openModal={openModal}
+            setIsAddPackageOpen={setIsAddPackageOpen}
+            getStatusColor={getStatusColor}
+            packages={packages}
+            setPackages={setPackages}
+          />
+        )}
           
           {activeTab === 'reservations' && (
             <ReservationContent 
@@ -749,6 +1292,9 @@ const AdminDashboard: React.FC = () => {
               openModal={openModal}
               getStatusColor={getStatusColor}
               getStatusText={getStatusText}
+              reservations={reservations}
+              onRefresh={refreshReservations}
+              isRefreshing={isRefreshing}
             />
           )}
           
@@ -774,72 +1320,285 @@ const AdminDashboard: React.FC = () => {
           modalType === 'reservation' ? 'Detail Reservasi' :
           modalType === 'package' ? 'Detail Paket' : ''
         }
-      />
-        {renderModalContent()}
-      {/* Add Package Modal */}
-      <Modal 
-        isOpen={isAddPackageOpen} 
-        onClose={() => setIsAddPackageOpen(false)}
-        title="Tambah Paket Reservasi Baru"
       >
-        <form className="space-y-4">
+        {renderModalContent()}
+      </Modal>
+
+     {/* Add Package Modal */}
+    <Modal 
+      isOpen={isAddPackageOpen} 
+      onClose={() => setIsAddPackageOpen(false)}
+      title="Tambah Paket Reservasi Baru"
+    >
+      <form onSubmit={handleAddPackage} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Nama Paket</label>
+          <input 
+            type="text" 
+            value={newPackageData.name}
+            onChange={(e) => handlePackageInputChange('name', e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500"
+            required
+          />
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nama Paket</label>
-            <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tipe</label>
-              <select className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500">
-                <option value="acara">Acara</option>
-                <option value="private">Private Dining</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
-              <input type="text" placeholder="Birthday, Corporate, dll" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Harga</label>
-              <input type="number" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Durasi</label>
-              <input type="text" placeholder="3 jam" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Min. Tamu</label>
-              <input type="number" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Max. Tamu</label>
-              <input type="number" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" />
-            </div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Harga</label>
+            <input 
+              type="number" 
+              value={newPackageData.price}
+              onChange={(e) => handlePackageInputChange('price', e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500"
+              required
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
-            <textarea className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" rows={3}></textarea>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Durasi</label>
+            <input 
+              type="text" 
+              value={newPackageData.duration}
+              onChange={(e) => handlePackageInputChange('duration', e.target.value)}
+              placeholder="2 jam" 
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500"
+              required
+            />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Fasilitas (pisahkan dengan koma)</label>
-            <textarea className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" rows={2} placeholder="Dekorasi, Sound system, MC, dll"></textarea>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Max. Orang</label>
+          <input 
+            type="number" 
+            value={newPackageData.max_people}
+            onChange={(e) => handlePackageInputChange('max_people', e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500"
+            required
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+          <textarea 
+            value={newPackageData.description}
+            onChange={(e) => handlePackageInputChange('description', e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" 
+            rows={3}
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Yang Termasuk (pisahkan dengan koma)</label>
+          <textarea 
+            value={newPackageData.includes}
+            onChange={(e) => handlePackageInputChange('includes', e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" 
+            rows={2} 
+            placeholder="2 Main Course, 2 Dessert, 2 Minuman, Dekorasi Meja, Foto Kenangan"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Upload Gambar</label>
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => handlePackageInputChange('image', e.target.files?.[0] || null)}
+              className="hidden"
+              id="package-image-upload"
+            />
+            
+            {newPackageData.image ? (
+              <div className="space-y-3">
+                <div className="relative">
+                  <img 
+                    src={URL.createObjectURL(newPackageData.image)} 
+                    alt="Preview"
+                    className="w-full h-48 object-cover rounded-lg border"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handlePackageInputChange('image', null)}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-sm text-green-600 text-center">File: {newPackageData.image.name}</p>
+                <label htmlFor="package-image-upload" className="cursor-pointer block text-center text-sm text-blue-600 hover:text-blue-700">
+                  Ganti gambar
+                </label>
+              </div>
+            ) : (
+              <label htmlFor="package-image-upload" className="cursor-pointer flex flex-col items-center">
+                <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-600">Klik untuk upload gambar</p>
+                <p className="text-xs text-gray-500 mt-1">JPG, PNG, GIF (Max: 2MB)</p>
+              </label>
+            )}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Menu Termasuk (pisahkan dengan koma)</label>
-            <textarea className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" rows={2} placeholder="Welcome drink, Main course, Dessert, dll"></textarea>
-          </div>
-          <div className="flex space-x-3 pt-4">
-            <button type="submit" className="flex-1 bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700">
-              Simpan Paket
+        </div>
+        
+        <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
+          <button 
+            type="submit" 
+            disabled={isSubmittingPackage}
+            className="flex-1 bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50"
+          >
+            {isSubmittingPackage ? 'Menyimpan...' : 'Simpan Paket'}
+          </button>
+          <button 
+            type="button" 
+            onClick={() => setIsAddPackageOpen(false)} 
+            className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
+          >
+            Batal
+          </button>
+        </div>
+      </form>
+    </Modal>
+
+      {/* Edit Package Modal */}
+      <Modal 
+        isOpen={isEditPackageOpen} 
+        onClose={() => setIsEditPackageOpen(false)}
+        title="Edit Paket Reservasi"
+      >
+        <form onSubmit={handleSubmitEditPackage} className="space-y-4">
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">Nama Paket</label>
+    <input 
+      type="text" 
+      value={editPackageData.name}
+      onChange={(e) => handleEditPackageInputChange('name', e.target.value)}
+      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500"
+      required
+    />
+  </div>
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Harga</label>
+      <input 
+        type="number" 
+        value={editPackageData.price}
+        onChange={(e) => handleEditPackageInputChange('price', e.target.value)}
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" 
+        required
+      />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Durasi</label>
+      <input 
+        type="text" 
+        value={editPackageData.duration}
+        onChange={(e) => handleEditPackageInputChange('duration', e.target.value)}
+        placeholder="2 jam" 
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" 
+        required
+      />
+    </div>
+  </div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">Max. Orang</label>
+    <input 
+      type="number" 
+      value={editPackageData.max_people}
+      onChange={(e) => handleEditPackageInputChange('max_people', e.target.value)}
+      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" 
+      required
+    />
+  </div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+    <textarea 
+      value={editPackageData.description}
+      onChange={(e) => handleEditPackageInputChange('description', e.target.value)}
+      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" 
+      rows={3}
+    />
+  </div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">Yang Termasuk (pisahkan dengan koma)</label>
+    <textarea 
+      value={editPackageData.includes}
+      onChange={(e) => handleEditPackageInputChange('includes', e.target.value)}
+      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" 
+      rows={2} 
+      placeholder="2 Main Course, 2 Dessert, 2 Minuman, Dekorasi Meja, Foto Kenangan"
+    />
+  </div>
+  
+  {/* Image Upload Section - sama seperti sebelumnya */}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">Gambar Paket</label>
+    
+    {editPackageData.current_image && !editPackageData.image && (
+      <div className="mb-3">
+        <p className="text-sm text-gray-600 mb-2">Gambar saat ini:</p>
+        <img 
+          src={editPackageData.current_image}
+          alt="Current package"
+          className="w-32 h-32 object-cover rounded-lg border"
+        />
+      </div>
+    )}
+    
+    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => handleEditPackageInputChange('image', e.target.files?.[0] || null)}
+        className="hidden"
+        id="edit-package-image-upload"
+      />
+      
+      {editPackageData.image ? (
+        <div className="space-y-3">
+          <div className="relative">
+            <img 
+              src={URL.createObjectURL(editPackageData.image)} 
+              alt="New preview"
+              className="w-full h-48 object-cover rounded-lg border"
+            />
+            <button
+              type="button"
+              onClick={() => handleEditPackageInputChange('image', null)}
+              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+            >
+              <X className="w-4 h-4" />
             </button>
-            <button type="button" onClick={() => setIsAddPackageOpen(false)} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300">
-              Batal
-            </button>
           </div>
+          <p className="text-sm text-green-600 text-center">File baru: {editPackageData.image.name}</p>
+        </div>
+      ) : (
+        <label htmlFor="edit-package-image-upload" className="cursor-pointer flex flex-col items-center">
+          <Upload className="w-8 h-8 text-gray-400 mb-2" />
+          <p className="text-sm text-gray-600">
+            {editPackageData.current_image ? 'Klik untuk ganti gambar' : 'Klik untuk upload gambar baru'}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">JPG, PNG, GIF (Max: 2MB)</p>
+        </label>
+      )}
+    </div>
+  </div>
+  
+  <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
+    <button 
+    type="submit" 
+    disabled={isSubmittingEditPackage}
+    className="flex-1 bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50"
+  >
+    {isSubmittingEditPackage ? 'Menyimpan...' : 'Update Paket'}
+  </button>
+    <button 
+      type="button" 
+      onClick={() => setIsEditPackageOpen(false)} 
+      className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
+    >
+      Batal
+    </button>
+  </div>
         </form>
       </Modal>
 
@@ -849,45 +1608,345 @@ const AdminDashboard: React.FC = () => {
         onClose={() => setIsAddMenuOpen(false)}
         title="Tambah Menu Baru"
       >
-        <form className="space-y-4">
+        <form onSubmit={handleAddMenu} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nama Menu</label>
-            <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" />
+            <input 
+              type="text" 
+              value={newMenuData.name}
+              onChange={(e) => handleMenuInputChange('name', e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500"
+              required 
+            />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
-              <select className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500">
-                <option>Makanan</option>
-                <option>Minuman</option>
+              <select 
+                value={newMenuData.category_id}
+                onChange={(e) => handleMenuInputChange('category_id', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500"
+                required
+              >
+                <option value="">Pilih Kategori</option>
+                {menuCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Harga</label>
-              <input type="number" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" />
+              <input 
+                type="number" 
+                value={newMenuData.price}
+                onChange={(e) => handleMenuInputChange('price', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500"
+                required 
+              />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
-            <textarea className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" rows={3}></textarea>
+            <textarea 
+              value={newMenuData.description}
+              onChange={(e) => handleMenuInputChange('description', e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" 
+              rows={3}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Upload Gambar</label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-              <p className="text-sm text-gray-600">Klik untuk upload atau drag & drop</p>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleMenuInputChange('image', e.target.files?.[0] || null)}
+                className="hidden"
+                id="menu-image-upload"
+              />
+              
+              {/* Preview gambar jika sudah dipilih */}
+              {newMenuData.image ? (
+                <div className="space-y-3">
+                  <div className="relative">
+                    <img 
+                      src={URL.createObjectURL(newMenuData.image)} 
+                      alt="Preview"
+                      className="w-full h-48 object-cover rounded-lg border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleMenuInputChange('image', null)}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-sm text-green-600 text-center">File: {newMenuData.image.name}</p>
+                  <label htmlFor="menu-image-upload" className="cursor-pointer block text-center text-sm text-blue-600 hover:text-blue-700">
+                    Ganti gambar
+                  </label>
+                </div>
+              ) : (
+                <label htmlFor="menu-image-upload" className="cursor-pointer flex flex-col items-center">
+                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-600">Klik untuk upload gambar</p>
+                  <p className="text-xs text-gray-500 mt-1">JPG, PNG, GIF (Max: 2MB)</p>
+                </label>
+              )}
             </div>
           </div>
-          <div className="flex space-x-3 pt-4">
-            <button type="submit" className="flex-1 bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700">
-              Simpan Menu
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
+            <button 
+              type="submit" 
+              disabled={isSubmittingMenu}
+              className="flex-1 bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50"
+            >
+              {isSubmittingMenu ? 'Menyimpan...' : 'Simpan Menu'}
             </button>
-            <button type="button" onClick={() => setIsAddMenuOpen(false)} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300">
+            <button 
+              type="button" 
+              onClick={() => setIsAddMenuOpen(false)} 
+              className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
+            >
               Batal
             </button>
           </div>
         </form>
       </Modal>
+
+      {/* Edit Menu Modal */}
+      <Modal 
+        isOpen={isEditMenuOpen} 
+        onClose={() => setIsEditMenuOpen(false)}
+        title="Edit Menu"
+      >
+        <form onSubmit={handleSubmitEditMenu} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nama Menu</label>
+            <input 
+              type="text" 
+              value={editMenuData.name}
+              onChange={(e) => handleEditMenuInputChange('name', e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500"
+              required 
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+              <select 
+                value={editMenuData.category_id}
+                onChange={(e) => handleEditMenuInputChange('category_id', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500"
+                required
+              >
+                <option value="">Pilih Kategori</option>
+                {menuCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Harga</label>
+              <input 
+                type="number" 
+                value={editMenuData.price}
+                onChange={(e) => handleEditMenuInputChange('price', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500"
+                required 
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+            <textarea 
+              value={editMenuData.description}
+              onChange={(e) => handleEditMenuInputChange('description', e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500" 
+              rows={3}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Gambar Menu</label>
+            
+            {/* Current Image Preview */}
+            {editMenuData.current_image && !editMenuData.image && (
+              <div className="mb-3">
+                <p className="text-sm text-gray-600 mb-2">Gambar saat ini:</p>
+                <img 
+                  src={`/images/poto_menu/${editMenuData.current_image}`}
+                  alt="Current menu"
+                  className="w-32 h-32 object-cover rounded-lg border"
+                />
+              </div>
+            )}
+            
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleEditMenuInputChange('image', e.target.files?.[0] || null)}
+                className="hidden"
+                id="edit-menu-image-upload"
+              />
+              
+              {/* New Image Preview */}
+              {editMenuData.image ? (
+                <div className="space-y-3">
+                  <div className="relative">
+                    <img 
+                      src={URL.createObjectURL(editMenuData.image)} 
+                      alt="New preview"
+                      className="w-full h-48 object-cover rounded-lg border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleEditMenuInputChange('image', null)}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-sm text-green-600 text-center">File baru: {editMenuData.image.name}</p>
+                  <label htmlFor="edit-menu-image-upload" className="cursor-pointer block text-center text-sm text-blue-600 hover:text-blue-700">
+                    Ganti gambar
+                  </label>
+                </div>
+              ) : (
+                <label htmlFor="edit-menu-image-upload" className="cursor-pointer flex flex-col items-center">
+                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-600">
+                    {editMenuData.current_image ? 'Klik untuk ganti gambar' : 'Klik untuk upload gambar baru'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">JPG, PNG, GIF (Max: 2MB)</p>
+                </label>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
+            <button 
+              type="submit" 
+              disabled={isSubmittingEditMenu}
+              className="flex-1 bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50"
+            >
+              {isSubmittingEditMenu ? 'Menyimpan...' : 'Update Menu'}
+            </button>
+            <button 
+              type="button" 
+              onClick={() => setIsEditMenuOpen(false)} 
+              className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
+            >
+              Batal
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Image Modal */}
+      {showImageModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={() => setShowImageModal(false)}>
+          <div className="max-w-4xl max-h-full w-full">
+            <div className="relative">
+              <img 
+                src={imageUrl} 
+                alt="Bukti Pembayaran" 
+                className="max-w-full max-h-full w-full object-contain rounded-lg"
+              />
+              <button
+                onClick={() => setShowImageModal(false)}
+                className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Alert */}
+      {showAlert && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <div className={`p-2 rounded-full mr-3 flex-shrink-0 ${
+                alertConfig.type === 'danger' ? 'bg-red-100' :
+                alertConfig.type === 'warning' ? 'bg-yellow-100' : 'bg-green-100'
+              }`}>
+                {alertConfig.type === 'danger' ? (
+                  <XCircle className="w-6 h-6 text-red-600" />
+                ) : alertConfig.type === 'warning' ? (
+                  <AlertCircle className="w-6 h-6 text-yellow-600" />
+                ) : (
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                )}
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 break-words">{alertConfig.title}</h3>
+            </div>
+            <p className="text-gray-600 mb-6 break-words">{alertConfig.message}</p>
+            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+              <button
+                onClick={alertConfig.onConfirm}
+                className={`flex-1 px-4 py-2 rounded-lg text-white font-medium ${
+                  alertConfig.type === 'danger' ? 'bg-red-600 hover:bg-red-700' :
+                  alertConfig.type === 'warning' ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                {alertConfig.confirmText}
+              </button>
+              <button
+                onClick={() => setShowAlert(false)}
+                className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+        {/* Edit Package Confirmation Modal */}
+      {showEditPackageConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center mb-4">
+              <div className="bg-blue-100 p-3 rounded-full mr-4 flex-shrink-0">
+                <Edit3 className="w-6 h-6 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Update Paket</h3>
+            </div>
+            
+            <p className="text-gray-600 mb-6 leading-relaxed">
+              Apakah Anda yakin ingin menyimpan perubahan pada paket "{pendingEditPackageData?.name}"? 
+              Perubahan akan langsung diterapkan dan mempengaruhi reservasi baru.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={executeEditPackage}
+                disabled={isSubmittingEditPackage}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmittingEditPackage ? 'Menyimpan...' : 'Ya, Update'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowEditPackageConfirm(false);
+                  setPendingEditPackageData(null);
+                }}
+                disabled={isSubmittingEditPackage}
+                className="flex-1 bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg hover:bg-gray-200 font-medium transition-colors disabled:opacity-50"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

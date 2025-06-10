@@ -6,14 +6,14 @@ import {
 } from 'lucide-react';
 
 interface StaffContentProps {
-  mockStaff: any[];
+  staff: any[];
   openModal: (type: string, data?: any) => void;
   getStatusColor: (status: string) => string;
   getStatusText: (status: string) => string;
 }
 
 const StaffContent: React.FC<StaffContentProps> = ({
-  mockStaff,
+  staff = [],
   openModal,
   getStatusColor,
   getStatusText
@@ -45,7 +45,7 @@ const StaffContent: React.FC<StaffContentProps> = ({
               <UserCheck className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900">{mockStaff.filter(s => s.status === 'active').length}</div>
+              <div className="text-2xl font-bold text-gray-900">{staff.filter(s => s.status === 'active').length}</div>
               <div className="text-sm text-gray-600">Staff Aktif</div>
             </div>
           </div>
@@ -56,7 +56,7 @@ const StaffContent: React.FC<StaffContentProps> = ({
               <DollarSign className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900">Rp {mockStaff.reduce((sum, staff) => sum + staff.salary, 0).toLocaleString()}</div>
+              <div className="text-2xl font-bold text-gray-900">Rp {staff.reduce((sum, staff) => sum + staff.salary, 0).toLocaleString()}</div>
               <div className="text-sm text-gray-600">Total Gaji</div>
             </div>
           </div>
@@ -67,7 +67,7 @@ const StaffContent: React.FC<StaffContentProps> = ({
               <Star className="w-6 h-6 text-yellow-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900">{Math.round(mockStaff.reduce((sum, staff) => sum + staff.performance, 0) / mockStaff.length)}%</div>
+              <div className="text-2xl font-bold text-gray-900">{Math.round(staff.reduce((sum, staff) => sum + staff.performance, 0) / staff.length)}%</div>
               <div className="text-sm text-gray-600">Avg Performance</div>
             </div>
           </div>
@@ -78,7 +78,7 @@ const StaffContent: React.FC<StaffContentProps> = ({
               <Calendar className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900">{mockStaff.length}</div>
+              <div className="text-2xl font-bold text-gray-900">{staff.length}</div>
               <div className="text-sm text-gray-600">Total Staff</div>
             </div>
           </div>
@@ -101,7 +101,7 @@ const StaffContent: React.FC<StaffContentProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {mockStaff.map((staff) => (
+              {staff.map((staff) => (
                 <tr key={staff.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">

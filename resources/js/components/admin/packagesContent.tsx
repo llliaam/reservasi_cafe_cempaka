@@ -4,192 +4,44 @@ import {
   Plus, Upload, Package, Edit3, Trash2, Eye, Star, Users, Clock,
   DollarSign, Check, X, Filter
 } from 'lucide-react';
+import { router } from '@inertiajs/react';
 
 interface PackagesContentProps {
   searchTerm: string;
   openModal: (type: string, data?: any) => void;
   setIsAddPackageOpen: (open: boolean) => void;
   getStatusColor: (status: string) => string;
+  packages: any[];
+  setPackages: (packages: any[]) => void;
 }
 
 const PackagesContent: React.FC<PackagesContentProps> = ({
   searchTerm,
   openModal,
   setIsAddPackageOpen,
-  getStatusColor
+  getStatusColor,
+  packages,
+  setPackages
 }) => {
-  // Mock data for packages
-  const [packages, setPackages] = useState([
-    {
-      id: 1,
-      name: 'Paket Ulang Tahun Premium',
-      type: 'acara',
-      category: 'Birthday',
-      price: 2500000,
-      minGuests: 20,
-      maxGuests: 30,
-      duration: '3 jam',
-      description: 'Paket lengkap untuk perayaan ulang tahun dengan dekorasi premium',
-      facilities: [
-        'Dekorasi tematik premium',
-        'Kue ulang tahun 2 tingkat',
-        'Sound system & lighting',
-        'MC/Host',
-        'Dokumentasi (foto)',
-        'Area VIP Lt. 2'
-      ],
-      menuIncluded: [
-        'Welcome drink',
-        'Main course (3 pilihan)',
-        'Dessert',
-        'Free flow soft drink'
-      ],
-      popularity: 95,
-      totalBookings: 45,
-      status: 'active',
-      createdAt: '2024-01-10'
-    },
-    {
-      id: 2,
-      name: 'Private Dining Romantic',
-      type: 'private',
-      category: 'Romantic',
-      price: 850000,
-      minGuests: 2,
-      maxGuests: 2,
-      duration: '2 jam',
-      description: 'Makan malam romantis untuk dua orang dengan suasana intim',
-      facilities: [
-        'Private room eksklusif',
-        'Dekorasi romantis',
-        'Live acoustic music',
-        'Complimentary cake',
-        'Rose petals decoration'
-      ],
-      menuIncluded: [
-        'Welcome mocktail',
-        '3-course dinner',
-        'Premium dessert'
-      ],
-      popularity: 88,
-      totalBookings: 32,
-      status: 'active',
-      createdAt: '2024-01-15'
-    },
-    {
-      id: 3,
-      name: 'Paket Corporate Meeting',
-      type: 'acara',
-      category: 'Corporate',
-      price: 5000000,
-      minGuests: 30,
-      maxGuests: 100,
-      duration: '4 jam',
-      description: 'Paket meeting untuk acara perusahaan dengan fasilitas lengkap',
-      facilities: [
-        'Hall utama full AC',
-        'Proyektor & screen',
-        'Sound system professional',
-        'Meja meeting setup',
-        'Wi-Fi dedicated',
-        'Parking area'
-      ],
-      menuIncluded: [
-        'Coffee break 2x',
-        'Lunch buffet',
-        'Free flow mineral water'
-      ],
-      popularity: 92,
-      totalBookings: 28,
-      status: 'active',
-      createdAt: '2024-01-20'
-    },
-    {
-      id: 4,
-      name: 'Private Dining Family',
-      type: 'private',
-      category: 'Family',
-      price: 1200000,
-      minGuests: 5,
-      maxGuests: 10,
-      duration: '2 jam',
-      description: 'Makan bersama keluarga dengan suasana nyaman dan privat',
-      facilities: [
-        'Private room besar',
-        'Kids corner',
-        'Family games',
-        'Complimentary fruit basket'
-      ],
-      menuIncluded: [
-        'Family set menu',
-        'Kids meal available',
-        'Soft drinks'
-      ],
-      popularity: 85,
-      totalBookings: 38,
-      status: 'active',
-      createdAt: '2024-02-01'
-    },
-    {
-      id: 5,
-      name: 'Paket Bridal Shower',
-      type: 'acara',
-      category: 'Bridal',
-      price: 1800000,
-      minGuests: 15,
-      maxGuests: 25,
-      duration: '3 jam',
-      description: 'Paket spesial untuk acara bridal shower yang berkesan',
-      facilities: [
-        'Dekorasi pink & white',
-        'Photo booth props',
-        'Games & activities',
-        'Surprise elements',
-        'Area Garden'
-      ],
-      menuIncluded: [
-        'High tea set',
-        'Mocktails',
-        'Finger foods',
-        'Customized cake'
-      ],
-      popularity: 82,
-      totalBookings: 22,
-      status: 'active',
-      createdAt: '2024-02-10'
-    },
-    {
-      id: 6,
-      name: 'Paket Graduation Party',
-      type: 'acara',
-      category: 'Graduation',
-      price: 1500000,
-      minGuests: 20,
-      maxGuests: 40,
-      duration: '3 jam',
-      description: 'Rayakan kelulusan dengan meriah bersama teman-teman',
-      facilities: [
-        'Dekorasi graduation theme',
-        'Photo corner',
-        'Congratulation banner',
-        'Music playlist'
-      ],
-      menuIncluded: [
-        'Snack boxes',
-        'Main course buffet',
-        'Graduation cake',
-        'Beverages'
-      ],
-      popularity: 78,
-      totalBookings: 18,
-      status: 'inactive',
-      createdAt: '2024-02-15'
-    }
-  ]);
 
   const [filteredPackages, setFilteredPackages] = useState(packages);
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState({
+    title: '',
+    message: '',
+    confirmText: '',
+    confirmAction: () => {},
+    type: 'danger' // 'danger', 'warning', 'success'
+  });
+
+  const showConfirmation = (config: any) => {
+    setConfirmConfig(config);
+    setShowConfirmModal(true);
+  };
+  
 
   useEffect(() => {
     let filtered = packages;
@@ -213,19 +65,82 @@ const PackagesContent: React.FC<PackagesContentProps> = ({
     setFilteredPackages(filtered);
   }, [filterType, filterStatus, searchTerm, packages]);
 
-  const handleDeletePackage = (id: number) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus paket ini?')) {
-      setPackages(packages.filter(pkg => pkg.id !== id));
-    }
-  };
+const handleToggleStatus = (id: number) => {
+  const packageItem = packages.find(pkg => pkg.id === id);
+  if (!packageItem) return;
 
-  const handleToggleStatus = (id: number) => {
-    setPackages(packages.map(pkg => 
-      pkg.id === id 
-        ? { ...pkg, status: pkg.status === 'active' ? 'inactive' : 'active' }
-        : pkg
-    ));
-  };
+  const newStatus = packageItem.status === 'active' ? 'inactive' : 'active';
+  
+  showConfirmation({
+    title: newStatus === 'active' ? 'Aktifkan Paket' : 'Nonaktifkan Paket',
+    message: newStatus === 'active' 
+      ? 'Apakah Anda yakin ingin mengaktifkan paket ini? Paket akan tersedia untuk reservasi.'
+      : 'Apakah Anda yakin ingin menonaktifkan paket ini? Paket tidak akan tersedia untuk reservasi baru.',
+    confirmText: newStatus === 'active' ? 'Ya, Aktifkan' : 'Ya, Nonaktifkan',
+    type: newStatus === 'active' ? 'success' : 'warning',
+    confirmAction: () => {
+      // Update state langsung (optimistic update)
+      const updatedPackages = packages.map(pkg => 
+        pkg.id === id ? { ...pkg, status: newStatus } : pkg
+      );
+      setPackages(updatedPackages);
+      
+      router.patch(`/admin/packages/${id}/toggle-status`, {
+        is_active: newStatus === 'active'
+      }, {
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: () => {
+          console.log('Status paket berhasil diupdate');
+        },
+        onError: (errors) => {
+          // Rollback jika error
+          setPackages(packages);
+          console.error('Error updating package status:', errors);
+          alert('Gagal mengupdate status paket!');
+        }
+      });
+      setShowConfirmModal(false);
+    }
+  });
+};
+
+const handleDeletePackage = (id: number) => {
+  const packageItem = packages.find(pkg => pkg.id === id);
+  if (!packageItem) return;
+
+  showConfirmation({
+    title: 'Hapus Paket',
+    message: `Apakah Anda yakin ingin menghapus paket "${packageItem.name}"? Tindakan ini tidak dapat dibatalkan dan akan menghapus semua data terkait.`,
+    confirmText: 'Ya, Hapus',
+    type: 'danger',
+    confirmAction: () => {
+      // Update state dulu (optimistic update)
+      const updatedPackages = packages.filter(pkg => pkg.id !== id);
+      setPackages(updatedPackages);
+
+      // Kirim request ke backend
+      router.delete(`/admin/packages/${id}/delete`, {
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: () => {
+          console.log('Paket berhasil dihapus');
+        },
+        onError: (errors) => {
+          // Rollback jika error
+          setPackages(packages);
+          console.error('Error deleting package:', errors);
+          alert('Gagal menghapus paket!');
+        }
+      });
+      setShowConfirmModal(false);
+    }
+  });
+};
+
+const handleEditPackage = (packageData: any) => {
+  openModal('editPackage', packageData);
+};
 
   return (
     <div className="space-y-6">
@@ -358,7 +273,6 @@ const PackagesContent: React.FC<PackagesContentProps> = ({
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <div className="flex items-center space-x-1 text-sm text-gray-600">
-                    <DollarSign className="w-4 h-4" />
                     <span>Harga</span>
                   </div>
                   <p className="font-semibold text-gray-900">Rp {pkg.price.toLocaleString()}</p>
@@ -368,7 +282,7 @@ const PackagesContent: React.FC<PackagesContentProps> = ({
                     <Users className="w-4 h-4" />
                     <span>Kapasitas</span>
                   </div>
-                  <p className="font-semibold text-gray-900">{pkg.minGuests} - {pkg.maxGuests} orang</p>
+                  <p className="font-semibold text-gray-900">{pkg.maxGuests} orang</p>
                 </div>
                 <div>
                   <div className="flex items-center space-x-1 text-sm text-gray-600">
@@ -387,7 +301,7 @@ const PackagesContent: React.FC<PackagesContentProps> = ({
               </div>
 
               <div className="border-t pt-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">Fasilitas:</p>
+                <p className="text-sm font-medium text-gray-700 mb-2">Isi Paket : </p>
                 <div className="flex flex-wrap gap-1 mb-3">
                   {pkg.facilities.slice(0, 3).map((facility, index) => (
                     <span key={index} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
@@ -409,7 +323,7 @@ const PackagesContent: React.FC<PackagesContentProps> = ({
                   Detail
                 </button>
                 <button 
-                  onClick={() => openModal('editPackage', pkg)}
+                  onClick={() => handleEditPackage(pkg)}
                   className="flex-1 bg-green-600 text-white py-2 px-3 rounded-lg hover:bg-green-700 text-sm flex items-center justify-center"
                 >
                   <Edit3 className="w-4 h-4 mr-1" />
@@ -436,6 +350,49 @@ const PackagesContent: React.FC<PackagesContentProps> = ({
           </div>
         ))}
       </div>
+       {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center mb-4">
+              <div className={`p-3 rounded-full mr-4 flex-shrink-0 ${
+                confirmConfig.type === 'danger' ? 'bg-red-100' :
+                confirmConfig.type === 'warning' ? 'bg-yellow-100' : 'bg-green-100'
+              }`}>
+                {confirmConfig.type === 'danger' ? (
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                ) : confirmConfig.type === 'warning' ? (
+                  <X className="w-6 h-6 text-yellow-600" />
+                ) : (
+                  <Check className="w-6 h-6 text-green-600" />
+                )}
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">{confirmConfig.title}</h3>
+            </div>
+            
+            <p className="text-gray-600 mb-6 leading-relaxed">{confirmConfig.message}</p>
+            
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={confirmConfig.confirmAction}
+                className={`flex-1 px-4 py-2.5 rounded-lg font-medium text-white transition-colors ${
+                  confirmConfig.type === 'danger' ? 'bg-red-600 hover:bg-red-700' :
+                  confirmConfig.type === 'warning' ? 'bg-yellow-600 hover:bg-yellow-700' : 
+                  'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                {confirmConfig.confirmText}
+              </button>
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg hover:bg-gray-200 font-medium transition-colors"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ShoppingBag, Check, Clock, AlertCircle, Filter, Download, RefreshCw,
-  Eye, Edit3, Phone
+  Eye, Edit3, Phone, XCircle, CheckCircle
 } from 'lucide-react';
 
 interface OrdersContentProps {
-  mockOrders: any[];
+  orders: any[];
   searchTerm: string;
   openModal: (type: string, data?: any) => void;
   getStatusColor: (status: string) => string;
@@ -14,17 +14,61 @@ interface OrdersContentProps {
 }
 
 const OrdersContent: React.FC<OrdersContentProps> = ({
-  mockOrders,
+  orders = [],
   searchTerm,
   openModal,
   getStatusColor,
   getStatusText
 }) => {
-  const [filteredOrders, setFilteredOrders] = useState(mockOrders);
+  const [filteredOrders, setFilteredOrders] = useState(orders);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
+
+  const showImageInModal = (imageUrl: string) => {
+    setImageUrl(imageUrl);
+    setShowImageModal(true);
+  };
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({
+    title: '',
+    message: '',
+    confirmText: '',
+    onConfirm: () => {},
+    type: 'danger'
+  });
+
+  const showConfirmAlert = (config: any) => {
+    setAlertConfig(config);
+    setShowAlert(true);
+  };
+
+  const exportData = () => {
+  const csvContent = [
+    ['ID Order', 'Nama Customer', 'Telepon', 'Items', 'Type', 'Total', 'Status', 'Tanggal'],
+    ...filteredOrders.map(order => [
+      order.id,
+      order.customerName,
+      order.phone,
+      Array.isArray(order.items) ? order.items.join('; ') : order.service,
+      order.type === 'takeaway' ? 'Takeaway' : 'Dine In',
+      `Rp ${order.price.toLocaleString()}`,
+      getStatusText(order.status),
+      order.date
+    ])
+  ].map(row => row.join(',')).join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `orders_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
 
   useEffect(() => {
-    let filtered = mockOrders;
+    let filtered = orders;
     
     if (filterStatus !== 'all') {
       filtered = filtered.filter(order => order.status === filterStatus);
@@ -39,7 +83,7 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
     }
     
     setFilteredOrders(filtered);
-  }, [filterStatus, searchTerm, mockOrders]);
+  }, [filterStatus, searchTerm, orders]);
 
   return (
     <div className="space-y-6">
@@ -49,14 +93,13 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
           <h2 className="text-2xl font-bold text-gray-900">Order Food & Beverage</h2>
           <p className="text-gray-600">Kelola pesanan takeaway dan dine-in dari pelanggan</p>
         </div>
-        <div className="flex space-x-3">
-          <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button 
+            onClick={exportData}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center justify-center text-sm font-medium"
+          >
             <Download className="w-4 h-4 mr-2" />
-            Export
-          </button>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
+            Export CSV
           </button>
         </div>
       </div>
@@ -69,7 +112,7 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
               <ShoppingBag className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900">{mockOrders.length}</div>
+              <div className="text-2xl font-bold text-gray-900">{orders.length}</div>
               <div className="text-sm text-gray-600">Total Order F&B</div>
             </div>
           </div>
@@ -80,7 +123,7 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
               <Check className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900">{mockOrders.filter(o => o.status === 'completed').length}</div>
+              <div className="text-2xl font-bold text-gray-900">{orders.filter(o => o.status === 'completed').length}</div>
               <div className="text-sm text-gray-600">Selesai</div>
             </div>
           </div>
@@ -91,8 +134,19 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
               <Clock className="w-6 h-6 text-orange-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900">{mockOrders.filter(o => o.status === 'processing').length}</div>
-              <div className="text-sm text-gray-600">Diproses</div>
+              <div className="text-2xl font-bold text-gray-900">{orders.filter(o => o.status === 'confirmed').length}</div>
+              <div className="text-sm text-gray-600">Dikonfirmasi</div>
+            </div>
+          </div>
+        </div>
+                <div className="bg-white rounded-xl p-6 border border-gray-100">
+          <div className="flex items-center space-x-3">
+            <div className="bg-orange-100 p-3 rounded-lg">
+              <Clock className="w-6 h-6 text-orange-600" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900">{orders.filter(o => o.status === 'cancelled').length}</div>
+              <div className="text-sm text-gray-600">Dibatalkan</div>
             </div>
           </div>
         </div>
@@ -102,7 +156,7 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
               <AlertCircle className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900">{mockOrders.filter(o => o.status === 'pending').length}</div>
+              <div className="text-2xl font-bold text-gray-900">{orders.filter(o => o.status === 'pending').length}</div>
               <div className="text-sm text-gray-600">Pending</div>
             </div>
           </div>
@@ -120,7 +174,7 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
                 <span className="text-sm text-gray-700">Takeaway</span>
               </div>
               <span className="text-sm font-medium text-gray-900">
-                {mockOrders.filter(o => o.type === 'takeaway').length} orders
+                {orders.filter(o => o.type === 'takeaway').length} orders
               </span>
             </div>
             <div className="flex justify-between items-center">
@@ -129,7 +183,7 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
                 <span className="text-sm text-gray-700">Dine In</span>
               </div>
               <span className="text-sm font-medium text-gray-900">
-                {mockOrders.filter(o => o.type === 'dine-in').length} orders
+                {orders.filter(o => o.type === 'dine-in').length} orders
               </span>
             </div>
           </div>
@@ -140,13 +194,13 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-700">Takeaway Revenue</span>
               <span className="text-sm font-medium text-gray-900">
-                Rp {mockOrders.filter(o => o.type === 'takeaway').reduce((sum, o) => sum + o.price, 0).toLocaleString()}
+                Rp {orders.filter(o => o.type === 'takeaway').reduce((sum, o) => sum + o.price, 0).toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-700">Dine In Revenue</span>
               <span className="text-sm font-medium text-gray-900">
-                Rp {mockOrders.filter(o => o.type === 'dine-in').reduce((sum, o) => sum + o.price, 0).toLocaleString()}
+                Rp {orders.filter(o => o.type === 'dine-in').reduce((sum, o) => sum + o.price, 0).toLocaleString()}
               </span>
             </div>
           </div>
@@ -167,14 +221,14 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
           >
             <option value="all">Semua Status</option>
             <option value="pending">Menunggu</option>
-            <option value="processing">Dalam Proses</option>
-            <option value="ready">Siap</option>
+            <option value="confirmed">Dikonfirmasi</option>
+            <option value="cancelled">Dibatalkan</option>
             <option value="completed">Selesai</option>
           </select>
           
           <div className="flex items-center space-x-2 ml-auto">
             <span className="text-sm text-gray-600">
-              Menampilkan {filteredOrders.length} dari {mockOrders.length} order
+              Menampilkan {filteredOrders.length} dari {orders.length} order
             </span>
           </div>
         </div>
@@ -222,20 +276,14 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.date}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <button 
-                        onClick={() => openModal('order', order)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button className="text-green-600 hover:text-green-900">
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button className="text-purple-600 hover:text-purple-900">
-                        <Phone className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => openModal('order', order)}
+                      className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm flex items-center"
+                      title="Lihat Detail"
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      Detail
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -243,6 +291,46 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
           </table>
         </div>
       </div>
+        {/* Confirmation Alert */}
+        {showAlert && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <div className="flex items-center mb-4">
+                <div className={`p-2 rounded-full mr-3 flex-shrink-0 ${
+                  alertConfig.type === 'danger' ? 'bg-red-100' :
+                  alertConfig.type === 'warning' ? 'bg-yellow-100' : 'bg-green-100'
+                }`}>
+                  {alertConfig.type === 'danger' ? (
+                    <XCircle className="w-6 h-6 text-red-600" />
+                  ) : alertConfig.type === 'warning' ? (
+                    <AlertCircle className="w-6 h-6 text-yellow-600" />
+                  ) : (
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  )}
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 break-words">{alertConfig.title}</h3>
+              </div>
+              <p className="text-gray-600 mb-6 break-words">{alertConfig.message}</p>
+              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+                <button
+                  onClick={alertConfig.onConfirm}
+                  className={`flex-1 px-4 py-2 rounded-lg text-white font-medium ${
+                    alertConfig.type === 'danger' ? 'bg-red-600 hover:bg-red-700' :
+                    alertConfig.type === 'warning' ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'
+                  }`}
+                >
+                  {alertConfig.confirmText}
+                </button>
+                <button
+                  onClick={() => setShowAlert(false)}
+                  className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 };

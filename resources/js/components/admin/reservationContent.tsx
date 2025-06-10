@@ -1,402 +1,532 @@
-// components/ReservationContent.tsx
+// components/ReservationContent.tsx - Responsive Version (Partial - Main structure)
 import React, { useState, useEffect } from 'react';
 import { 
   Calendar, Users, Clock, MapPin, Filter, Eye, Edit3, Phone,
-  CheckCircle, XCircle, AlertCircle, Download, RefreshCw
+  CheckCircle, XCircle, AlertCircle, Download, RefreshCw, Trash2,
+  Check, X, Search, Plus, FileText, Star, CreditCard
 } from 'lucide-react';
+
+interface ReservationData {
+  id: number;
+  reservation_code: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  package_name: string;
+  table_name?: string;
+  table_number?: number;
+  date: string;
+  time: string;
+  guests: number;
+  status: string;
+  payment_method: string;
+  payment_method_label: string;
+  total_price: string;
+  special_requests?: string;
+  table_location: string;
+  location_detail?: string;
+  proof_of_payment?: string;
+  can_be_confirmed: boolean;
+  can_be_cancelled: boolean;
+  requires_payment_confirmation: boolean;
+  package_price: number;
+  menu_subtotal: number;
+  raw_date: string;
+  raw_time: string;
+}
 
 interface ReservationContentProps {
   searchTerm: string;
   openModal: (type: string, data?: any) => void;
   getStatusColor: (status: string) => string;
   getStatusText: (status: string) => string;
+  reservations?: ReservationData[];
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 const ReservationContent: React.FC<ReservationContentProps> = ({
   searchTerm,
   openModal,
   getStatusColor,
-  getStatusText
+  getStatusText,
+  reservations = [],
+  onRefresh,
+  isRefreshing = false
 }) => {
-  // Mock data for reservations
-  const [mockReservations] = useState([
-    {
-      id: 'RSV-001',
-      customerName: 'Budi Santoso',
-      phone: '081234567890',
-      email: 'budi@email.com',
-      type: 'acara', // acara atau private
-      packageName: 'Paket Ulang Tahun Premium',
-      date: '2024-03-25',
-      time: '19:00',
-      duration: '3 jam',
-      guests: 25,
-      location: 'Area VIP Lt. 2',
-      totalPrice: 2500000,
-      downPayment: 1250000,
-      status: 'confirmed',
-      notes: 'Dekorasi tema unicorn, kue ulang tahun 2 tingkat',
-      createdAt: '2024-03-15'
-    },
-    {
-      id: 'RSV-002',
-      customerName: 'Siti Rahayu',
-      phone: '087654321098',
-      email: 'siti@email.com',
-      type: 'private',
-      packageName: 'Private Dining Romantic',
-      date: '2024-03-23',
-      time: '20:00',
-      duration: '2 jam',
-      guests: 2,
-      location: 'Private Room A',
-      totalPrice: 850000,
-      downPayment: 425000,
-      status: 'pending',
-      notes: 'Anniversary dinner, request live music',
-      createdAt: '2024-03-18'
-    },
-    {
-      id: 'RSV-003',
-      customerName: 'PT. Maju Bersama',
-      phone: '021-5556789',
-      email: 'hrd@majubersama.com',
-      type: 'acara',
-      packageName: 'Paket Corporate Meeting',
-      date: '2024-03-22',
-      time: '13:00',
-      duration: '4 jam',
-      guests: 50,
-      location: 'Hall Utama',
-      totalPrice: 5000000,
-      downPayment: 2500000,
-      status: 'completed',
-      notes: 'Meeting tahunan, perlu proyektor dan sound system',
-      createdAt: '2024-03-10'
-    },
-    {
-      id: 'RSV-004',
-      customerName: 'Ahmad Fadli',
-      phone: '085678901234',
-      email: 'ahmad@email.com',
-      type: 'private',
-      packageName: 'Private Dining Family',
-      date: '2024-03-24',
-      time: '12:00',
-      duration: '2 jam',
-      guests: 8,
-      location: 'Private Room B',
-      totalPrice: 1200000,
-      downPayment: 600000,
-      status: 'confirmed',
-      notes: 'Gathering keluarga, ada 2 anak kecil',
-      createdAt: '2024-03-19'
-    },
-    {
-      id: 'RSV-005',
-      customerName: 'Dewi Lestari',
-      phone: '089012345678',
-      email: 'dewi@email.com',
-      type: 'acara',
-      packageName: 'Paket Bridal Shower',
-      date: '2024-03-26',
-      time: '15:00',
-      duration: '3 jam',
-      guests: 20,
-      location: 'Area Garden',
-      totalPrice: 1800000,
-      downPayment: 0,
-      status: 'cancelled',
-      notes: 'Dibatalkan karena perubahan jadwal',
-      createdAt: '2024-03-16'
-    }
-  ]);
-
-  const [filteredReservations, setFilteredReservations] = useState(mockReservations);
+  const [filteredReservations, setFilteredReservations] = useState<ReservationData[]>([]);
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterPayment, setFilterPayment] = useState('all');
+  const [sortBy, setSortBy] = useState('date_desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [selectedItems, setSelectedItems] = useState<number[]>([]);
 
+  // Filter and sort logic (same as original)
   useEffect(() => {
-    let filtered = mockReservations;
+    let filtered = [...reservations];
+    
+    if (searchTerm) {
+      filtered = filtered.filter(reservation => 
+        reservation.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        reservation.reservation_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        reservation.package_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        reservation.customer_phone.includes(searchTerm) ||
+        reservation.customer_email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
     
     if (filterType !== 'all') {
-      filtered = filtered.filter(reservation => reservation.type === filterType);
+      filtered = filtered.filter(reservation => {
+        const packageName = reservation.package_name.toLowerCase();
+        if (filterType === 'acara') {
+          return packageName.includes('acara') || packageName.includes('gathering') || 
+                 packageName.includes('group') || packageName.includes('corporate');
+        }
+        if (filterType === 'private') {
+          return packageName.includes('private') || packageName.includes('romantis') || 
+                 packageName.includes('keluarga') || packageName.includes('couple');
+        }
+        return true;
+      });
     }
     
     if (filterStatus !== 'all') {
       filtered = filtered.filter(reservation => reservation.status === filterStatus);
     }
-    
-    if (searchTerm) {
-      filtered = filtered.filter(reservation => 
-        reservation.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        reservation.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        reservation.packageName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        reservation.phone.includes(searchTerm)
-      );
+
+    if (filterPayment !== 'all') {
+      if (filterPayment === 'online') {
+        filtered = filtered.filter(reservation => 
+          ['transfer', 'bca', 'mandiri', 'bni', 'bri', 'gopay', 'ovo', 'dana', 'shopeepay'].includes(reservation.payment_method)
+        );
+      } else if (filterPayment === 'cash') {
+        filtered = filtered.filter(reservation => 
+          ['pay-later', 'cash'].includes(reservation.payment_method)
+        );
+      }
     }
+    
+    // Sort logic
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'date_desc':
+          return new Date(b.raw_date + ' ' + b.raw_time).getTime() - new Date(a.raw_date + ' ' + a.raw_time).getTime();
+        case 'date_asc':
+          return new Date(a.raw_date + ' ' + a.raw_time).getTime() - new Date(b.raw_date + ' ' + b.raw_time).getTime();
+        case 'name_asc':
+          return a.customer_name.localeCompare(b.customer_name);
+        case 'name_desc':
+          return b.customer_name.localeCompare(a.customer_name);
+        case 'price_desc':
+          return parseFloat(b.total_price.replace(/[^\d]/g, '')) - parseFloat(a.total_price.replace(/[^\d]/g, ''));
+        case 'price_asc':
+          return parseFloat(a.total_price.replace(/[^\d]/g, '')) - parseFloat(b.total_price.replace(/[^\d]/g, ''));
+        default:
+          return 0;
+      }
+    });
     
     setFilteredReservations(filtered);
-  }, [filterType, filterStatus, searchTerm, mockReservations]);
+    setCurrentPage(1);
+  }, [reservations, searchTerm, filterType, filterStatus, filterPayment, sortBy]);
 
-  // Override status colors for reservations
-  const getReservationStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'completed':
-        return 'bg-blue-100 text-blue-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  // Calculate statistics
+  const stats = {
+    total: reservations.length,
+    confirmed: reservations.filter(r => r.status === 'confirmed').length,
+    pending: reservations.filter(r => r.status === 'pending').length,
+    completed: reservations.filter(r => r.status === 'completed').length,
+    cancelled: reservations.filter(r => r.status === 'cancelled').length,
+    totalRevenue: reservations
+      .filter(r => r.status === 'completed')
+      .reduce((sum, r) => sum + parseFloat(r.total_price.replace(/[^\d]/g, '')), 0),
+    avgOrderValue: reservations.length > 0 
+      ? reservations.reduce((sum, r) => sum + parseFloat(r.total_price.replace(/[^\d]/g, '')), 0) / reservations.length 
+      : 0,
+    totalGuests: reservations.reduce((sum, r) => sum + r.guests, 0),
+    avgGuests: reservations.length > 0 
+      ? reservations.reduce((sum, r) => sum + r.guests, 0) / reservations.length 
+      : 0
   };
 
-  const getReservationStatusText = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'Dikonfirmasi';
-      case 'pending': return 'Menunggu';
-      case 'completed': return 'Selesai';
-      case 'cancelled': return 'Dibatalkan';
-      default: return status;
-    }
+  // Pagination
+  const getCurrentPageItems = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredReservations.slice(startIndex, endIndex);
+  };
+
+  const totalPages = Math.ceil(filteredReservations.length / itemsPerPage);
+
+  const exportData = () => {
+    const csvContent = [
+      ['Kode Reservasi', 'Nama Customer', 'Telepon', 'Email', 'Paket', 'Tanggal', 'Waktu', 'Tamu', 'Status', 'Total Harga'],
+      ...filteredReservations.map(r => [
+        r.reservation_code,
+        r.customer_name,
+        r.customer_phone,
+        r.customer_email,
+        r.package_name,
+        r.date,
+        r.time,
+        r.guests.toString(),
+        r.status,
+        r.total_price
+      ])
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reservasi_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Riwayat Reservasi</h2>
-          <p className="text-gray-600">Kelola reservasi acara dan private dining</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Kelola Reservasi</h2>
+          <p className="text-gray-600 text-sm sm:text-base">Kelola semua reservasi acara dan private dining</p>
         </div>
-        <div className="flex space-x-3">
-          <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button 
+            onClick={exportData}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center justify-center text-sm font-medium"
+          >
             <Download className="w-4 h-4 mr-2" />
-            Export
-          </button>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
+            Export CSV
           </button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+        <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-100">
           <div className="flex items-center space-x-3">
-            <div className="bg-blue-100 p-3 rounded-lg">
-              <Calendar className="w-6 h-6 text-blue-600" />
+            <div className="bg-blue-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
+              <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900">{mockReservations.length}</div>
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</div>
               <div className="text-sm text-gray-600">Total Reservasi</div>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
+
+        <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-100">
           <div className="flex items-center space-x-3">
-            <div className="bg-green-100 p-3 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+            <div className="bg-green-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
+              <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900">
-                {mockReservations.filter(r => r.status === 'confirmed').length}
-              </div>
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.confirmed}</div>
               <div className="text-sm text-gray-600">Dikonfirmasi</div>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
+
+        <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-100">
           <div className="flex items-center space-x-3">
-            <div className="bg-purple-100 p-3 rounded-lg">
-              <Users className="w-6 h-6 text-purple-600" />
+            <div className="bg-yellow-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
+              <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900">
-                {mockReservations.filter(r => r.type === 'acara').length}
-              </div>
-              <div className="text-sm text-gray-600">Reservasi Acara</div>
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.pending}</div>
+              <div className="text-sm text-gray-600">Menunggu</div>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
+
+        <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-100">
           <div className="flex items-center space-x-3">
-            <div className="bg-orange-100 p-3 rounded-lg">
-              <Users className="w-6 h-6 text-orange-600" />
+            <div className="bg-purple-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
+              <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900">
-                {mockReservations.filter(r => r.type === 'private').length}
+              <div className="text-lg sm:text-xl font-bold text-gray-900">
+                Rp {Math.round(stats.totalRevenue / 1000000)}M
               </div>
-              <div className="text-sm text-gray-600">Private Dining</div>
+              <div className="text-sm text-gray-600">Total Pendapatan</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Revenue Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Pendapatan Reservasi</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-700">Total Pendapatan</span>
-              <span className="text-sm font-medium text-gray-900">
-                Rp {mockReservations.reduce((sum, r) => sum + r.totalPrice, 0).toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-700">Total DP Diterima</span>
-              <span className="text-sm font-medium text-gray-900">
-                Rp {mockReservations.reduce((sum, r) => sum + r.downPayment, 0).toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-700">Sisa Pembayaran</span>
-              <span className="text-sm font-medium text-gray-900">
-                Rp {mockReservations.reduce((sum, r) => sum + (r.totalPrice - r.downPayment), 0).toLocaleString()}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Statistik Tamu</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-700">Total Tamu (Acara)</span>
-              <span className="text-sm font-medium text-gray-900">
-                {mockReservations.filter(r => r.type === 'acara').reduce((sum, r) => sum + r.guests, 0)} orang
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-700">Total Tamu (Private)</span>
-              <span className="text-sm font-medium text-gray-900">
-                {mockReservations.filter(r => r.type === 'private').reduce((sum, r) => sum + r.guests, 0)} orang
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-700">Rata-rata Tamu/Reservasi</span>
-              <span className="text-sm font-medium text-gray-900">
-                {Math.round(mockReservations.reduce((sum, r) => sum + r.guests, 0) / mockReservations.length)} orang
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
+      {/* Filters and Controls */}
       <div className="bg-white rounded-xl border border-gray-100 p-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center space-x-2">
-            <Filter className="w-4 h-4 text-gray-600" />
-            <span className="text-sm font-medium text-gray-700">Filter:</span>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center space-x-2">
+              <Filter className="w-4 h-4 text-gray-600 flex-shrink-0" />
+              <span className="text-sm font-medium text-gray-700">Filter:</span>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
+              <select 
+                value={filterType} 
+                onChange={(e) => setFilterType(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500"
+              >
+                <option value="all">Semua Tipe</option>
+                <option value="acara">Reservasi Acara</option>
+                <option value="private">Private Dining</option>
+              </select>
+              
+              <select 
+                value={filterStatus} 
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500"
+              >
+                <option value="all">Semua Status</option>
+                <option value="pending">Menunggu</option>
+                <option value="confirmed">Dikonfirmasi</option>
+                <option value="completed">Selesai</option>
+                <option value="cancelled">Dibatalkan</option>
+              </select>
+
+              <select 
+                value={filterPayment} 
+                onChange={(e) => setFilterPayment(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500"
+              >
+                <option value="all">Semua Pembayaran</option>
+                <option value="online">Online Payment</option>
+                <option value="cash">Cash/Pay Later</option>
+              </select>
+
+              <select 
+                value={sortBy} 
+                onChange={(e) => setSortBy(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500"
+              >
+                <option value="date_desc">Tanggal Terbaru</option>
+                <option value="date_asc">Tanggal Terlama</option>
+                <option value="name_asc">Nama A-Z</option>
+                <option value="name_desc">Nama Z-A</option>
+                <option value="price_desc">Harga Tertinggi</option>
+                <option value="price_asc">Harga Terendah</option>
+              </select>
+            </div>
           </div>
-          <select 
-            value={filterType} 
-            onChange={(e) => setFilterType(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500"
-          >
-            <option value="all">Semua Tipe</option>
-            <option value="acara">Reservasi Acara</option>
-            <option value="private">Private Dining</option>
-          </select>
-          <select 
-            value={filterStatus} 
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500"
-          >
-            <option value="all">Semua Status</option>
-            <option value="pending">Menunggu</option>
-            <option value="confirmed">Dikonfirmasi</option>
-            <option value="completed">Selesai</option>
-            <option value="cancelled">Dibatalkan</option>
-          </select>
           
-          <div className="flex items-center space-x-2 ml-auto">
+          <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">
-              Menampilkan {filteredReservations.length} dari {mockReservations.length} reservasi
+              Menampilkan {getCurrentPageItems().length} dari {filteredReservations.length} reservasi
             </span>
           </div>
         </div>
       </div>
 
-      {/* Reservations Table */}
+      {/* Reservations List - Mobile & Desktop Views */}
       <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile View */}
+        <div className="lg:hidden">
+          <div className="divide-y divide-gray-200">
+            {getCurrentPageItems().map((reservation) => (
+              <div key={reservation.id} className="p-4 hover:bg-gray-50">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-medium text-gray-900 truncate">{reservation.reservation_code}</h3>
+                    <p className="text-sm text-gray-600 truncate">{reservation.customer_name}</p>
+                    <p className="text-xs text-gray-500 truncate">{reservation.customer_phone}</p>
+                  </div>
+                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ml-2 flex-shrink-0 ${getStatusColor(reservation.status)}`}>
+                    {getStatusText(reservation.status)}
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                  <div>
+                    <span className="text-gray-500">Paket: </span>
+                    <span className="font-medium truncate block">{reservation.package_name}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Tamu: </span>
+                    <span className="font-medium">{reservation.guests} orang</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Tanggal: </span>
+                    <span className="font-medium">{reservation.date}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Total: </span>
+                    <span className="font-medium">{reservation.total_price}</span>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => openModal('reservation', reservation)}
+                  className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm flex items-center justify-center"
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  Detail
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Reservasi</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pelanggan</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paket</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal & Waktu</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tamu</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Kode Reservasi
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Pelanggan
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Paket & Meja
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Tanggal & Waktu
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Tamu
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Total
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Aksi
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredReservations.map((reservation) => (
+              {getCurrentPageItems().map((reservation) => (
                 <tr key={reservation.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{reservation.id}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{reservation.customerName}</div>
-                    <div className="text-sm text-gray-500">{reservation.phone}</div>
+                    <div className="text-sm font-medium text-gray-900">{reservation.reservation_code}</div>
+                    <div className="text-sm text-gray-500">{reservation.payment_method_label}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{reservation.customer_name}</div>
+                    <div className="text-sm text-gray-500">{reservation.customer_phone}</div>
+                    <div className="text-sm text-gray-500">{reservation.customer_email}</div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900">{reservation.packageName}</div>
-                    <div className="text-sm text-gray-500">{reservation.location}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                      reservation.type === 'acara' ? 'bg-purple-100 text-purple-800' : 'bg-orange-100 text-orange-800'
-                    }`}>
-                      {reservation.type === 'acara' ? 'Acara' : 'Private'}
-                    </span>
+                    <div className="text-sm text-gray-900">{reservation.package_name}</div>
+                    <div className="text-sm text-gray-500">
+                      {reservation.table_name || 'Belum ditentukan'} • {reservation.table_location}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{reservation.date}</div>
-                    <div className="text-sm text-gray-500">{reservation.time} ({reservation.duration})</div>
+                    <div className="text-sm text-gray-500">{reservation.time}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{reservation.guests} orang</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">Rp {reservation.totalPrice.toLocaleString()}</div>
-                    <div className="text-sm text-gray-500">DP: Rp {reservation.downPayment.toLocaleString()}</div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {reservation.guests} orang
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getReservationStatusColor(reservation.status)}`}>
-                      {getReservationStatusText(reservation.status)}
+                    <div className="text-sm font-medium text-gray-900">{reservation.total_price}</div>
+                    {reservation.requires_payment_confirmation && (
+                      <div className="text-xs text-orange-600">
+                        {reservation.proof_of_payment ? 'Perlu verifikasi' : 'Belum bayar'}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(reservation.status)}`}>
+                      {getStatusText(reservation.status)}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <button 
-                        onClick={() => openModal('reservation', reservation)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button className="text-green-600 hover:text-green-900">
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button className="text-purple-600 hover:text-purple-900">
-                        <Phone className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => openModal('reservation', reservation)}
+                      className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm flex items-center"
+                      title="Lihat Detail"
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      Detail
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        {/* Simple Pagination */}
+        {totalPages > 1 && (
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200">
+            <div className="flex justify-between sm:hidden w-full">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-gray-700 self-center">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+            
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Showing{' '}
+                  <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span>
+                  {' '}to{' '}
+                  <span className="font-medium">
+                    {Math.min(currentPage * itemsPerPage, filteredReservations.length)}
+                  </span>
+                  {' '}of{' '}
+                  <span className="font-medium">{filteredReservations.length}</span>
+                  {' '}results
+                </p>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Empty State */}
+      {filteredReservations.length === 0 && (
+        <div className="text-center py-12">
+          <Calendar className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada reservasi</h3>
+          <p className="text-gray-600">
+            {searchTerm || filterStatus !== 'all' || filterType !== 'all' || filterPayment !== 'all'
+              ? 'Tidak ada reservasi yang sesuai dengan filter yang dipilih.'
+              : 'Belum ada reservasi yang masuk.'}
+          </p>
+        </div>
+      )}
     </div>
   );
 };

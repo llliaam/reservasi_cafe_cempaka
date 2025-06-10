@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AdminMenuController;
+use App\Http\Controllers\AdminReservationPackageController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\OrderController;
@@ -175,22 +177,31 @@ Route::middleware(['auth', 'verified', 'role:staff,admin'])->prefix('staff')->na
 
 Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
 
+    // Di dalam admin routes group
+    Route::get('/reservations/refresh', [AdminController::class, 'refreshReservations'])->name('reservations.refresh');
+
     // ===== ADMIN ORDER MANAGEMENT =====
     Route::get('/orders', [OrderController::class, 'adminIndex'])->name('orders.index');
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
     Route::delete('/orders/{order}', [OrderController::class, 'destroy'])->name('orders.destroy');
 
     // ===== ADMIN RESERVATION MANAGEMENT =====
-    Route::get('/reservations', [ReservationController::class, 'adminIndex'])->name('reservations.index');
+     Route::get('/reservations', [ReservationController::class, 'adminIndex'])->name('reservations.index');
     Route::patch('/reservations/{reservation}/status', [ReservationController::class, 'updateStatus'])->name('reservations.update-status');
     Route::delete('/reservations/{reservation}', [ReservationController::class, 'adminDestroy'])->name('reservations.destroy');
 
+    // ===== ADMIN PACKAGE MANAGEMENT =====
+    Route::post('/packages/store', [AdminReservationPackageController::class, 'store'])->name('packages.store');
+    Route::put('/packages/{id}/update', [AdminReservationPackageController::class, 'update'])->name('packages.update');
+    Route::delete('/packages/{id}/delete', [AdminReservationPackageController::class, 'destroy'])->name('packages.delete');
+    Route::patch('/packages/{id}/toggle-status', [AdminReservationPackageController::class, 'toggleStatus'])->name('packages.toggle-status');
+
     // ===== ADMIN REVIEW MANAGEMENT =====
-    Route::post('/reviews/{id}/response', [ReviewController::class, 'addAdminResponse'])->name('reviews.add-response');
-    Route::delete('/reviews/{id}/response', [ReviewController::class, 'removeAdminResponse'])->name('reviews.remove-response');
-    Route::patch('/reviews/{id}/featured', [ReviewController::class, 'markAsFeatured'])->name('reviews.mark-featured');
-    Route::patch('/reviews/{id}/verified', [ReviewController::class, 'markAsVerified'])->name('reviews.mark-verified');
-    Route::delete('/reviews/{id}', [ReviewController::class, 'adminDestroy'])->name('reviews.destroy');
+    // Route::post('/reviews/{id}/response', [ReviewController::class, 'addAdminResponse'])->name('reviews.add-response');
+    // Route::delete('/reviews/{id}/response', [ReviewController::class, 'removeAdminResponse'])->name('reviews.remove-response');
+    // Route::patch('/reviews/{id}/featured', [ReviewController::class, 'markAsFeatured'])->name('reviews.mark-featured');
+    // Route::patch('/reviews/{id}/verified', [ReviewController::class, 'markAsVerified'])->name('reviews.mark-verified');
+    // Route::delete('/reviews/{id}', [ReviewController::class, 'adminDestroy'])->name('reviews.destroy');
 
     // ===== ADMIN USER MANAGEMENT =====
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
@@ -200,12 +211,10 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
 
     // ===== ADMIN MENU MANAGEMENT =====
     Route::get('/menu', [MenuItemController::class, 'adminIndex'])->name('menu.index');
-    Route::post('/menu', [MenuItemController::class, 'store'])->name('menu.store');
-    Route::get('/menu/create', [MenuItemController::class, 'create'])->name('menu.create');
-    Route::get('/menu/{menuItem}/edit', [MenuItemController::class, 'edit'])->name('menu.edit');
-    Route::put('/menu/{menuItem}', [MenuItemController::class, 'update'])->name('menu.update');
-    Route::delete('/menu/{menuItem}', [MenuItemController::class, 'destroy'])->name('menu.destroy');
-    Route::patch('/menu/{menuItem}/status', [MenuItemController::class, 'updateStatus'])->name('menu.update-status');
+    Route::post('/menu/store', [AdminMenuController::class, 'store'])->name('menu.store');
+    Route::put('/menu/{menuItem}/update', [AdminMenuController::class, 'update'])->name('menu.update');
+    Route::delete('/menu/{menuItem}/delete', [AdminMenuController::class, 'destroy'])->name('menu.delete');
+    Route::patch('/menu/{id}/toggle-status', [AdminController::class, 'toggleMenuStatus'])->name('menu.toggle-status');
 
     // ===== ADMIN TABLE MANAGEMENT (NEW) =====
     Route::get('/tables', [RestaurantTableController::class, 'index'])->name('tables.index');
