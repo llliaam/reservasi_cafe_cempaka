@@ -61,32 +61,56 @@ class MenuItem extends Model
     }
 
     /**
-     * Get image URL with fallback (kompatibel dengan struktur folder yang ada)
+     * Get image URL with fallback - DEBUGGING VERSION
      */
     public function getImageUrlAttribute(): string
-{
-    if ($this->image && file_exists(public_path('images/poto_menu/' . $this->image))) {
-        return asset('images/poto_menu/' . $this->image);
+    {
+        $imageName = $this->image;
+        
+        // Debug log
+        \Log::info('MenuItem Image Debug:', [
+            'item_id' => $this->id,
+            'item_name' => $this->name,
+            'image_field' => $imageName,
+            'public_path_check' => $imageName ? file_exists(public_path('images/poto_menu/' . $imageName)) : false
+        ]);
+        
+        // Path 1: Check di public/images/poto_menu/ 
+        if ($imageName && file_exists(public_path('images/poto_menu/' . $imageName))) {
+            $url = asset('images/poto_menu/' . $imageName);
+            \Log::info('Image found at public path:', ['url' => $url]);
+            return $url;
+        }
+        
+        // Path 2: Check di storage (jika ada)
+        if ($imageName && file_exists(storage_path('app/public/menu_images/' . $imageName))) {
+            return asset('storage/menu_images/' . $imageName);
+        }
+        
+        // Debug: List files in directory
+        $menuDir = public_path('images/poto_menu');
+        if (is_dir($menuDir)) {
+            $files = scandir($menuDir);
+            \Log::info('Files in poto_menu directory:', [
+                'total_files' => count($files),
+                'first_10_files' => array_slice($files, 0, 10)
+            ]);
+        }
+        
+        // Fallback ke inline SVG
+        \Log::warning('Image not found, using fallback', [
+            'requested_image' => $imageName,
+            'checked_path' => public_path('images/poto_menu/' . $imageName)
+        ]);
+        
+        return 'data:image/svg+xml;base64,' . base64_encode(
+            '<svg width="300" height="200" xmlns="http://www.w3.org/2000/svg">
+                <rect width="100%" height="100%" fill="#e5e7eb"/>
+                <text x="50%" y="40%" font-family="Arial" font-size="14" fill="#6b7280" text-anchor="middle">Menu Image</text>
+                <text x="50%" y="60%" font-family="Arial" font-size="12" fill="#9ca3af" text-anchor="middle">' . ($imageName ?: 'Not Found') . '</text>
+            </svg>'
+        );
     }
-    
-    // Fallback ke gambar default berdasarkan kategori
-    $defaultImages = [
-        'food' => 'default-food.jpg',
-        'beverage' => 'default-drink.jpg', 
-        'dessert' => 'default-dessert.jpg'
-    ];
-    
-    $categorySlug = $this->category->slug ?? 'food';
-    $defaultImage = $defaultImages[$categorySlug] ?? 'default-food.jpg';
-    
-    // Cek apakah file default ada, jika tidak gunakan fallback umum
-    if (file_exists(public_path('images/poto_menu/' . $defaultImage))) {
-        return asset('images/poto_menu/' . $defaultImage);
-    }
-    
-    // Fallback terakhir ke gambar umum
-    return '';
-}
 
     /**
      * Relasi dengan kategori

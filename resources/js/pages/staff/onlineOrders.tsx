@@ -428,6 +428,18 @@ Status: ${order.status_label}
 
 // === MAIN COMPONENT ===
 const OnlineOrdersPage: React.FC<OnlineOrdersPageProps> = ({ ordersData = [] }) => {
+
+  const uniqueOrdersData = React.useMemo(() => {
+    const seen = new Set();
+    return ordersData.filter(order => {
+      if (seen.has(order.id)) {
+        console.warn(`Duplicate order removed: ${order.order_code}`);
+        return false;
+      }
+      seen.add(order.id);
+      return true;
+    });
+  }, [ordersData]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -471,7 +483,7 @@ const OnlineOrdersPage: React.FC<OnlineOrdersPageProps> = ({ ordersData = [] }) 
   };
 
   // Filter orders based on search and status
-  const filteredOrders = ordersData.filter(order => {
+ const filteredOrders = uniqueOrdersData.filter(order => {
     const matchesSearch =
       !searchQuery ||
       order.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -523,12 +535,12 @@ const OnlineOrdersPage: React.FC<OnlineOrdersPageProps> = ({ ordersData = [] }) 
               onChange={(e) => setSelectedStatus(e.target.value || null)}
             >
               <option value="">Semua Status</option>
-              <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="preparing">Preparing</option>
-              <option value="ready">Ready</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="pending">Menunggu Konfirmasi</option>
+              <option value="confirmed">Dikonfirmasi</option>
+              {/* <option value="preparing">Sedang Diproses</option>
+              <option value="ready">Siap Diambil</option> */}
+              <option value="completed">Selesai</option>
+              <option value="cancelled">Dibatalkan</option>
             </select>
           </div>
           

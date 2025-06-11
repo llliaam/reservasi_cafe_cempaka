@@ -173,19 +173,18 @@ class StaffController extends Controller
 
          try {
             $menuItems = MenuItem::with('category')
-                ->where('is_available', true)
-                ->orderBy('sort_order')
-                ->get()
-                ->map(function ($item) {
-                    return [
-                        'id' => $item->id,
-                        'name' => $item->name,
-                        'price' => $item->price,
-                        'image' => $item->image_url ?? 'default.jpg',
-                        'category' => $item->category->name ?? 'Uncategorized'
-                    ];
-                });
-
+            ->where('is_available', true)
+            ->orderBy('sort_order')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'price' => $item->price,
+                    'image' => $item->image_url, // ✅ Ini akan return full URL
+                    'category' => $item->category->name ?? 'Uncategorized'
+                ];
+            })->toArray(); // ✅ TAMBAH toArray()
             // ADDED: Get available tables untuk dine-in orders
             $availableTables = RestaurantTable::where('status', 'available')
                 ->orderBy('table_number')
@@ -205,19 +204,65 @@ class StaffController extends Controller
             $availableTables = collect([]);
         }
             
-        // Return StaffPage with all data including reservations
+       // ✅ PERBAIKAN: Pastikan data dalam format array/collection yang benar
+        $ordersData = $this->getOrdersData($request);
+        $offlineOrdersData = $this->getOfflineOrdersData($request);
+        $reservationsData = $this->getReservationsData($request);
+        $tablesData = $this->getTablesDataWithRealtime();
+
+        // Gabungkan online dan offline orders
+        $allOrdersData = collect($ordersData)->concat(collect($offlineOrdersData))->sortByDesc('order_time')->values();
+
+        // Pastikan semua data dalam format yang benar
+        $finalOrdersData = $allOrdersData->toArray();
+        $finalReservationsData = collect($reservationsData)->toArray();
+        $finalTablesData = collect($tablesData)->toArray();
+
+        try {
+            $menuItems = MenuItem::with('category')
+                ->where('is_available', true)
+                ->orderBy('sort_order')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'name' => $item->name,
+                        'price' => $item->price,
+                        'image' => $item->image_url ?? '/images/poto_menu/default-food.jpg',
+                        'category' => $item->category->name ?? 'Uncategorized'
+                    ];
+                })->toArray();
+
+            $availableTables = RestaurantTable::where('status', 'available')
+                ->orderBy('table_number')
+                ->get()
+                ->map(function ($table) {
+                    return [
+                        'id' => $table->id,
+                        'meja_name' => $table->meja_name ?? "Meja {$table->table_number}",
+                        'capacity' => $table->capacity,
+                        'location' => $table->full_location ?? 'Unknown'
+                    ];
+                })->toArray();
+
+        } catch (\Exception $e) {
+            \Log::error('Error loading cashier data: ' . $e->getMessage());
+            $menuItems = [];
+            $availableTables = [];
+        }
+
+        // Return StaffPage with properly formatted data
         return Inertia::render('staff/staffPage', [
             'dashboardData' => [
                 'todayStats' => $todayStats,
-                'hourlyData' => $completeHourlyData,
-                'recentActivities' => $recentActivities,
+                'hourlyData' => $completeHourlyData->toArray(),
+                'recentActivities' => $recentActivities->toArray(),
                 'pendingOrdersCount' => $pendingOrdersCount,
                 'todayReservationsCount' => $todayReservationsCount,
             ],
-            // ADDED: Pass reservations data to StaffPage
-            'reservationsData' => $reservationsData,
-            'tablesData' => $tablesData,
-            'ordersData' => $allOrdersData,
+            'reservationsData' => $finalReservationsData,
+            'tablesData' => $finalTablesData,
+            'ordersData' => $finalOrdersData, // ✅ Ini yang penting - pastikan array
             'availableTables' => $availableTables,
             'menuItems' => $menuItems,
             'reservationFilters' => [
