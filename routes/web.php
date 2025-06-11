@@ -73,6 +73,14 @@ Route::middleware(['auth', 'verified', 'role:customer'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
+    // Logout route
+    Route::match(['get', 'post'], '/logout', function () {
+        Auth::logout();
+        request()->session()->invalidate();
+        request()->session()->regenerateToken();
+        return redirect('/');
+    })->name('logout');
+
     // ===== ORDER MANAGEMENT (All authenticated users can order) =====
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
     Route::get('/orders', [OrderController::class, 'history'])->name('orders.index');
