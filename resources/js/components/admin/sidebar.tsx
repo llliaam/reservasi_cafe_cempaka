@@ -64,8 +64,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
         <span className="text-white text-sm font-medium">A</span>
       </div>
       <div className="flex-1">
-        <p className="text-sm font-medium text-gray-900">Admin Owner</p>
-        <p className="text-xs text-gray-500">admin@cleancare.com</p>
+       nigger
+       
       </div>
     </div>
   </div>
