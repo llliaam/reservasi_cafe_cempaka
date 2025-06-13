@@ -1,6 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, useState } from 'react';
 import logo from '@/assets/images/cempaka-logo.jpg';
 import bg from '@/assets/images/image.png';
 import InputError from '@/components/input-error';
@@ -29,6 +29,8 @@ export default function Login({ status, canResetPassword }: LoginProps) {
         remember: false,
     });
 
+    const [showPassword, setShowPassword] = useState(false);
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         post(route('login'), {
@@ -37,6 +39,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
     };
 
     return (
+        
         <>
             <Head title="Login" />
             <div className="h-screen w-screen overflow-hidden flex font-['Inter',_'Poppins',_system-ui,_sans-serif] bg-gradient-to-br from-orange-50 to-amber-50">
@@ -56,11 +59,6 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             <p className="mb-6 text-base text-orange-100 xl:text-lg drop-shadow-md">
                                 Delicious & Fresh meals await you. Sign in to explore our amazing menu and exclusive offers.
                             </p>
-                            <div className="flex space-x-2">
-                                <div className="w-12 h-1 bg-orange-400 rounded-full shadow-md" />
-                                <div className="w-6 h-1 rounded-full shadow-sm bg-orange-300/50" />
-                                <div className="w-6 h-1 rounded-full shadow-sm bg-orange-300/30" />
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -112,24 +110,48 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             </div>
 
                             {/* Password field */}
-                                                            <div className="space-y-2">
+                                                    <div className="space-y-2">
                                 <div className="flex items-center justify-between">
                                     <Label htmlFor="password" className="text-sm font-semibold text-gray-700">
                                         Password
                                     </Label>
                                 </div>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    required
-                                    tabIndex={2}
-                                    autoComplete="current-password"
-                                    value={data.password}
-                                    onChange={(e) => setData('password', e.target.value)}
-                                    placeholder="Enter your password"
-                                    className="w-full px-4 py-2 font-medium text-gray-800 placeholder-gray-400 transition-all duration-200 border border-gray-200 shadow-sm bg-gray-50 rounded-xl focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-                                />
+
+                                <div className="relative">
+                                    <Input
+                                        id="password"
+                                        type={showPassword ? 'text' : 'password'} // <-- ubah jadi dinamis
+                                        required
+                                        tabIndex={2}
+                                        autoComplete="current-password"
+                                        value={data.password}
+                                        onChange={(e) => setData('password', e.target.value)}
+                                        placeholder="Enter your password"
+                                        className="w-full px-4 py-2 pr-12 font-medium text-gray-800 placeholder-gray-400 transition-all duration-200 border border-gray-200 shadow-sm bg-gray-50 rounded-xl focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                                    />
+
+                                    {/* Eye toggle icon */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-orange-500 focus:outline-none"
+                                        tabIndex={-1}
+                                    >
+                                        {showPassword ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4.477-10-10a10 10 0 011.533-5.415M3 3l18 18" />
+                                            </svg> // Eye off
+                                        ) : (
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg> // Eye
+                                        )}
+                                    </button>
+                                </div>
+
                                 <InputError message={errors.password} />
+
                                 {canResetPassword && (
                                     <div className="pt-1">
                                         <TextLink
@@ -141,7 +163,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                         </TextLink>
                                     </div>
                                 )}
-                            </div>
+</div>
 
                             {/* Remember me */}
                             <div className="flex items-center space-x-3">

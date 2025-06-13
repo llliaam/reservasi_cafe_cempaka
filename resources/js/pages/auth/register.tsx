@@ -289,45 +289,48 @@ export default function Register() {
                             ) : step === 2 ? (
                                 <>
                                     {/* Password field */}
-                                    <div className="space-y-2">
-                                        <Label htmlFor="password" className="text-sm font-semibold text-gray-700">
-                                            Password
-                                        </Label>
-                                        <Input
-                                            id="password"
-                                            type="password"
-                                            required
-                                            autoFocus
-                                            tabIndex={5}
-                                            autoComplete="new-password"
-                                            value={data.password}
-                                            onChange={(e) => setData('password', e.target.value)}
-                                            disabled={processing}
-                                            placeholder="Password"
-                                            className="w-full px-4 py-2 font-medium text-gray-800 placeholder-gray-400 transition-all duration-200 border border-gray-200 shadow-sm bg-gray-50 rounded-xl focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-                                        />
-                                        <InputError message={errors.password} />
-                                    </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="password" className="text-sm font-semibold text-gray-700">
+                                                Password
+                                            </Label>
+                                            <Input
+                                                id="password"
+                                                type="password"
+                                                required
+                                                autoFocus
+                                                tabIndex={5}
+                                                autoComplete="new-password"
+                                                value={data.password}
+                                                onChange={(e) => setData('password', e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && nextStep()} // <-- Tambahkan ini
+                                                disabled={processing}
+                                                placeholder="Password"
+                                                className="w-full px-4 py-2 font-medium text-gray-800 placeholder-gray-400 transition-all duration-200 border border-gray-200 shadow-sm bg-gray-50 rounded-xl focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                                            />
+                                            <InputError message={errors.password} />
+                                        </div>
 
-                                    {/* Confirm Password field */}
-                                    <div className="space-y-2">
-                                        <Label htmlFor="password_confirmation" className="text-sm font-semibold text-gray-700">
-                                            Confirm Password
-                                        </Label>
-                                        <Input
-                                            id="password_confirmation"
-                                            type="password"
-                                            required
-                                            tabIndex={6}
-                                            autoComplete="new-password"
-                                            value={data.password_confirmation}
-                                            onChange={(e) => setData('password_confirmation', e.target.value)}
-                                            disabled={processing}
-                                            placeholder="Confirm password"
-                                            className="w-full px-4 py-2 font-medium text-gray-800 placeholder-gray-400 transition-all duration-200 border border-gray-200 shadow-sm bg-gray-50 rounded-xl focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-                                        />
-                                        <InputError message={errors.password_confirmation} />
-                                    </div>
+                                        {/* Confirm Password field */}
+                                        <div className="space-y-2">
+                                            <Label htmlFor="password_confirmation" className="text-sm font-semibold text-gray-700">
+                                                Confirm Password
+                                            </Label>
+                                            <Input
+                                                id="password_confirmation"
+                                                type="password"
+                                                required
+                                                tabIndex={6}
+                                                autoComplete="new-password"
+                                                value={data.password_confirmation}
+                                                onChange={(e) => setData('password_confirmation', e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && nextStep()} // <-- Tambahkan ini
+                                                disabled={processing}
+                                                placeholder="Confirm password"
+                                                className="w-full px-4 py-2 font-medium text-gray-800 placeholder-gray-400 transition-all duration-200 border border-gray-200 shadow-sm bg-gray-50 rounded-xl focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                                            />
+                                            <InputError message={errors.password_confirmation} />
+                                        </div>
+
 
                                     {/* Back and Next buttons */}
                                     <div className="flex space-x-4">
