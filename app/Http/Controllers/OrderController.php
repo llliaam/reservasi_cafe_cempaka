@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\MenuItem;
-use App\Models\OfflineOrder;      
-use App\Models\OfflineOrderItem;  
-use App\Models\RestaurantTable; 
+use App\Models\OfflineOrder;
+use App\Models\OfflineOrderItem;
+use App\Models\RestaurantTable;
 use App\Models\UserReview;
 use Illuminate\Http\Request;
 use App\Models\MenuCategory;
@@ -89,7 +89,7 @@ class OrderController extends Controller
     public function history(Request $request)
     {
         $user = Auth::user();
-        
+
         $query = Order::with([
             'orderItems.menuItem',
             'userReview'
@@ -107,7 +107,7 @@ class OrderController extends Controller
         if ($request->filled('date_from')) {
             $query->whereDate('order_time', '>=', $request->date_from);
         }
-        
+
         if ($request->filled('date_to')) {
             $query->whereDate('order_time', '<=', $request->date_to);
         }
@@ -117,7 +117,7 @@ class OrderController extends Controller
         // Transform orders for frontend
         $transformedOrders = $orders->through(function ($order) {
             $review = $order->userReview;
-            
+
             return [
                 'id' => $order->id,
                 'order_code' => $order->order_code,
@@ -240,7 +240,7 @@ class OrderController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        
+
         $request->validate([
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'required|string|max:20',
@@ -283,13 +283,13 @@ class OrderController extends Controller
             // Create order items
             foreach ($request->cart_items as $cartItem) {
                 $menuItem = MenuItem::find($cartItem['id']);
-                
+
                 if (!$menuItem || !$menuItem->is_available) {
                     $itemName = $menuItem && $menuItem->name ? $menuItem->name : 'Unknown';
                     throw ValidationException::withMessages([
                         'cart_items' => "Menu item '{$itemName}' is not available"
                     ]);
-                }   
+                }
 
                 OrderItem::create([
                     'order_id' => $order->id,
@@ -305,14 +305,14 @@ class OrderController extends Controller
             if ($request->hasFile('payment_proof')) {
                 $file = $request->file('payment_proof');
                 $extension = $file->getClientOriginalExtension();
-                
+
                 // Format nama file: {order_code}_payment_{timestamp}_{random}.{ext}
                 // Contoh: ORD-20250531-A1B2_payment_20250531123456_xyzk.jpg
                 $fileName = $order->order_code . '_payment_' . date('YmdHis') . '_' . strtolower(Str::random(4)) . '.' . $extension;
-                
+
                 // Simpan ke storage/app/public/orders/payments/
                 $filePath = $file->storeAs('orders/payments', $fileName, 'public');
-                
+
                 $order->update([
                     'payment_proof' => $filePath,
                     'payment_status' => Order::PAYMENT_PAID // Auto mark as paid when proof uploaded
@@ -326,7 +326,7 @@ class OrderController extends Controller
 
             // PERBAIKAN: Redirect ke menu dengan flash data untuk success modal
         $estimatedTime = $order->estimated_ready_time ? $order->estimated_ready_time->format('H:i') : '20-30 menit';
-        
+
         return redirect()->route('menu.index') // atau route ke menu page
             ->with([
                 'success' => true,
@@ -335,7 +335,7 @@ class OrderController extends Controller
                     'total_amount' => $order->total_amount,
                     'payment_method' => $order->payment_method,
                     'estimated_time' => $estimatedTime,
-                    'message' => $request->payment_method === 'cash' 
+                    'message' => $request->payment_method === 'cash'
                         ? 'Pesanan berhasil dibuat! Silakan bayar saat pesanan siap.'
                         : 'Pesanan berhasil dibuat! Bukti pembayaran berhasil diupload.'
                 ]
@@ -343,7 +343,7 @@ class OrderController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            
+
             return redirect()->back()
                         ->withErrors(['order' => $e->getMessage()])
                         ->withInput();
@@ -395,7 +395,7 @@ class OrderController extends Controller
             // Create order items
             foreach ($request->cart_items as $cartItem) {
                 $menuItem = MenuItem::find($cartItem['id']);
-                
+
                 if (!$menuItem || !$menuItem->is_available) {
                     throw ValidationException::withMessages([
                         'cart_items' => "Menu item '{$menuItem->name}' is not available"
@@ -439,7 +439,7 @@ class OrderController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            
+
             return redirect()->back()->with([
                 'error' => 'Gagal membuat pesanan: ' . $e->getMessage(),
                 'tab' => 'cashier'
@@ -496,18 +496,18 @@ class OrderController extends Controller
         try {
             $file = $request->file('payment_proof');
             $extension = $file->getClientOriginalExtension();
-            
+
             // Hapus file lama jika ada
             if ($order->payment_proof && Storage::disk('public')->exists($order->payment_proof)) {
                 Storage::disk('public')->delete($order->payment_proof);
             }
-            
+
             // Format nama file yang konsisten
             $fileName = $order->order_code . '_payment_' . date('YmdHis') . '_' . strtolower(Str::random(4)) . '.' . $extension;
-            
+
             // Simpan ke storage/app/public/orders/payments/
             $filePath = $file->storeAs('orders/payments', $fileName, 'public');
-            
+
             $order->update([
                 'payment_proof' => $filePath,
                 'payment_status' => Order::PAYMENT_PAID

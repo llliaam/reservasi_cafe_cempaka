@@ -56,10 +56,10 @@ class Reservation extends Model
     protected static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($reservation) {
             $reservation->reservation_code = static::generateReservationCode();
-            
+
             // IMPROVED AUTO-ASSIGN TABLE dengan kriteria yang lebih ketat
             if (!$reservation->table_id) {
                 $reservation->autoAssignBestTable();
@@ -165,7 +165,7 @@ private function findBestAvailableTable($location, $requiredCapacity, $reservati
                 // Buffer 2 jam sebelum dan sesudah untuk menghindari konflik
                 $startBuffer = $reservationTime->copy()->subHours(2);
                 $endBuffer = $reservationTime->copy()->addHours(2);
-                
+
                 $timeQuery->whereBetween('reservations.reservation_time', [
                     $startBuffer->format('H:i:s'),
                     $endBuffer->format('H:i:s')
@@ -265,7 +265,7 @@ private function findBestAvailableTable($location, $requiredCapacity, $reservati
             if (!$this->package) {
                 $this->load('package');
             }
-            
+
             if (!$this->package) {
                 \Log::error("Cannot assign table: package not found for reservation {$this->id}");
                 return false;
@@ -318,17 +318,17 @@ private function findBestAvailableTable($location, $requiredCapacity, $reservati
 
             // Assign new table
             $this->table_id = $table->id;
-            
+
             // FIXED: Clear the table relationship cache to force reload
             $this->unsetRelation('table');
-            
+
             $result = $this->save();
 
             if ($result) {
                 // FIXED: Load the fresh table relationship
                 $this->load('table');
                 $this->updateTableStatus();
-                
+
                 \Log::info("Table assigned successfully", [
                     'reservation_id' => $this->id,
                     'table_id' => $table->id,
@@ -361,7 +361,7 @@ private function isTableAvailableAtTime(\App\Models\RestaurantTable $table): boo
             // Check for time conflicts dengan buffer 2 jam
             $startTime = $this->reservation_time->copy()->subHours(2);
             $endTime = $this->reservation_time->copy()->addHours(2);
-            
+
             $query->whereBetween('reservation_time', [
                 $startTime->format('H:i:s'),
                 $endTime->format('H:i:s')
@@ -385,7 +385,7 @@ private function isTableAvailableAtTime(\App\Models\RestaurantTable $table): boo
         try {
             // FIXED: Ensure we have the actual table model, not just the ID
             $table = null;
-            
+
             // Try to get from loaded relationship first
             if ($this->relationLoaded('table') && $this->table) {
                 $table = $this->table;
@@ -405,7 +405,7 @@ private function isTableAvailableAtTime(\App\Models\RestaurantTable $table): boo
             }
 
             $now = now();
-            
+
             // FIXED: Safe date handling with null checks
             if (!$this->reservation_date || !$this->reservation_time) {
                 \Log::warning("Reservation date/time missing for reservation {$this->id}");
@@ -428,27 +428,27 @@ private function isTableAvailableAtTime(\App\Models\RestaurantTable $table): boo
                         $table->updateStatus('available'); // Keep available until closer to time
                     }
                     break;
-                    
+
                 case self::STATUS_CANCELLED:
                     $table->updateStatus('available');
                     break;
-                    
+
                 case self::STATUS_COMPLETED:
                     $table->updateStatus('available');
                     break;
-                    
+
                 default:
                     // For pending status, don't change table status yet
                     break;
             }
-            
+
             \Log::info("Table status updated successfully", [
                 'reservation_id' => $this->id,
                 'table_id' => $table->id,
                 'new_status' => $table->status,
                 'reservation_status' => $this->status
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Error updating table status for reservation: ' . $e->getMessage(), [
                 'reservation_id' => $this->id,
@@ -472,7 +472,7 @@ public function loadTableSafely()
         if (!$this->relationLoaded('table')) {
             $this->load('table');
         }
-        
+
         return $this->table;
     } catch (\Exception $e) {
         \Log::error("Error loading table relationship: " . $e->getMessage());
@@ -488,13 +488,13 @@ public function loadTableSafely()
     {
         $oldStatus = $this->status;
         $this->status = $status;
-        
+
         $result = $this->save();
-        
+
         if ($result && $oldStatus !== $status) {
             $this->updateTableStatus();
         }
-        
+
         return $result;
     }
 
@@ -592,7 +592,7 @@ public function loadTableSafely()
         do {
             $code = 'RSV-' . date('Ymd') . '-' . strtoupper(Str::random(4));
         } while (static::where('reservation_code', $code)->exists());
-        
+
         return $code;
     }
 
@@ -604,7 +604,7 @@ public function loadTableSafely()
         if (!$this->proof_of_payment) {
             return null;
         }
-        
+
         return Storage::disk('public')->url('reservations/payments/' . $this->proof_of_payment);
     }
 
@@ -616,7 +616,7 @@ public function loadTableSafely()
         if (!$this->additional_images) {
             return [];
         }
-        
+
         return collect($this->additional_images)->map(function ($fileName) {
             return Storage::disk('public')->url('reservations/additional/' . $fileName);
         })->toArray();
@@ -631,7 +631,7 @@ public function loadTableSafely()
         if ($this->proof_of_payment) {
             Storage::disk('public')->delete('reservations/payments/' . $this->proof_of_payment);
         }
-        
+
         // Hapus gambar tambahan
         if ($this->additional_images) {
             foreach ($this->additional_images as $fileName) {
@@ -649,7 +649,7 @@ public function loadTableSafely()
         if ($this->table) {
             $this->table->markAvailable();
         }
-        
+
         $this->deleteImages();
         return parent::delete();
     }
@@ -707,7 +707,7 @@ public function loadTableSafely()
     public function requiresPaymentConfirmation(): bool
     {
         $methodsRequiringConfirmation = [
-            'transfer', 'bca', 'mandiri', 'bni', 'bri', 
+            'transfer', 'bca', 'mandiri', 'bni', 'bri',
             'gopay', 'ovo', 'dana', 'shopeepay'
         ];
 
@@ -767,7 +767,7 @@ public function getPackageName(): string
         // Load manual jika belum ter-load
         $menuItems = \App\Models\ReservationMenuItem::where('reservation_id', $this->id)->get();
         return $menuItems->sum('quantity');
-        
+
     } catch (\Exception $e) {
         \Log::warning("Could not get menu items count for reservation {$this->id}: " . $e->getMessage());
         return 0;
@@ -788,15 +788,15 @@ public function getPackageName(): string
     public function getAllImageUrls(): array
     {
         $urls = [];
-        
+
         if ($this->proof_of_payment_url) {
             $urls['proof_of_payment'] = $this->proof_of_payment_url;
         }
-        
+
         if (!empty($this->additional_image_urls)) {
             $urls['additional_images'] = $this->additional_image_urls;
         }
-        
+
         return $urls;
     }
 
@@ -817,7 +817,7 @@ public function getPackageName(): string
 {
     $labels = [
         'pending' => 'Menunggu Konfirmasi',
-        'confirmed' => 'Dikonfirmasi', 
+        'confirmed' => 'Dikonfirmasi',
         'cancelled' => 'Dibatalkan',
         'completed' => 'Selesai'
     ];
@@ -832,7 +832,7 @@ public function getPackageName(): string
 {
     $colors = [
         'pending' => 'yellow',
-        'confirmed' => 'green', 
+        'confirmed' => 'green',
         'cancelled' => 'red',
         'completed' => 'blue'
     ];
@@ -863,8 +863,8 @@ public function getPackageName(): string
     public function canBeCancelled(): bool
 {
     try {
-        return in_array($this->status, ['pending', 'confirmed']) 
-               && $this->reservation_date 
+        return in_array($this->status, ['pending', 'confirmed'])
+               && $this->reservation_date
                && $this->reservation_date->isFuture();
     } catch (\Exception $e) {
         // Fallback check
@@ -887,8 +887,8 @@ public function getPackageName(): string
     public function canBeCompleted(): bool
     {
         try {
-            return $this->status === 'confirmed' 
-                && $this->reservation_date 
+            return $this->status === 'confirmed'
+                && $this->reservation_date
                 && $this->reservation_date->isToday();
         } catch (\Exception $e) {
             // Fallback check

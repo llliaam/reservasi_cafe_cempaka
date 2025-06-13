@@ -12,6 +12,8 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\FavoriteMenuController;
 use App\Http\Controllers\MenuItemController;
 use App\Http\Controllers\RestaurantTableController;
+use App\Http\Controllers\UnifiedHistoryController;
+use App\Http\Controllers\Settings\ProfileController;
 use Inertia\Inertia;
 
 /*
@@ -80,6 +82,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         request()->session()->regenerateToken();
         return redirect('/');
     })->name('logout');
+
+    // ===== UNIFIED HISTORY PAGE (FIXED - MOVED FROM TEST SECTION) =====
+    Route::get('/riwayat', [UnifiedHistoryController::class, 'index'])->name('unified.history');
 
     // ===== ORDER MANAGEMENT (All authenticated users can order) =====
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
@@ -358,12 +363,13 @@ if (app()->environment('local')) {
     });
 }
 
-/*
-|--------------------------------------------------------------------------
-| papi 5 mei
-|--------------------------------------------------------------------------
-*/
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/settings/profile', [ProfileController::class, 'edit'])->name('settings.profile');
+    Route::patch('/settings/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    // Route lainnya...
+});
 
 /*
 |--------------------------------------------------------------------------

@@ -1,11 +1,13 @@
+//riwayatReservasi.tsx
+
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { 
-    Calendar, 
-    Clock, 
-    Users, 
-    MapPin, 
+import {
+    Calendar,
+    Clock,
+    Users,
+    MapPin,
     Phone,
     Eye,
     Edit,
@@ -161,9 +163,9 @@ export default function RiwayatReservasi({ reservations = [], stats }: RiwayatRe
                 preserveScroll: true,
                 onSuccess: () => {
                     // Update local state immediately for better UX
-                    setLocalReservations(prev => 
-                        prev.map(reservation => 
-                            reservation.id === reservationId 
+                    setLocalReservations(prev =>
+                        prev.map(reservation =>
+                            reservation.id === reservationId
                                 ? { ...reservation, status: 'cancelled' as const }
                                 : reservation
                         )
@@ -203,59 +205,59 @@ export default function RiwayatReservasi({ reservations = [], stats }: RiwayatRe
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Riwayat Reservasi" />
-            
-            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+
+            <div className="flex flex-col flex-1 h-full gap-4 p-4 rounded-xl">
                 {/* Stats Cards */}
-                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+                <div className="grid gap-4 auto-rows-min md:grid-cols-3">
                     {/* Total Reservasi */}
-                    <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20 rounded-xl border border-purple-200/50 dark:border-purple-800/50 p-6">
+                    <div className="p-6 border bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20 rounded-xl border-purple-200/50 dark:border-purple-800/50">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Total Reservasi</p>
-                                <p className="text-3xl font-bold text-purple-900 dark:text-purple-100 mt-1">
+                                <p className="mt-1 text-3xl font-bold text-purple-900 dark:text-purple-100">
                                     {stats.totalReservations}
                                 </p>
-                                <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">
+                                <p className="mt-1 text-xs text-purple-600/70 dark:text-purple-400/70">
                                     {stats.confirmedCount} aktif
                                 </p>
                             </div>
-                            <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
+                            <div className="flex items-center justify-center w-12 h-12 bg-purple-500 rounded-xl">
                                 <Calendar className="w-6 h-6 text-white" />
                             </div>
                         </div>
                     </div>
 
                     {/* Reservasi Selesai */}
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-xl border border-green-200/50 dark:border-green-800/50 p-6">
+                    <div className="p-6 border bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-xl border-green-200/50 dark:border-green-800/50">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-green-600 dark:text-green-400">Selesai</p>
-                                <p className="text-3xl font-bold text-green-900 dark:text-green-100 mt-1">
+                                <p className="mt-1 text-3xl font-bold text-green-900 dark:text-green-100">
                                     {stats.completedCount}
                                 </p>
-                                <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">
+                                <p className="mt-1 text-xs text-green-600/70 dark:text-green-400/70">
                                     {stats.totalReservations > 0 ? Math.round((stats.completedCount / stats.totalReservations) * 100) : 0}% dari total
                                 </p>
                             </div>
-                            <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
+                            <div className="flex items-center justify-center w-12 h-12 bg-green-500 rounded-xl">
                                 <CheckCircle className="w-6 h-6 text-white" />
                             </div>
                         </div>
                     </div>
 
                     {/* Total Tamu */}
-                    <div className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950/20 dark:to-yellow-950/20 rounded-xl border border-orange-200/50 dark:border-orange-800/50 p-6">
+                    <div className="p-6 border bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950/20 dark:to-yellow-950/20 rounded-xl border-orange-200/50 dark:border-orange-800/50">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-orange-600 dark:text-orange-400">Total Tamu</p>
-                                <p className="text-3xl font-bold text-orange-900 dark:text-orange-100 mt-1">
+                                <p className="mt-1 text-3xl font-bold text-orange-900 dark:text-orange-100">
                                     {stats.totalGuests}
                                 </p>
-                                <p className="text-xs text-orange-600/70 dark:text-orange-400/70 mt-1">
+                                <p className="mt-1 text-xs text-orange-600/70 dark:text-orange-400/70">
                                     Rata-rata {stats.averageGuests} orang
                                 </p>
                             </div>
-                            <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center">
+                            <div className="flex items-center justify-center w-12 h-12 bg-orange-500 rounded-xl">
                                 <Users className="w-6 h-6 text-white" />
                             </div>
                         </div>
@@ -266,20 +268,20 @@ export default function RiwayatReservasi({ reservations = [], stats }: RiwayatRe
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl flex-1 flex flex-col min-h-[70vh]">
                     {/* Header */}
                     <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                                     Riwayat Reservasi
                                 </h2>
-                                <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                                     Kelola semua reservasi meja yang pernah Anda buat
                                 </p>
                             </div>
-                            
+
                             <div className="flex items-center gap-3">
-                                <Link 
+                                <Link
                                     href={route('reservations.create')}
-                                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+                                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors bg-purple-600 rounded-lg hover:bg-purple-700"
                                 >
                                     <Calendar className="w-4 h-4" />
                                     Buat Reservasi
@@ -288,15 +290,15 @@ export default function RiwayatReservasi({ reservations = [], stats }: RiwayatRe
                         </div>
 
                         {/* Search & Filter */}
-                        <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                        <div className="flex flex-col gap-3 mt-4 sm:flex-row">
                             <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <Search className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
                                 <input
                                     type="text"
                                     placeholder="Cari berdasarkan ID reservasi, nama, atau nomor telepon..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"
+                                    className="w-full py-2 pl-10 pr-4 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 />
                             </div>
                             <div className="flex items-center gap-2">
@@ -304,7 +306,7 @@ export default function RiwayatReservasi({ reservations = [], stats }: RiwayatRe
                                 <select
                                     value={statusFilter}
                                     onChange={(e) => setStatusFilter(e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"
+                                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 >
                                     <option value="all">Semua Status</option>
                                     <option value="confirmed">Dikonfirmasi</option>
@@ -319,15 +321,15 @@ export default function RiwayatReservasi({ reservations = [], stats }: RiwayatRe
                     {/* Reservations List */}
                     <div className="flex-1 overflow-auto">
                         {filteredReservations.length === 0 ? (
-                            <div className="text-center py-12">
-                                <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                <p className="text-gray-500 dark:text-gray-400 text-lg mb-2">
+                            <div className="py-12 text-center">
+                                <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                                <p className="mb-2 text-lg text-gray-500 dark:text-gray-400">
                                     {searchTerm || statusFilter !== 'all' ? 'Tidak ada reservasi yang sesuai dengan filter' : 'Belum ada riwayat reservasi'}
                                 </p>
                                 {!searchTerm && statusFilter === 'all' && (
-                                    <Link 
+                                    <Link
                                         href={route('reservations.create')}
-                                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-purple-600 hover:text-purple-700 border border-purple-200 hover:border-purple-300 rounded-lg transition-colors mt-4"
+                                        className="inline-flex items-center gap-2 px-4 py-2 mt-4 text-sm font-medium text-purple-600 transition-colors border border-purple-200 rounded-lg hover:text-purple-700 hover:border-purple-300"
                                     >
                                         <Calendar className="w-4 h-4" />
                                         Buat Reservasi Pertama
@@ -337,7 +339,7 @@ export default function RiwayatReservasi({ reservations = [], stats }: RiwayatRe
                         ) : (
                             <div className="divide-y divide-gray-200 dark:divide-gray-700">
                                 {filteredReservations.map((reservation) => (
-                                    <div key={reservation.id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                    <div key={reservation.id} className="p-6 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                         <div className="flex items-start justify-between">
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-3 mb-3">
@@ -349,8 +351,8 @@ export default function RiwayatReservasi({ reservations = [], stats }: RiwayatRe
                                                         {getStatusText(reservation.status)}
                                                     </span>
                                                 </div>
-                                                
-                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+
+                                                <div className="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2 lg:grid-cols-3">
                                                     <div className="space-y-2">
                                                         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                                                             <Calendar className="w-4 h-4" />
@@ -403,7 +405,7 @@ export default function RiwayatReservasi({ reservations = [], stats }: RiwayatRe
                                                 </div>
 
                                                 {reservation.specialRequest && (
-                                                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                                    <div className="p-3 mb-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                                                         <div className="text-sm text-blue-800 dark:text-blue-400">
                                                             <span className="font-medium">Permintaan khusus:</span> {reservation.specialRequest}
                                                         </div>
@@ -412,7 +414,7 @@ export default function RiwayatReservasi({ reservations = [], stats }: RiwayatRe
 
                                                 {/* Menu Items Summary */}
                                                 {reservation.menuItems && reservation.menuItems.length > 0 && (
-                                                    <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                                    <div className="p-3 mb-4 rounded-lg bg-gray-50 dark:bg-gray-800">
                                                         <div className="text-sm text-gray-700 dark:text-gray-300">
                                                             <span className="font-medium">Menu tambahan:</span>
                                                             <div className="mt-1 space-y-1">
@@ -426,14 +428,14 @@ export default function RiwayatReservasi({ reservations = [], stats }: RiwayatRe
                                                         </div>
                                                     </div>
                                                 )}
-                                                
+
                                                 <div className="flex items-center justify-between">
                                                     <p className="text-sm text-gray-500 dark:text-gray-400">
                                                         Dibuat pada {formatDate(reservation.createdAt)}
                                                     </p>
-                                                    
+
                                                     <div className="flex items-center gap-2">
-                                                        <Link 
+                                                        <Link
                                                             href={route('reservations.show', reservation.id)}
                                                             className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:text-purple-700 border border-purple-200 hover:border-purple-300 rounded-lg transition-colors"
                                                         >
@@ -441,7 +443,7 @@ export default function RiwayatReservasi({ reservations = [], stats }: RiwayatRe
                                                             Detail
                                                         </Link>
                                                         {reservation.status === 'pending' && (
-                                                            <Link 
+                                                            <Link
                                                                 href={route('reservations.edit', reservation.id)}
                                                                 className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 rounded-lg transition-colors"
                                                             >
@@ -450,7 +452,7 @@ export default function RiwayatReservasi({ reservations = [], stats }: RiwayatRe
                                                             </Link>
                                                         )}
                                                         {(reservation.status === 'pending' || reservation.status === 'confirmed') && (
-                                                            <button 
+                                                            <button
                                                                 onClick={() => handleCancelReservation(reservation.id)}
                                                                 disabled={cancellingIds.has(reservation.id)}
                                                                 className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm border rounded-lg transition-colors ${

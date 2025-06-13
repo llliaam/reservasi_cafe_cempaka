@@ -1,14 +1,16 @@
+// app-sidebar.tsx
+
 import { NavMain } from '@/components/nav-main';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { 
-    Home, 
-    Calendar, 
-    ShoppingBag, 
+import {
+    Home,
+    Calendar,
+    ShoppingBag,
     Heart,
     Star,
-    Settings, 
+    Settings,
     HelpCircle,
     LogOut,
     User,
@@ -29,18 +31,24 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         href: '/dashboard',
         icon: LayoutDashboard,
-        isActive: true, // Sesuaikan dengan route aktif
+        isActive: true,
     },
     {
-        title: 'Riwayat Reservasi',
-        href: '/riwayat-reservasi',
-        icon: Calendar,
-    },
-    {
-        title: 'Riwayat Pemesanan',
-        href: '/riwayat-pemesanan',
+        title: 'Riwayat Pesanan & Reservasi',
+        href: '/riwayat',
         icon: ShoppingBag,
     },
+    // COMMENT atau hapus kedua menu lama ini:
+    // {
+    //     title: 'Riwayat Reservasi',
+    //     href: '/riwayat-reservasi',
+    //     icon: Calendar,
+    // },
+    // {
+    //     title: 'Riwayat Pemesanan',
+    //     href: '/riwayat-pemesanan',
+    //     icon: ShoppingBag,
+    // },
     {
         title: 'Menu Favorit',
         href: '/menu-favorit',
@@ -55,7 +63,6 @@ const mainNavItems: NavItem[] = [
         title: 'Home',
         href: '/',
         icon: Home,
-        isActive: true, // Sesuaikan dengan route aktif
     },
 ];
 
@@ -83,11 +90,11 @@ export function AppSidebar() {
                             <Link href="/dashboard" prefetch>
                                 <div className="flex items-center gap-2">
                                     <AppLogo />
-                                    <div className="grid flex-1 text-left text-sm leading-tight">
-                                        <span className="truncate font-semibold">
+                                    <div className="grid flex-1 text-sm leading-tight text-left">
+                                        <span className="font-semibold truncate">
                                             Cemapaka Cafe
                                         </span>
-                                        <span className="truncate text-xs text-muted-foreground">
+                                        <span className="text-xs truncate text-muted-foreground">
                                             Customer Portal
                                         </span>
                                     </div>
@@ -101,7 +108,7 @@ export function AppSidebar() {
             <SidebarContent>
                 {/* Main Navigation */}
                 <div className="px-3 py-2">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    <h4 className="mb-2 text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                         Menu Utama
                     </h4>
                     <NavMain items={mainNavItems} />
@@ -112,14 +119,14 @@ export function AppSidebar() {
                 {/* User Profile Section */}
                 <div className="px-3 py-3 border-t border-border">
                     <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500">
                             <User className="w-5 h-5 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">
                                 {user?.name ?? 'Guest'}
                             </p>
-                            <p className="text-xs text-muted-foreground truncate">
+                            <p className="text-xs truncate text-muted-foreground">
                                 {user?.email ?? '-'}
                             </p>
                         </div>
@@ -127,7 +134,7 @@ export function AppSidebar() {
 
                     {/* Account Section - Moved here */}
                     <div className="mb-4">
-                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        <h4 className="mb-2 text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                             Akun
                         </h4>
                         <NavMain items={accountNavItems} />
@@ -141,7 +148,7 @@ export function AppSidebar() {
                                     href={route('logout')}
                                     method="post"
                                     as="button"
-                                    className="w-full flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
+                                    className="flex items-center w-full gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
                                 >
                                     <LogOut className="w-4 h-4" />
                                     <span>Logout</span>

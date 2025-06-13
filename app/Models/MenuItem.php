@@ -66,7 +66,7 @@ class MenuItem extends Model
     public function getImageUrlAttribute(): string
     {
         $imageName = $this->image;
-        
+
         // Debug log
         \Log::info('MenuItem Image Debug:', [
             'item_id' => $this->id,
@@ -74,19 +74,19 @@ class MenuItem extends Model
             'image_field' => $imageName,
             'public_path_check' => $imageName ? file_exists(public_path('images/poto_menu/' . $imageName)) : false
         ]);
-        
-        // Path 1: Check di public/images/poto_menu/ 
+
+        // Path 1: Check di public/images/poto_menu/
         if ($imageName && file_exists(public_path('images/poto_menu/' . $imageName))) {
             $url = asset('images/poto_menu/' . $imageName);
             \Log::info('Image found at public path:', ['url' => $url]);
             return $url;
         }
-        
+
         // Path 2: Check di storage (jika ada)
         if ($imageName && file_exists(storage_path('app/public/menu_images/' . $imageName))) {
             return asset('storage/menu_images/' . $imageName);
         }
-        
+
         // Debug: List files in directory
         $menuDir = public_path('images/poto_menu');
         if (is_dir($menuDir)) {
@@ -96,13 +96,13 @@ class MenuItem extends Model
                 'first_10_files' => array_slice($files, 0, 10)
             ]);
         }
-        
+
         // Fallback ke inline SVG
         \Log::warning('Image not found, using fallback', [
             'requested_image' => $imageName,
             'checked_path' => public_path('images/poto_menu/' . $imageName)
         ]);
-        
+
         return 'data:image/svg+xml;base64,' . base64_encode(
             '<svg width="300" height="200" xmlns="http://www.w3.org/2000/svg">
                 <rect width="100%" height="100%" fill="#e5e7eb"/>
@@ -207,10 +207,10 @@ class MenuItem extends Model
     public static function saveMenuImage($uploadedFile, $menuName)
     {
         if (!$uploadedFile) return null;
-        
+
         $filename = self::generateImageFilename($uploadedFile->getClientOriginalName(), $menuName);
         $uploadedFile->move(public_path('images/poto_menu'), $filename);
-        
+
         return $filename;
     }
 

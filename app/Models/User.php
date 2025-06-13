@@ -270,11 +270,11 @@ class User extends Authenticatable
     public function canReviewOrder($orderId)
     {
         $order = $this->orders()->find($orderId);
-        
+
         if (!$order || $order->status !== 'completed') {
             return false;
         }
-        
+
         return !$this->reviews()->where('order_id', $orderId)->exists();
     }
 
@@ -286,14 +286,14 @@ class User extends Authenticatable
         if (!$this->canReviewOrder($orderId)) {
             return false;
         }
-        
+
         $order = $this->orders()->find($orderId);
-        
+
         // Jika menu_item_id tidak disediakan, ambil item pertama dari order
         if (!$menuItemId && $order->orderItems->isNotEmpty()) {
             $menuItemId = $order->orderItems->first()->menu_item_id;
         }
-        
+
         return $this->reviews()->create([
             'order_id' => $orderId,
             'menu_item_id' => $menuItemId,

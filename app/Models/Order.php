@@ -99,7 +99,7 @@ class Order extends Model
     protected static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($order) {
             if (!$order->order_code) {
                 $order->order_code = static::generateOrderCode();
@@ -126,7 +126,7 @@ class Order extends Model
         do {
             $code = 'ORD-' . date('Ymd') . '-' . strtoupper(Str::random(4));
         } while (static::where('order_code', $code)->exists());
-        
+
         return $code;
     }
 
@@ -675,7 +675,7 @@ class Order extends Model
         // Find available table that can accommodate the order
         // For orders, we estimate 2-4 people per order (can be adjusted)
         $estimatedPeople = max(2, min(4, $this->total_items));
-        
+
         $availableTable = RestaurantTable::active()
             ->available()
             ->minCapacity($estimatedPeople)
@@ -685,7 +685,7 @@ class Order extends Model
         if ($availableTable) {
             $this->table_id = $availableTable->id;
             $this->save();
-            
+
             // Mark table as occupied when order is confirmed
             if (in_array($this->status, [self::STATUS_CONFIRMED, self::STATUS_PREPARING])) {
                 $availableTable->markOccupied();
@@ -705,7 +705,7 @@ public function updateTableStatus(): void
 
     // AMBIL TABLE OBJECT, BUKAN STRING
     $table = $this->table; // Ini akan return RestaurantTable object melalui relationship
-    
+
     if (!$table) {
         return; // Table tidak ditemukan
     }
@@ -717,12 +717,12 @@ public function updateTableStatus(): void
             // PASTIKAN GUNAKAN METHOD YANG ADA DI MODEL RestaurantTable
             $table->update(['status' => 'occupied']);
             break;
-            
+
         case self::STATUS_COMPLETED:
         case self::STATUS_CANCELLED:
             $table->update(['status' => 'available']);
             break;
-            
+
         default:
             // For pending status, don't change table status yet
             break;
@@ -753,7 +753,7 @@ public function updateTableStatus(): void
         if (!$this->completed_at) {
             return null;
         }
-        
+
         return $this->order_time->diffInMinutes($this->completed_at);
     }
 
@@ -765,7 +765,7 @@ public function updateTableStatus(): void
         if (!$this->estimated_ready_time || $this->status === self::STATUS_COMPLETED) {
             return null;
         }
-        
+
         $remaining = now()->diffInMinutes($this->estimated_ready_time, false);
         return max(0, $remaining);
     }
@@ -775,8 +775,8 @@ public function updateTableStatus(): void
      */
     public function getIsOverdueAttribute(): bool
     {
-        return $this->estimated_ready_time && 
-               now()->isAfter($this->estimated_ready_time) && 
+        return $this->estimated_ready_time &&
+               now()->isAfter($this->estimated_ready_time) &&
                $this->status !== self::STATUS_COMPLETED;
     }
 
@@ -892,12 +892,12 @@ public function getOrderSourceAttribute(): string
         $totalItems = $this->total_items;
         $baseTime = 15; // 15 minutes base time
         $additionalTime = max(0, ($totalItems - 1) * 3); // 3 minutes per additional item
-        
+
         // Add extra time for delivery orders
         if ($this->isDelivery()) {
             $additionalTime += 10; // Extra 10 minutes for delivery prep
         }
-        
+
         $this->estimated_ready_time = $this->order_time->addMinutes($baseTime + $additionalTime);
         $this->save();
     }
@@ -909,19 +909,19 @@ public function getOrderSourceAttribute(): string
     {
         $oldStatus = $this->status;
         $this->status = $status;
-        
+
         if ($status === self::STATUS_COMPLETED && !$this->completed_at) {
             $this->completed_at = now();
         }
-        
+
         $result = $this->save();
-        
+
         // Update table status when order status changes
         if ($result && $oldStatus !== $status) {
             $this->updateTableStatus();
             $this->logStatusChange($oldStatus, $status, $notes);
         }
-        
+
         return $result;
     }
 
@@ -948,7 +948,7 @@ public function getOrderSourceAttribute(): string
         if (!$this->canBeCancelled()) {
             return false;
         }
-        
+
         return $this->updateStatus(self::STATUS_CANCELLED, $reason);
     }
 
