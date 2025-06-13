@@ -105,7 +105,6 @@ interface AvailableTable {
   reservationsData?: Reservation[];
   tablesData?: Table[];
   ordersData?: any[];
-  // TAMBAH PROPS INI:
   menuItems?: Product[];
   availableTables?: AvailableTable[];
   auth?: { user: { id: number; name: string; role: string; } };
@@ -113,6 +112,11 @@ interface AvailableTable {
     status?: string;
     date?: string;
   };
+  pendingOrders?: any[];
+  pendingReservations?: any[]; // ADD THIS
+  popularMenus?: any[];
+  currentPeriod?: string;
+  currentDateRange?: any;
 }
 
 // Komponen Dialog Konfirmasi
@@ -178,11 +182,21 @@ const ConfirmationDialog = ({ isOpen, onClose, onConfirm, title, message, confir
     menuItems = [],
     availableTables = [],
     auth,
-    reservationFilters 
+    reservationFilters,
+    pendingOrders = [],
+    pendingReservations = [], 
+    popularMenus = [],
+    currentPeriod,
+    currentDateRange
   }) => {
     const [activePage, setActivePage] = useState<ActivePage>('dashboard');
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+    console.log('StaffPage received props:', { 
+    pendingOrders, 
+    pendingReservations, // ADD THIS
+    popularMenus 
+  });
     
     const handleLogout = () => {
     setShowLogoutDialog(true);
@@ -220,7 +234,16 @@ const ConfirmationDialog = ({ isOpen, onClose, onConfirm, title, message, confir
     const renderContent = () => {
       switch (activePage) {
         case 'dashboard':
-          return dashboardData ? <Dashboard dashboardData={dashboardData} /> : (
+            return dashboardData ? (
+              <Dashboard 
+                dashboardData={dashboardData} 
+                pendingOrders={pendingOrders}
+                pendingReservations={pendingReservations} // ADD THIS
+                popularMenus={popularMenus}
+                currentPeriod={currentPeriod} 
+                currentDateRange={currentDateRange} 
+              />
+            ) : (
             <div className="flex items-center justify-center h-full bg-gray-50">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>

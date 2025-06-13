@@ -153,6 +153,9 @@ Route::middleware(['auth', 'verified', 'role:staff,admin'])->prefix('staff')->na
 
      // ===== STAFF DASHBOARD/REPORTS =====
     Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
+    Route::get('/dashboard-data', [StaffController::class, 'getDashboardData'])->name('dashboard.data');
+    Route::get('/pending-orders', [StaffController::class, 'getPendingOrders'])->name('pending-orders');
+    Route::patch('/orders/{order}/quick-status', [StaffController::class, 'updateOrderStatusQuick'])->name('orders.quick-status');
 
     // ===== STAFF ORDER MANAGEMENT =====
     Route::get('/orders', [OrderController::class, 'staffIndex'])->name('orders.index');

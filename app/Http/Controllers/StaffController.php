@@ -25,6 +25,55 @@ class StaffController extends Controller
         // Get today's date
         $today = Carbon::today();
         $yesterday = Carbon::yesterday();
+
+        $period = $request->get('period', 'today');
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+
+        switch ($period) {
+            case 'week':
+                $start = Carbon::now()->startOfWeek();
+                $end = Carbon::now()->endOfWeek();
+                break;
+            case 'month':
+                $start = Carbon::now()->startOfMonth();
+                $end = Carbon::now()->endOfMonth();
+                break;
+            case 'custom':
+                $start = $startDate ? Carbon::parse($startDate) : Carbon::today();
+                $end = $endDate ? Carbon::parse($endDate) : Carbon::today();
+                break;
+            default: // today
+                $start = Carbon::today();
+                $end = Carbon::today();
+        }
+
+         \Log::info('Dashboard filter applied:', [
+            'period' => $period,
+            'start_date' => $start->format('Y-m-d'),
+            'end_date' => $end->format('Y-m-d')
+        ]);
+
+         $filteredStats = $this->getStatsForPeriod($start, $end);
+        //  $filteredHourlyData = $this->getHourlyDataForPeriod($start, $end, $period);
+
+        try {
+            $filteredHourlyData = $this->getHourlyDataForPeriod($start, $end, $period);
+            
+            \Log::info('Chart data generated successfully:', [
+                'data_count' => $filteredHourlyData->count(),
+                'period' => $period
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error generating chart data: ' . $e->getMessage());
+            $filteredHourlyData = collect([]);
+        }
+
+         \Log::info('Filtered chart data:', [
+            'period' => $period,
+            'chart_data_count' => $filteredHourlyData->count(),
+            'sample_data' => $filteredHourlyData->take(3)->toArray()
+        ]);
         
         // Today's stats
         $todayOrders = Order::whereDate('order_time', $today);
@@ -251,26 +300,814 @@ class StaffController extends Controller
             $availableTables = [];
         }
 
-        // Return StaffPage with properly formatted data
-        return Inertia::render('staff/staffPage', [
-            'dashboardData' => [
-                'todayStats' => $todayStats,
-                'hourlyData' => $completeHourlyData->toArray(),
-                'recentActivities' => $recentActivities->toArray(),
-                'pendingOrdersCount' => $pendingOrdersCount,
-                'todayReservationsCount' => $todayReservationsCount,
-            ],
-            'reservationsData' => $finalReservationsData,
-            'tablesData' => $finalTablesData,
-            'ordersData' => $finalOrdersData, // ✅ Ini yang penting - pastikan array
-            'availableTables' => $availableTables,
-            'menuItems' => $menuItems,
-            'reservationFilters' => [
-                'status' => $request->status ?? 'all',
-                'date' => $request->date ?? ''
-            ]
+        $pendingOrdersData = $this->getPendingOrdersData();
+        $popularMenusData = $this->getPopularMenus(Carbon::today(), Carbon::today());
+        $pendingReservationsData = $this->getPendingReservationsData();
+
+        \Log::info('Data being sent to frontend:', [
+            'pending_orders_count' => $pendingOrdersData->count(),
+            'pending_reservations_count' => $pendingReservationsData->count(),
+            'popular_count' => $popularMenusData->count(),
+        ]);
+
+        // Tambahkan try-catch untuk debug
+        try {
+            $pendingOrdersData = $this->getPendingOrdersData();
+            $popularMenusData = $this->getPopularMenus(Carbon::today(), Carbon::today());
+            
+            // Debug log
+            \Log::info('About to pass to frontend:', [
+                'pending_count' => $pendingOrdersData->count(),
+                'popular_count' => $popularMenusData->count(),
+                'pending_sample' => $pendingOrdersData->first(),
+                'popular_sample' => $popularMenusData->first()
+            ]);
+
+            $pendingReservationsData = $this->getPendingReservationsData();
+
+            return Inertia::render('staff/staffPage', [
+                'dashboardData' => [
+                    'todayStats' => $filteredStats, 
+                    'hourlyData' => $filteredHourlyData->toArray(),
+                    'recentActivities' => $recentActivities->toArray(),
+                    'pendingOrdersCount' => $pendingOrdersCount,
+                    'todayReservationsCount' => $todayReservationsCount,
+                ],
+                'reservationsData' => $finalReservationsData,
+                'tablesData' => $finalTablesData,
+                'ordersData' => $finalOrdersData,
+                'availableTables' => $availableTables,
+                'menuItems' => $menuItems,
+                'pendingReservations' => $pendingReservationsData->toArray(),
+                'pendingOrders' => $pendingOrdersData->toArray(),
+                'popularMenus' => $this->getPopularMenus($start, $end)->toArray(),
+                'currentPeriod' => $period, // TAMBAH INI
+                'currentDateRange' => [
+                    'start' => $start->format('Y-m-d'),
+                    'end' => $end->format('Y-m-d'),
+                    'period' => $period
+                ],               
+                 'reservationFilters' => [
+                    'status' => $request->status ?? 'all',
+                    'date' => $request->date ?? ''
+                 ]
+                
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error in StaffController index: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Return with empty data if error
+            return Inertia::render('staff/staffPage', [
+                'dashboardData' => [
+                    'todayStats' => $todayStats,
+                    'hourlyData' => $filteredHourlyData->toArray(),
+                    'recentActivities' => $recentActivities->toArray(),
+                    'pendingOrdersCount' => $pendingOrdersCount,
+                    'todayReservationsCount' => $todayReservationsCount,
+                ],
+                'pendingOrders' => [],
+                'popularMenus' => [],
+                // ... other data
+            ]);
+        }
+    }
+
+    /**
+     * Get pending reservations data
+     */
+    private function getPendingReservationsData()
+    {
+        try {
+            $pendingReservations = Reservation::where('status', 'pending')
+                ->leftJoin('reservation_packages', 'reservations.package_id', '=', 'reservation_packages.id')
+                ->select([
+                    'reservations.*',
+                    'reservation_packages.name as package_name'
+                ])
+                ->orderBy('reservations.created_at', 'asc')
+                ->get();
+
+            \Log::info('Pending reservations found:', [
+                'count' => $pendingReservations->count(),
+                'sample' => $pendingReservations->first()
+            ]);
+
+            return $pendingReservations->map(function ($reservation) {
+                // Safe date formatting
+                $formattedDate = '';
+                $formattedTime = '';
+                
+                try {
+                    if ($reservation->reservation_date) {
+                        $formattedDate = date('d/m/Y', strtotime($reservation->reservation_date));
+                    }
+                    if ($reservation->reservation_time) {
+                        $formattedTime = date('H:i', strtotime($reservation->reservation_time));
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning("Date formatting error for reservation {$reservation->id}");
+                    $formattedDate = 'Invalid Date';
+                    $formattedTime = 'Invalid Time';
+                }
+
+                // Payment method label
+                $paymentMethodLabels = [
+                    'transfer' => 'Transfer Bank',
+                    'bca' => 'BCA Mobile',
+                    'mandiri' => 'Mandiri Online',
+                    'bni' => 'BNI Mobile',
+                    'bri' => 'BRI Mobile',
+                    'gopay' => 'GoPay',
+                    'ovo' => 'OVO',
+                    'dana' => 'DANA',
+                    'shopeepay' => 'ShopeePay',
+                    'pay-later' => 'Bayar di Tempat',
+                ];
+                
+                $paymentMethodLabel = $paymentMethodLabels[$reservation->payment_method] ?? $reservation->payment_method;
+
+                // Package name with fallback
+                $packageName = $reservation->package_name;
+                if (!$packageName && $reservation->package_id) {
+                    $fallbackPackages = [
+                        1 => 'Paket Romantis (2 Orang)',
+                        2 => 'Paket Keluarga (4 Orang)',
+                        3 => 'Paket Gathering (8 Orang)',
+                    ];
+                    $packageName = $fallbackPackages[$reservation->package_id] ?? "Paket ID {$reservation->package_id}";
+                }
+
+                return [
+                    'id' => $reservation->id,
+                    'reservation_code' => $reservation->reservation_code,
+                    'customer_name' => $reservation->customer_name,
+                    'date' => $formattedDate,
+                    'time' => $formattedTime,
+                    'guests' => $reservation->number_of_people,
+                    'package_name' => $packageName,
+                    'total_price' => 'Rp ' . number_format($reservation->total_price, 0, ',', '.'),
+                    'payment_method' => $reservation->payment_method,
+                    'payment_method_label' => $paymentMethodLabel,
+                    'status' => $reservation->status,
+                    'minutes_since_created' => now()->diffInMinutes($reservation->created_at),
+                ];
+            });
+
+        } catch (\Exception $e) {
+            \Log::error('Error getting pending reservations: ' . $e->getMessage());
+            return collect([]);
+        }
+    }
+
+    /**
+     * Get popular items dari orders + popular packages dari reservations
+     */
+    private function getPopularMenus($startDate, $endDate)
+        {
+            try {
+                // POPULAR MENU ITEMS dari Orders
+                $popularMenus = DB::table('order_items')
+                    ->join('orders', 'order_items.order_id', '=', 'orders.id')
+                    ->whereBetween('orders.order_time', [$startDate, $endDate])
+                    ->where('orders.status', 'completed')
+                    ->select([
+                        'order_items.menu_item_id',
+                        DB::raw('SUM(order_items.quantity) as total_sold'),
+                        DB::raw('SUM(order_items.subtotal) as total_revenue'),
+                        DB::raw('"menu" as type')
+                    ])
+                    ->groupBy('order_items.menu_item_id')
+                    ->orderBy('total_sold', 'desc')
+                    ->limit(3)
+                    ->get();
+
+                // POPULAR RESERVATION PACKAGES
+                $popularPackages = DB::table('reservations')
+                    ->join('reservation_packages', 'reservations.package_id', '=', 'reservation_packages.id')
+                    ->whereBetween('reservations.reservation_date', [$startDate, $endDate])
+                    ->where('reservations.status', 'completed')
+                    ->select([
+                        'reservation_packages.id as package_id',
+                        'reservation_packages.name as package_name',
+                        DB::raw('COUNT(*) as total_sold'),
+                        DB::raw('SUM(reservations.total_price) as total_revenue'),
+                        DB::raw('"package" as type')
+                    ])
+                    ->groupBy('reservation_packages.id', 'reservation_packages.name')
+                    ->orderBy('total_sold', 'desc')
+                    ->limit(2)
+                    ->get();
+
+                $allPopular = collect();
+                
+                // Process menu items
+                foreach ($popularMenus as $item) {
+                    $menuItem = MenuItem::find($item->menu_item_id);
+                    if ($menuItem) {
+                        $allPopular->push([
+                            'name' => $menuItem->name,
+                            'image_url' => $menuItem->image_url ?: '/images/poto_menu/default-food.jpg',
+                            'total_sold' => $item->total_sold,
+                            'total_revenue' => $item->total_revenue,
+                            'type' => 'Menu'
+                        ]);
+                    }
+                }
+                
+                // Process packages
+                foreach ($popularPackages as $package) {
+                    $allPopular->push([
+                        'name' => $package->package_name,
+                        'image_url' => '/images/packages/default-package.jpg',
+                        'total_sold' => $package->total_sold,
+                        'total_revenue' => $package->total_revenue,
+                        'type' => 'Paket Reservasi'
+                    ]);
+                }
+
+                return $allPopular;
+
+            } catch (\Exception $e) {
+                \Log::error('Error getting popular items: ' . $e->getMessage());
+                return collect([]);
+            }
+        }
+
+/**
+ * Get pending orders dari database ASLI
+ */
+private function getPendingOrdersData()
+{
+    try {
+        // Query online orders
+        $onlineOrders = Order::whereIn('status', ['pending', 'confirmed', 'preparing'])
+            ->with(['orderItems']) // Load relation untuk count items
+            ->orderBy('order_time', 'asc')
+            ->get();
+
+        $allPendingOrders = collect();
+        
+        foreach ($onlineOrders as $order) {
+            $allPendingOrders->push([
+                'id' => $order->id,
+                'order_code' => $order->order_code,
+                'customer_name' => $order->customer_name ?: 'Guest',
+                'status' => $order->status,
+                'status_label' => ucfirst($order->status),
+                'total_amount' => $order->total_amount,
+                'order_time' => $order->order_time->format('H:i'),
+                'minutes_ago' => $order->order_time->diffInMinutes(now()),
+                'items_count' => $order->orderItems->sum('quantity'),
+                'is_urgent' => $order->order_time->diffInMinutes(now()) > 30,
+                'type' => 'online'
+            ]);
+        }
+
+        // Query offline orders jika ada
+        if (Schema::hasTable('offline_orders')) {
+            $offlineOrders = OfflineOrder::whereIn('status', ['confirmed', 'preparing'])
+                ->with(['items'])
+                ->orderBy('order_time', 'asc')
+                ->get();
+
+            foreach ($offlineOrders as $order) {
+                $allPendingOrders->push([
+                    'id' => $order->id,
+                    'order_code' => $order->order_code,
+                    'customer_name' => $order->customer_name,
+                    'status' => $order->status,
+                    'status_label' => ucfirst($order->status),
+                    'total_amount' => $order->total_amount,
+                    'order_time' => $order->order_time->format('H:i'),
+                    'minutes_ago' => $order->order_time->diffInMinutes(now()),
+                    'items_count' => $order->items->sum('quantity'),
+                    'is_urgent' => $order->order_time->diffInMinutes(now()) > 30,
+                    'type' => 'offline'
+                ]);
+            }
+        }
+        
+        return $allPendingOrders->sortBy('order_time');
+
+    } catch (\Exception $e) {
+        \Log::error('Error getting pending orders: ' . $e->getMessage());
+        return collect([]);
+    }
+}
+
+    /**
+     * Calculate growth percentage
+     */
+    private function calculateGrowth($current, $previous)
+    {
+        if ($previous == 0) {
+            return $current > 0 ? 100 : 0;
+        }
+        return round((($current - $previous) / $previous) * 100, 1);
+    }
+
+    /**
+     * Get stats untuk semua revenue sources
+     */
+    private function getStatsForPeriod($startDate, $endDate)
+    {
+        // ORDERS (Online)
+        $orders = Order::whereBetween('order_time', [$startDate, $endDate]);
+        $orderRevenue = $orders->where('status', 'completed')->sum('total_amount');
+        $orderCount = $orders->count();
+        
+        // OFFLINE ORDERS 
+        $offlineOrders = OfflineOrder::whereBetween('order_time', [$startDate, $endDate]);
+        $offlineRevenue = $offlineOrders->where('status', 'completed')->sum('total_amount');
+        $offlineCount = $offlineOrders->count();
+        
+        // RESERVATIONS
+        $reservations = Reservation::whereBetween('reservation_date', [$startDate, $endDate]);
+        $reservationRevenue = $reservations->where('status', 'completed')->sum('total_price');
+        $reservationCount = $reservations->count();
+        
+        // TOTAL GABUNGAN
+        $totalRevenue = $orderRevenue + $offlineRevenue + $reservationRevenue;
+        $totalTransactions = $orderCount + $offlineCount + $reservationCount;
+        
+        // CUSTOMER COUNT (gabungan)
+        $onlineCustomers = $orders->distinct('user_id')->count('user_id');
+        $offlineCustomers = $offlineOrders->distinct('customer_name')->count('customer_name');
+        $reservationCustomers = $reservations->distinct('customer_name')->count('customer_name');
+        $totalCustomers = $onlineCustomers + $offlineCustomers + $reservationCustomers;
+        
+        // Previous period untuk growth calculation
+        $diffDays = $startDate->diffInDays($endDate) + 1;
+        $previousStart = $startDate->copy()->subDays($diffDays);
+        $previousEnd = $startDate->copy()->subDay();
+        
+        $previousOrderRevenue = Order::whereBetween('order_time', [$previousStart, $previousEnd])
+            ->where('status', 'completed')->sum('total_amount');
+        $previousOfflineRevenue = OfflineOrder::whereBetween('order_time', [$previousStart, $previousEnd])
+            ->where('status', 'completed')->sum('total_amount');
+        $previousReservationRevenue = Reservation::whereBetween('reservation_date', [$previousStart, $previousEnd])
+            ->where('status', 'completed')->sum('total_price');
+        
+        $previousTotalRevenue = $previousOrderRevenue + $previousOfflineRevenue + $previousReservationRevenue;
+        
+        $previousOrderCount = Order::whereBetween('order_time', [$previousStart, $previousEnd])->count();
+        $previousOfflineCount = OfflineOrder::whereBetween('order_time', [$previousStart, $previousEnd])->count();
+        $previousReservationCount = Reservation::whereBetween('reservation_date', [$previousStart, $previousEnd])->count();
+        $previousTotalTransactions = $previousOrderCount + $previousOfflineCount + $previousReservationCount;
+        
+        // Calculate stats
+        $currentStats = [
+            'totalRevenue' => $totalRevenue,
+            'totalOrders' => $totalTransactions,
+            'activeCustomers' => $totalCustomers,
+            'avgOrderValue' => $totalTransactions > 0 ? $totalRevenue / $totalTransactions : 0,
+            
+            // BREAKDOWN PER SOURCE
+            'orderRevenue' => $orderRevenue,
+            'offlineRevenue' => $offlineRevenue,
+            'reservationRevenue' => $reservationRevenue,
+            'orderCount' => $orderCount,
+            'offlineCount' => $offlineCount,
+            'reservationCount' => $reservationCount,
+        ];
+        
+        // Calculate growth
+        $currentStats['revenueGrowth'] = $this->calculateGrowth($totalRevenue, $previousTotalRevenue);
+        $currentStats['ordersGrowth'] = $this->calculateGrowth($totalTransactions, $previousTotalTransactions);
+        $currentStats['customerGrowth'] = 0; // Simplified for now
+        
+        return $currentStats;
+    }
+
+    /**
+     * Get hourly data for period
+     */
+    private function getHourlyDataForPeriod($startDate, $endDate, $period)
+    {
+        $diffDays = $startDate->diffInDays($endDate);
+        
+        // Determine chart type based on period
+        if ($period === 'today' || $diffDays <= 1) {
+            // Show hourly data (08:00, 09:00, etc)
+            return $this->getHourlyDataCombined($startDate);
+        } elseif ($period === 'week' || $diffDays <= 7) {
+            // Show daily data (Sen, Sel, Rab, etc)
+            return $this->getDailyDataCombined($startDate, $endDate, 'days');
+        } elseif ($period === 'month' || $diffDays <= 31) {
+            // Show daily data (1, 2, 3, ... 31)
+            return $this->getDailyDataCombined($startDate, $endDate, 'dates');
+        } else {
+            // Show monthly data (Apr, Mei, Jun, etc) for long periods
+            return $this->getMonthlyDataCombined($startDate, $endDate);
+        }
+    }
+
+    /**
+     * Get daily data dengan format yang berbeda
+     */
+    private function getDailyDataCombined($startDate, $endDate, $format = 'dates')
+    {
+        try {
+            // ORDERS
+            $orderData = Order::whereBetween('order_time', [$startDate, $endDate])
+                ->select(
+                    DB::raw('DATE(order_time) as date'),
+                    DB::raw('COUNT(*) as orders'),
+                    DB::raw('SUM(CASE WHEN status = "completed" THEN total_amount ELSE 0 END) as revenue')
+                )
+                ->groupBy(DB::raw('DATE(order_time)'))
+                ->get()
+                ->keyBy('date');
+
+            // OFFLINE ORDERS  
+            $offlineData = OfflineOrder::whereBetween('order_time', [$startDate, $endDate])
+                ->select(
+                    DB::raw('DATE(order_time) as date'),
+                    DB::raw('COUNT(*) as orders'),
+                    DB::raw('SUM(CASE WHEN status = "completed" THEN total_amount ELSE 0 END) as revenue')
+                )
+                ->groupBy(DB::raw('DATE(order_time)'))
+                ->get()
+                ->keyBy('date');
+
+            // RESERVATIONS
+            $reservationData = Reservation::whereBetween('reservation_date', [$startDate, $endDate])
+                ->select(
+                    DB::raw('DATE(reservation_date) as date'),
+                    DB::raw('COUNT(*) as orders'),
+                    DB::raw('SUM(CASE WHEN status = "completed" THEN total_price ELSE 0 END) as revenue')
+                )
+                ->groupBy(DB::raw('DATE(reservation_date)'))
+                ->get()
+                ->keyBy('date');
+
+            // GABUNGKAN DATA
+            $combinedData = collect();
+            $currentDate = $startDate->copy();
+            
+            while ($currentDate->lte($endDate)) {
+                $dateStr = $currentDate->format('Y-m-d');
+                
+                $orderDay = $orderData->get($dateStr);
+                $offlineDay = $offlineData->get($dateStr);
+                $reservationDay = $reservationData->get($dateStr);
+                
+                // Format label berdasarkan tipe
+               if ($format === 'days') {
+                    // Format: Sen, Sel, Rab (nama hari)
+                    $dayNames = ['Ming', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+                    $label = $dayNames[$currentDate->dayOfWeek];
+                } else {
+                    // Format: 1, 2, 3 (tanggal)
+                    $label = $currentDate->format('j');
+                }
+                
+                $combinedData->push([
+                    'hour' => $label,
+                    'orders' => ($orderDay->orders ?? 0) + ($offlineDay->orders ?? 0) + ($reservationDay->orders ?? 0),
+                    'revenue' => ($orderDay->revenue ?? 0) + ($offlineDay->revenue ?? 0) + ($reservationDay->revenue ?? 0),
+                    'full_date' => $currentDate->format('d/m/Y') // For tooltip
+                ]);
+                
+                $currentDate->addDay();
+            }
+
+            return $combinedData;
+
+        } catch (\Exception $e) {
+            \Log::error('Error in getDailyDataCombined: ' . $e->getMessage());
+            return collect([]);
+        }
+    }
+
+    /**
+     * Get monthly data untuk periode panjang
+     */
+    private function getMonthlyDataCombined($startDate, $endDate)
+    {
+        try {
+            // ORDERS
+            $orderData = Order::whereBetween('order_time', [$startDate, $endDate])
+                ->select(
+                    DB::raw('YEAR(order_time) as year'),
+                    DB::raw('MONTH(order_time) as month'),
+                    DB::raw('COUNT(*) as orders'),
+                    DB::raw('SUM(CASE WHEN status = "completed" THEN total_amount ELSE 0 END) as revenue')
+                )
+                ->groupBy(DB::raw('YEAR(order_time)'), DB::raw('MONTH(order_time)'))
+                ->get()
+                ->keyBy(function ($item) {
+                    return $item->year . '-' . str_pad($item->month, 2, '0', STR_PAD_LEFT);
+                });
+
+            // OFFLINE ORDERS
+            $offlineData = OfflineOrder::whereBetween('order_time', [$startDate, $endDate])
+                ->select(
+                    DB::raw('YEAR(order_time) as year'),
+                    DB::raw('MONTH(order_time) as month'),
+                    DB::raw('COUNT(*) as orders'),
+                    DB::raw('SUM(CASE WHEN status = "completed" THEN total_amount ELSE 0 END) as revenue')
+                )
+                ->groupBy(DB::raw('YEAR(order_time)'), DB::raw('MONTH(order_time)'))
+                ->get()
+                ->keyBy(function ($item) {
+                    return $item->year . '-' . str_pad($item->month, 2, '0', STR_PAD_LEFT);
+                });
+
+            // RESERVATIONS
+            $reservationData = Reservation::whereBetween('reservation_date', [$startDate, $endDate])
+                ->select(
+                    DB::raw('YEAR(reservation_date) as year'),
+                    DB::raw('MONTH(reservation_date) as month'),
+                    DB::raw('COUNT(*) as orders'),
+                    DB::raw('SUM(CASE WHEN status = "completed" THEN total_price ELSE 0 END) as revenue')
+                )
+                ->groupBy(DB::raw('YEAR(reservation_date)'), DB::raw('MONTH(reservation_date)'))
+                ->get()
+                ->keyBy(function ($item) {
+                    return $item->year . '-' . str_pad($item->month, 2, '0', STR_PAD_LEFT);
+                });
+
+            // GABUNGKAN DATA PER BULAN
+            $combinedData = collect();
+            $currentMonth = $startDate->copy()->startOfMonth();
+            $endMonth = $endDate->copy()->endOfMonth();
+            
+            while ($currentMonth->lte($endMonth)) {
+                $monthKey = $currentMonth->format('Y-m');
+                
+                $orderMonth = $orderData->get($monthKey);
+                $offlineMonth = $offlineData->get($monthKey);
+                $reservationMonth = $reservationData->get($monthKey);
+                
+                $combinedData->push([
+                    'hour' => $currentMonth->locale('id')->format('M'), // Jan, Feb, Mar
+                    'orders' => ($orderMonth->orders ?? 0) + ($offlineMonth->orders ?? 0) + ($reservationMonth->orders ?? 0),
+                    'revenue' => ($orderMonth->revenue ?? 0) + ($offlineMonth->revenue ?? 0) + ($reservationMonth->revenue ?? 0),
+                    'full_date' => $currentMonth->format('M Y') // For tooltip
+                ]);
+                
+                $currentMonth->addMonth();
+            }
+
+            return $combinedData;
+
+        } catch (\Exception $e) {
+            \Log::error('Error in getMonthlyDataCombined: ' . $e->getMessage());
+            return collect([]);
+        }
+    }
+
+    private function getHourlyDataCombined($date)
+    {
+        // ORDERS
+        $orderData = Order::whereDate('order_time', $date)
+            ->select(
+                DB::raw('HOUR(order_time) as hour'),
+                DB::raw('COUNT(*) as orders'),
+                DB::raw('SUM(CASE WHEN status = "completed" THEN total_amount ELSE 0 END) as revenue')
+            )
+            ->groupBy(DB::raw('HOUR(order_time)'))
+            ->get()
+            ->keyBy('hour');
+        
+        // OFFLINE ORDERS
+        $offlineData = OfflineOrder::whereDate('order_time', $date)
+            ->select(
+                DB::raw('HOUR(order_time) as hour'),
+                DB::raw('COUNT(*) as orders'),
+                DB::raw('SUM(CASE WHEN status = "completed" THEN total_amount ELSE 0 END) as revenue')
+            )
+            ->groupBy(DB::raw('HOUR(order_time)'))
+            ->get()
+            ->keyBy('hour');
+        
+        // RESERVATIONS (berdasarkan reservation_time)
+        $reservationData = Reservation::whereDate('reservation_date', $date)
+            ->select(
+                DB::raw('HOUR(reservation_time) as hour'),
+                DB::raw('COUNT(*) as orders'),
+                DB::raw('SUM(CASE WHEN status = "completed" THEN total_price ELSE 0 END) as revenue')
+            )
+            ->groupBy(DB::raw('HOUR(reservation_time)'))
+            ->get()
+            ->keyBy('hour');
+
+        // GABUNGKAN DATA
+        $completeHourlyData = collect();
+        for ($hour = 8; $hour <= 22; $hour++) {
+            $orderHour = $orderData->get($hour);
+            $offlineHour = $offlineData->get($hour);
+            $reservationHour = $reservationData->get($hour);
+            
+            $completeHourlyData->push([
+                'hour' => sprintf('%02d:00', $hour),
+                'orders' => ($orderHour->orders ?? 0) + ($offlineHour->orders ?? 0) + ($reservationHour->orders ?? 0),
+                'revenue' => ($orderHour->revenue ?? 0) + ($offlineHour->revenue ?? 0) + ($reservationHour->revenue ?? 0)
+            ]);
+        }
+
+        return $completeHourlyData;
+    }
+
+
+    /**
+     * Get dashboard data with date filtering
+     */
+    public function getDashboardData(Request $request)
+    {
+        $dateRange = $request->get('date_range', 'today'); // today, week, month, custom
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+        
+        // Set date range berdasarkan filter
+        switch ($dateRange) {
+            case 'week':
+                $start = Carbon::now()->startOfWeek();
+                $end = Carbon::now()->endOfWeek();
+                break;
+            case 'month':
+                $start = Carbon::now()->startOfMonth();
+                $end = Carbon::now()->endOfMonth();
+                break;
+            case 'custom':
+                $start = $startDate ? Carbon::parse($startDate) : Carbon::today();
+                $end = $endDate ? Carbon::parse($endDate) : Carbon::today();
+                break;
+            default: // today
+                $start = Carbon::today();
+                $end = Carbon::today();
+        }
+        
+        return response()->json([
+            'stats' => $this->getStatsForPeriod($start, $end),
+            'chartData' => $this->getChartData($start, $end, $dateRange),
+            'pendingOrders' => $this->getPendingOrders(),
+            'popularMenus' => $this->getPopularMenus($start, $end),
+            'paymentBreakdown' => $this->getPaymentBreakdown($start, $end),
+            'peakHours' => $this->getPeakHoursAnalysis($start, $end)
         ]);
     }
+
+    /**
+ * Get chart data based on date range
+ */
+private function getChartData($startDate, $endDate, $dateRange)
+{
+    if ($dateRange === 'today') {
+        // Hourly data untuk hari ini
+        return $this->getHourlyData($startDate);
+    } elseif ($dateRange === 'week') {
+        // Daily data untuk seminggu
+        return $this->getDailyData($startDate, $endDate);
+    } elseif ($dateRange === 'month') {
+        // Daily data untuk sebulan
+        return $this->getDailyData($startDate, $endDate);
+    } else {
+        // Custom range - pilih format berdasarkan range
+        $days = $startDate->diffInDays($endDate);
+        if ($days <= 1) {
+            return $this->getHourlyData($startDate);
+        } else {
+            return $this->getDailyData($startDate, $endDate);
+        }
+    }
+}
+
+    private function getHourlyData($date)
+    {
+        $hourlyData = Order::whereDate('order_time', $date)
+            ->select(
+                DB::raw('HOUR(order_time) as hour'),
+                DB::raw('COUNT(*) as orders'),
+                DB::raw('SUM(CASE WHEN status = "completed" THEN total_amount ELSE 0 END) as revenue')
+            )
+            ->groupBy(DB::raw('HOUR(order_time)'))
+            ->orderBy('hour')
+            ->get();
+
+        $completeHourlyData = collect();
+        for ($hour = 8; $hour <= 22; $hour++) {
+            $existing = $hourlyData->firstWhere('hour', $hour);
+            $completeHourlyData->push([
+                'hour' => sprintf('%02d:00', $hour),
+                'orders' => $existing->orders ?? 0,
+                'revenue' => $existing->revenue ?? 0
+            ]);
+        }
+
+        return $completeHourlyData;
+    }
+
+    private function getDailyData($startDate, $endDate)
+    {
+        return Order::whereBetween('order_time', [$startDate, $endDate])
+            ->select(
+                DB::raw('DATE(order_time) as date'),
+                DB::raw('COUNT(*) as orders'),
+                DB::raw('SUM(CASE WHEN status = "completed" THEN total_amount ELSE 0 END) as revenue')
+            )
+            ->groupBy(DB::raw('DATE(order_time)'))
+            ->orderBy('date')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'hour' => Carbon::parse($item->date)->format('d/m'),
+                    'orders' => $item->orders,
+                    'revenue' => $item->revenue
+                ];
+            });
+    }
+
+
+/**
+ * Quick update order status
+ */
+public function updateOrderStatusQuick(Request $request, $orderId)
+{
+    $request->validate([
+        'status' => 'required|in:confirmed,preparing,ready,completed,cancelled'
+    ]);
+
+    try {
+        $order = Order::findOrFail($orderId);
+        $order->updateStatus($request->status);
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Status pesanan berhasil diubah ke {$request->status}"
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Get payment method breakdown
+ */
+private function getPaymentBreakdown($startDate, $endDate)
+{
+    return Order::whereBetween('order_time', [$startDate, $endDate])
+        ->where('status', Order::STATUS_COMPLETED)
+        ->select('payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(total_amount) as total'))
+        ->groupBy('payment_method')
+        ->get()
+        ->map(function ($item) {
+            return [
+                'method' => $item->payment_method,
+                'label' => $this->getPaymentMethodLabel($item->payment_method),
+                'count' => $item->count,
+                'total' => $item->total
+            ];
+        });
+}
+
+/**
+ * Get peak hours analysis
+ */
+private function getPeakHoursAnalysis($startDate, $endDate)
+{
+    return Order::whereBetween('order_time', [$startDate, $endDate])
+        ->select(
+            DB::raw('HOUR(order_time) as hour'),
+            DB::raw('COUNT(*) as order_count'),
+            DB::raw('AVG(total_amount) as avg_order_value')
+        )
+        ->groupBy(DB::raw('HOUR(order_time)'))
+        ->orderBy('order_count', 'desc')
+        ->limit(3)
+        ->get()
+        ->map(function ($item) {
+            return [
+                'hour' => sprintf('%02d:00', $item->hour),
+                'order_count' => $item->order_count,
+                'avg_order_value' => round($item->avg_order_value, 0)
+            ];
+        });
+}
+
+private function getPaymentMethodLabel($method)
+{
+    $labels = [
+        'cash' => 'Tunai',
+        'dana' => 'DANA',
+        'gopay' => 'GoPay',
+        'ovo' => 'OVO',
+        'shopeepay' => 'ShopeePay',
+        'bca' => 'BCA',
+        'mandiri' => 'Mandiri',
+        'bni' => 'BNI',
+        'bri' => 'BRI'
+    ];
+    
+    return $labels[$method] ?? ucfirst($method);
+}
+
 
     /**
      * Helper method to get reservations data
