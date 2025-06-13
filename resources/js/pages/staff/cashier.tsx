@@ -38,23 +38,35 @@ interface MenuItemProps {
   onAddToCart: (item: { id: number; name: string; price: number; image: string }) => void;
 }
 
-const MenuItem: React.FC<MenuItemProps> = ({ id, name, price, imgSrc, onAddToCart }) => (
-  <div
-    className="p-3 transition-shadow bg-white rounded-lg shadow-sm cursor-pointer hover:shadow-md group"
-    onClick={() => onAddToCart({ id, name, price, image: imgSrc })}
-  >
-    <div className="relative overflow-hidden rounded-lg mb-3">
-      <img 
-        src={imgSrc} 
-        alt={name} 
-        className="object-cover w-full h-24 sm:h-28 md:h-32 transition-transform group-hover:scale-105" 
-      />
-      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all rounded-lg"></div>
+const MenuItem: React.FC<MenuItemProps> = ({ id, name, price, imgSrc, onAddToCart }) => {
+  // ✅ FUNGSI FORMAT HARGA
+  const formatPrice = (price: number): string => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(price);
+  };
+
+  return (
+    <div
+      className="p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:shadow-md"
+      onClick={() => onAddToCart({ id, name, price, image: imgSrc })}
+    >
+      <div className="mb-3">
+        <img 
+          src={imgSrc}
+          alt={name} 
+          className="w-full h-32 object-cover rounded-lg"
+        />
+      </div>
+      <h3 className="mb-1 text-sm font-semibold text-gray-800">{name}</h3>
+      <p className="text-sm font-medium text-orange-600">{formatPrice(price)}</p> {/* ✅ GUNAKAN FORMAT BARU */}
     </div>
-    <h3 className="mb-1 text-xs sm:text-sm font-semibold text-gray-800 line-clamp-2">{name}</h3>
-    <p className="text-xs sm:text-sm font-medium text-orange-600">Rp{price.toLocaleString()}</p>
-  </div>
-);
+  );
+};
+
 
 const CashierSystem: React.FC<CashierSystemProps> = ({ 
   menuItems = [], 
@@ -383,7 +395,7 @@ const CashierSystem: React.FC<CashierSystemProps> = ({
                   id={item.id}
                   name={item.name}
                   price={item.price}
-                  imgSrc={`/images/poto_menu/${item.image}`}
+                  imgSrc={item.image}
                   onAddToCart={addToCart}
                 />
               ))}

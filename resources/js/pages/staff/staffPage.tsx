@@ -1,8 +1,8 @@
   import React, { useState, useEffect } from 'react';
-  import { 
-    User, Menu, X, Home, CreditCard, History, 
-    UserCheck, LogOut, Coffee
-  } from 'lucide-react';
+ import { 
+  User, Menu, X, Home, CreditCard, History, 
+  UserCheck, LogOut, Coffee, AlertTriangle
+} from 'lucide-react';
 
   import CashierSystem from './cashier';
   import OnlineOrdersPage from './onlineOrders';
@@ -105,7 +105,6 @@ interface AvailableTable {
   reservationsData?: Reservation[];
   tablesData?: Table[];
   ordersData?: any[];
-  // TAMBAH PROPS INI:
   menuItems?: Product[];
   availableTables?: AvailableTable[];
   auth?: { user: { id: number; name: string; role: string; } };
@@ -113,7 +112,67 @@ interface AvailableTable {
     status?: string;
     date?: string;
   };
+  pendingOrders?: any[];
+  pendingReservations?: any[]; // ADD THIS
+  popularMenus?: any[];
+  currentPeriod?: string;
+  currentDateRange?: any;
 }
+
+// Komponen Dialog Konfirmasi
+const ConfirmationDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText = "Ya", cancelText = "Batal", type = "warning" }) => {
+  if (!isOpen) return null;
+
+  const getIconColor = () => {
+    switch (type) {
+      case 'danger': return 'text-red-600';
+      case 'warning': return 'text-amber-600';
+      case 'info': return 'text-blue-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  const getButtonColor = () => {
+    switch (type) {
+      case 'danger': return 'bg-red-600 hover:bg-red-700';
+      case 'warning': return 'bg-amber-600 hover:bg-amber-700';
+      case 'info': return 'bg-blue-600 hover:bg-blue-700';
+      default: return 'bg-gray-600 hover:bg-gray-700';
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center space-x-4">
+            <div className={`p-3 rounded-full bg-gray-100 ${getIconColor()}`}>
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">{title}</h3>
+              <p className="text-sm text-gray-600 mt-1">{message}</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-6 bg-gray-50 flex space-x-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-3 text-gray-700 bg-white border border-gray-300 rounded-xl font-semibold hover:bg-gray-50 transition-colors duration-200"
+          >
+            {cancelText}
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`flex-1 px-4 py-3 text-white rounded-xl font-semibold transition-colors duration-200 ${getButtonColor()}`}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
   const StaffPage: React.FC<StaffPageProps> = ({ 
     dashboardData,
@@ -123,10 +182,34 @@ interface AvailableTable {
     menuItems = [],
     availableTables = [],
     auth,
-    reservationFilters 
+    reservationFilters,
+    pendingOrders = [],
+    pendingReservations = [], 
+    popularMenus = [],
+    currentPeriod,
+    currentDateRange
   }) => {
     const [activePage, setActivePage] = useState<ActivePage>('dashboard');
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+    console.log('StaffPage received props:', { 
+    pendingOrders, 
+    pendingReservations, // ADD THIS
+    popularMenus 
+  });
+    
+    const handleLogout = () => {
+    setShowLogoutDialog(true);
+  };
+
+  const confirmLogout = () => {
+    // Simple redirect - tidak pakai form, tidak pakai POST, tidak pakai CSRF
+    window.location.href = '/logout';
+  };
+  
+  const cancelLogout = () => {
+    setShowLogoutDialog(false);
+  };
 
     useEffect(() => {
       // Check flash data untuk tab yang harus aktif
@@ -151,7 +234,16 @@ interface AvailableTable {
     const renderContent = () => {
       switch (activePage) {
         case 'dashboard':
-          return dashboardData ? <Dashboard dashboardData={dashboardData} /> : (
+            return dashboardData ? (
+              <Dashboard 
+                dashboardData={dashboardData} 
+                pendingOrders={pendingOrders}
+                pendingReservations={pendingReservations} // ADD THIS
+                popularMenus={popularMenus}
+                currentPeriod={currentPeriod} 
+                currentDateRange={currentDateRange} 
+              />
+            ) : (
             <div className="flex items-center justify-center h-full bg-gray-50">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>
@@ -311,6 +403,7 @@ interface AvailableTable {
 
             {/* Sign Out Button */}
             <button 
+              onClick={handleLogout}
               className="w-full flex items-center justify-center px-4 py-3 font-semibold text-white bg-gradient-to-r from-red-500 to-red-600 rounded-xl shadow-lg hover:shadow-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:scale-[1.02]"
               aria-label="Sign out"
             >
@@ -352,6 +445,17 @@ interface AvailableTable {
             {renderContent()}
           </div>
         </div>
+        {/* Dialog Konfirmasi Logout */}
+        <ConfirmationDialog
+          isOpen={showLogoutDialog}
+          onClose={cancelLogout}
+          onConfirm={confirmLogout}
+          title="Konfirmasi Keluar"
+          message="Apakah Anda yakin ingin keluar dari sistem?"
+          confirmText="Ya, Keluar"
+          cancelText="Batal"
+          type="warning"
+        />
       </div>
     );
   };
