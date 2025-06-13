@@ -11,6 +11,7 @@ import AuthLayout from '@/layouts/auth-layout';
 import logo from '@/assets/images/cempaka-logo.jpg';
 import bg from '@/assets/images/image.png';
 import axios from 'axios';
+import { Eye, EyeOff } from 'lucide-react';
 
 type RegisterForm = {
     name: string;
@@ -34,6 +35,9 @@ export default function Register() {
         password_confirmation: '',
         otp: '',
     });
+   
+    const [showPassword, setShowPassword] = useState(false);
+    const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
 
     // Timer for OTP countdown
     useEffect(() => {
@@ -293,41 +297,61 @@ export default function Register() {
                                             <Label htmlFor="password" className="text-sm font-semibold text-gray-700">
                                                 Password
                                             </Label>
-                                            <Input
+                                            <div className="relative">
+                                                <Input
                                                 id="password"
-                                                type="password"
+                                                type={showPassword ? 'text' : 'password'}
                                                 required
                                                 autoFocus
                                                 tabIndex={5}
                                                 autoComplete="new-password"
                                                 value={data.password}
                                                 onChange={(e) => setData('password', e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && nextStep()} // <-- Tambahkan ini
+                                                onKeyDown={(e) => e.key === 'Enter' && nextStep()}
                                                 disabled={processing}
                                                 placeholder="Password"
-                                                className="w-full px-4 py-2 font-medium text-gray-800 placeholder-gray-400 transition-all duration-200 border border-gray-200 shadow-sm bg-gray-50 rounded-xl focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-                                            />
+                                                className="w-full px-4 py-2 pr-10 font-medium text-gray-800 placeholder-gray-400 transition-all duration-200 border border-gray-200 shadow-sm bg-gray-50 rounded-xl focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                                                />
+                                                <button
+                                                type="button"
+                                                tabIndex={-1}
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-orange-500 focus:outline-none"
+                                                >
+                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                </button>
+                                            </div>
                                             <InputError message={errors.password} />
                                         </div>
 
-                                        {/* Confirm Password field */}
+
                                         <div className="space-y-2">
                                             <Label htmlFor="password_confirmation" className="text-sm font-semibold text-gray-700">
                                                 Confirm Password
                                             </Label>
-                                            <Input
+                                            <div className="relative">
+                                                <Input
                                                 id="password_confirmation"
-                                                type="password"
+                                                type={showPasswordConfirm ? 'text' : 'password'}
                                                 required
                                                 tabIndex={6}
                                                 autoComplete="new-password"
                                                 value={data.password_confirmation}
                                                 onChange={(e) => setData('password_confirmation', e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && nextStep()} // <-- Tambahkan ini
+                                                onKeyDown={(e) => e.key === 'Enter' && nextStep()}
                                                 disabled={processing}
                                                 placeholder="Confirm password"
-                                                className="w-full px-4 py-2 font-medium text-gray-800 placeholder-gray-400 transition-all duration-200 border border-gray-200 shadow-sm bg-gray-50 rounded-xl focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-                                            />
+                                                className="w-full px-4 py-2 pr-10 font-medium text-gray-800 placeholder-gray-400 transition-all duration-200 border border-gray-200 shadow-sm bg-gray-50 rounded-xl focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                                                />
+                                                <button
+                                                type="button"
+                                                tabIndex={-1}
+                                                onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
+                                                className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-orange-500 focus:outline-none"
+                                                >
+                                                {showPasswordConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                </button>
+                                            </div>
                                             <InputError message={errors.password_confirmation} />
                                         </div>
 
