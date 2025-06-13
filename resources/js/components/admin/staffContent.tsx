@@ -1,5 +1,5 @@
-// components/StaffContent.tsx
-import React from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, TrendingUp, UserCheck, DollarSign, Star, Calendar, 
   Eye, Edit3, MoreHorizontal
@@ -7,6 +7,7 @@ import {
 
 interface StaffContentProps {
   staff: any[];
+  searchTerm: string; // Tambahkan ini
   openModal: (type: string, data?: any) => void;
   getStatusColor: (status: string) => string;
   getStatusText: (status: string) => string;
@@ -14,10 +15,33 @@ interface StaffContentProps {
 
 const StaffContent: React.FC<StaffContentProps> = ({
   staff = [],
+  searchTerm,
   openModal,
   getStatusColor,
   getStatusText
 }) => {
+  const [filteredStaff, setFilteredStaff] = useState(staff);
+
+  useEffect(() => {
+  let filtered = staff;
+  
+  if (searchTerm) {
+    filtered = filtered.filter(staffMember => {
+      const name = staffMember.name || '';
+      const position = staffMember.position || '';
+      const phone = staffMember.phone || '';
+      const email = staffMember.email || '';
+      
+      return name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             phone.includes(searchTerm) ||
+             email.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+  }
+  
+  setFilteredStaff(filtered);
+}, [searchTerm, staff]);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -101,7 +125,7 @@ const StaffContent: React.FC<StaffContentProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {staff.map((staff) => (
+              {filteredStaff.map((staff) => (
                 <tr key={staff.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">

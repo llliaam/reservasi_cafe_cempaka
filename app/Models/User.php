@@ -26,7 +26,8 @@ class User extends Authenticatable
         'avatar',
         'preferences',
         'loyalty_points',
-        'is_active'
+        'is_active',
+        'is_blocked'
     ];
 
     /**
@@ -52,6 +53,7 @@ class User extends Authenticatable
             'date_of_birth' => 'date',
             'preferences' => 'array',
             'is_active' => 'boolean',
+            'is_blocked' => 'boolean',
         ];
     }
 
@@ -341,4 +343,53 @@ class User extends Authenticatable
     {
         return $query->whereIn('role', ['admin', 'staff']);
     }
+
+    /**
+     * Check if user is blocked
+     */
+    public function isBlocked(): bool
+    {
+        return $this->is_blocked ?? false;
+    }
+
+    /**
+     * Block user
+     */
+    public function block(): bool
+    {
+        return $this->update(['is_blocked' => true]);
+    }
+
+    /**
+     * Unblock user
+     */
+    public function unblock(): bool
+    {
+        return $this->update(['is_blocked' => false]);
+    }
+
+    /**
+     * Toggle block status
+     */
+    public function toggleBlock(): bool
+    {
+        return $this->update(['is_blocked' => !$this->is_blocked]);
+    }
+
+    /**
+     * Scope for non-blocked users
+     */
+    public function scopeNotBlocked($query)
+    {
+        return $query->where('is_blocked', false);
+    }
+
+    /**
+     * Scope for blocked users
+     */
+    public function scopeBlocked($query)
+    {
+        return $query->where('is_blocked', true);
+    }
 }
+

@@ -36,26 +36,91 @@ class AdminController extends Controller
         ]);
     }
 
-    private function getCustomersData(): array
-{
-    return User::where('role', 'customer')
-        ->withCount('orders')
-        ->get()
-        ->map(function($user) {
-            return [
-                'id' => $user->id,
-                'name' => $user->name,
-                'phone' => $user->phone ?? 'Tidak tersedia',
-                'email' => $user->email,
-                'address' => $user->address ?? 'Tidak tersedia',
-                'totalOrders' => $user->orders_count,
-                'totalSpent' => $user->orders()->where('status', 'completed')->sum('total_amount'),
-                'status' => 'active',
-                'lastOrder' => $user->orders()->latest()->first()?->order_time->format('Y-m-d') ?? 'Belum pernah',
-                'joinDate' => $user->created_at->format('Y-m-d')
-            ];
-        })->toArray();
-}
+   private function getCustomersData(): array
+    {
+        return User::where('role', 'customer')
+            ->withCount(['orders', 'reservations'])
+            ->with(['orders' => function($query) {
+                $query->where('status', 'completed')->latest()->limit(5);
+            }, 'reservations' => function($query) {
+                $query->latest()->limit(5);
+            }])
+            ->get()
+            ->map(function($user) {
+                $lastOrder = $user->orders()->latest()->first();
+                $lastReservation = $user->reservations()->latest()->first();
+                
+                // Tentukan aktivitas terakhir
+                $lastActivity = null;
+                $lastActivityType = null;
+                $lastActivityDate = null;
+                
+                if ($lastOrder && $lastReservation) {
+                    if ($lastOrder->created_at > $lastReservation->created_at) {
+                        $lastActivity = $lastOrder;
+                        $lastActivityType = 'order';
+                        $lastActivityDate = $lastOrder->created_at;
+                    } else {
+                        $lastActivity = $lastReservation;
+                        $lastActivityType = 'reservation';
+                        $lastActivityDate = $lastReservation->created_at;
+                    }
+                } elseif ($lastOrder) {
+                    $lastActivity = $lastOrder;
+                    $lastActivityType = 'order';
+                    $lastActivityDate = $lastOrder->created_at;
+                } elseif ($lastReservation) {
+                    $lastActivity = $lastReservation;
+                    $lastActivityType = 'reservation';
+                    $lastActivityDate = $lastReservation->created_at;
+                }
+
+                $orderSpent = $user->orders()->where('status', 'completed')->sum('total_amount') ?? 0;
+                $reservationSpent = $user->reservations()->where('status', 'completed')->sum('total_price') ?? 0;
+                $combinedTotal = $orderSpent + $reservationSpent;
+
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'phone' => $user->phone ?? 'Tidak tersedia',
+                    'email' => $user->email,
+                    'address' => $user->address ?? 'Tidak tersedia',
+                    'totalOrders' => $user->orders_count,
+                    'totalReservations' => $user->reservations_count,
+                    'totalSpent' => $user->orders()->where('status', 'completed')->sum('total_amount'),
+                    'reservationSpent' => $user->reservations()->where('status', 'completed')->sum('total_price'),
+                    'combinedTotalSpent' => $user->orders()->where('status', 'completed')->sum('total_amount') + 
+                                        $user->reservations()->where('status', 'completed')->sum('total_price'), // TAMBAH INI
+                    'status' => $user->is_blocked ? 'blocked' : 'active',
+                    'is_blocked' => $user->is_blocked ?? false,
+                    'lastActivity' => $lastActivity,
+                    'lastActivityType' => $lastActivityType,
+                    'lastActivityDate' => $lastActivityDate?->format('Y-m-d H:i') ?? 'Belum ada aktivitas',
+                    'lastOrder' => $lastOrder?->created_at->format('Y-m-d') ?? 'Belum pernah',
+                    'joinDate' => $user->created_at->format('Y-m-d'),
+                    'recentOrders' => $user->orders->map(function($order) {
+                        return [
+                            'id' => $order->order_code,
+                            'total' => $order->total_amount,
+                            'status' => $order->status,
+                            'date' => $order->created_at->format('Y-m-d H:i'),
+                            'items' => $order->orderItems->pluck('menuItem.name')->toArray()
+                        ];
+                    })->toArray(),
+                    'recentReservations' => $user->reservations->map(function($reservation) {
+                        return [
+                            'id' => $reservation->reservation_code,
+                            'package' => $reservation->getPackageName(),
+                            'total' => $reservation->total_price,
+                            'status' => $reservation->status,
+                            'date' => $reservation->reservation_date?->format('Y-m-d'),
+                            'time' => $reservation->reservation_time?->format('H:i'),
+                            'guests' => $reservation->number_of_people
+                        ];
+                    })->toArray()
+                ];
+            })->toArray();
+    }
 
 private function getStaffData(): array
 {
@@ -492,6 +557,112 @@ private function getStaffData(): array
         ]);
 
         return redirect()->back()->with('success', 'Status menu berhasil diupdate!');
+    }
+
+    /**
+     * Toggle user block status
+     */
+    public function toggleUserBlock($id)
+    {
+        $user = User::findOrFail($id);
+        
+        // Pastikan tidak memblokir admin/staff
+        if (in_array($user->role, ['admin', 'staff'])) {
+            return redirect()->back()->with('error', 'Tidak dapat memblokir admin/staff!');
+        }
+        
+        $user->toggleBlock();
+        
+        $status = $user->is_blocked ? 'diblokir' : 'diaktifkan';
+        
+        // Return fresh data setelah update
+        return redirect()->back()->with([
+            'success' => "Akun {$user->name} berhasil {$status}!",
+            'customers' => $this->getCustomersData() // Tambah data fresh
+        ]);
+    }
+
+    /**
+     * Export customers data to CSV
+     */
+    public function exportCustomers()
+    {
+        $customers = User::where('role', 'customer')
+            ->withCount(['orders', 'reservations'])
+            ->with(['orders' => function($query) {
+                $query->where('status', 'completed');
+            }, 'reservations' => function($query) {
+                $query->where('status', 'completed');
+            }])
+            ->get();
+
+        $csvData = [];
+        $csvData[] = [
+            'Nama',
+            'Email', 
+            'Telepon',
+            'Alamat',
+            'Status',
+            'Total Pesanan',
+            'Total Reservasi',
+            'Total Belanja Pesanan (Rp)',
+            'Total Belanja Reservasi (Rp)',
+            'Total Belanja Keseluruhan (Rp)',
+            'Terakhir Order',
+            'Bergabung Sejak',
+            'Detail Pesanan Terakhir',
+            'Detail Reservasi Terakhir'
+        ];
+
+        foreach ($customers as $customer) {
+            $lastOrder = $customer->orders()->latest()->first();
+            $lastReservation = $customer->reservations()->latest()->first();
+            
+            $orderSpent = $customer->orders()->where('status', 'completed')->sum('total_amount');
+            $reservationSpent = $customer->reservations()->where('status', 'completed')->sum('total_price');
+            
+            $orderDetails = $lastOrder ? 
+                "#{$lastOrder->order_code} - Rp " . number_format($lastOrder->total_amount) . " ({$lastOrder->created_at->format('d/m/Y')})" : 
+                'Belum ada';
+                
+            $reservationDetails = $lastReservation ? 
+                "#{$lastReservation->reservation_code} - Rp " . number_format($lastReservation->total_price) . " ({$lastReservation->reservation_date?->format('d/m/Y')})" : 
+                'Belum ada';
+
+            $csvData[] = [
+                $customer->name,
+                $customer->email,
+                $customer->phone ?? 'Tidak tersedia',
+                $customer->address ?? 'Tidak tersedia',
+                $customer->is_blocked ? 'Diblokir' : 'Aktif',
+                $customer->orders_count,
+                $customer->reservations_count,
+                $orderSpent,
+                $reservationSpent,
+                $orderSpent + $reservationSpent,
+                $lastOrder?->created_at->format('d/m/Y H:i') ?? 'Belum pernah',
+                $customer->created_at->format('d/m/Y'),
+                $orderDetails,
+                $reservationDetails
+            ];
+        }
+
+        $filename = 'data-pelanggan-' . date('Y-m-d-H-i-s') . '.csv';
+        
+        $output = fopen('php://output', 'w');
+        
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        
+        // BOM untuk Excel agar UTF-8 terbaca dengan benar
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+        
+        foreach ($csvData as $row) {
+            fputcsv($output, $row);
+        }
+        
+        fclose($output);
+        exit;
     }
 
     private function getPackagesData(): array

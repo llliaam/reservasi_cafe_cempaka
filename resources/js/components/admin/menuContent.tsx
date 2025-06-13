@@ -28,7 +28,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
   const [filteredMenu, setFilteredMenu] = useState(menuItems);
   const [filterCategory, setFilterCategory] = useState('all');
 
- useEffect(() => {
+useEffect(() => {
   let filtered = menuItems;
   
   // Filter berdasarkan kategori
@@ -36,16 +36,23 @@ const MenuContent: React.FC<MenuContentProps> = ({
     // Cari kategori berdasarkan name, bukan ID
     const selectedCategoryName = menuCategories.find(cat => cat.id.toString() === filterCategory)?.name;
     if (selectedCategoryName) {
-      filtered = filtered.filter(item => item.category === selectedCategoryName);
+      filtered = filtered.filter(item => 
+        item.category && item.category === selectedCategoryName
+      );
     }
   }
   
-  // Filter berdasarkan search term
+  // Filter berdasarkan search term - FIX: Handle null/undefined values
   if (searchTerm) {
-    filtered = filtered.filter(item => 
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    filtered = filtered.filter(item => {
+      const name = item.name || '';
+      const description = item.description || '';
+      const category = item.category || '';
+      
+      return name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             category.toLowerCase().includes(searchTerm.toLowerCase());
+    });
   }
   
   setFilteredMenu(filtered);
