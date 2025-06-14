@@ -636,4 +636,57 @@ class OrderController extends Controller
     {
         return $order->order_code . '_payment_' . date('YmdHis') . '_' . strtolower(Str::random(4)) . '.' . $extension;
     }
+
+    public function updateOrderStatus(Request $request, Order $order)
+{
+    $validated = $request->validate([
+        'status' => 'required|in:pending,confirmed,preparing,ready,completed,cancelled',
+        'notes' => 'nullable|string|max:500'
+    ]);
+    
+    $oldStatus = $order->status;
+    $newStatus = $validated['status'];
+    
+    // Update basic status
+    $order->status = $newStatus;
+    
+    // Track staff actions
+    if ($newStatus === 'confirmed' && $oldStatus === 'pending') {
+        $order->confirmed_by_staff = auth()->id();
+        $order->confirmed_at = now();
+    }
+    
+    if ($newStatus === 'cancelled') {
+        $order->cancelled_by_staff = auth()->id();
+        $order->cancelled_at = now();
+        $order->cancelled_by_user = false;
+        $order->cancellation_reason = $validated['notes'] ?? 'Dibatalkan oleh staff';
+    }
+    
+    if ($newStatus === 'completed') {
+        $order->completed_at = now();
+    }
+    
+    $order->save();
+    
+    // Log the status change (if you have order_status_logs table)
+    $this->logStatusChange($order, $oldStatus, $newStatus, $validated['notes'] ?? null);
+    
+    return redirect()->back()->with('success', 'Status pesanan berhasil diupdate!');
+}
+
+private function logStatusChange($order, $oldStatus, $newStatus, $notes = null)
+{
+    // Create status log entry (optional - requires order_status_logs table)
+    /*
+    OrderStatusLog::create([
+        'order_id' => $order->id,
+        'old_status' => $oldStatus,
+        'new_status' => $newStatus,
+        'changed_by' => auth()->id(),
+        'notes' => $notes,
+        'changed_at' => now()
+    ]);
+    */
+}
 }

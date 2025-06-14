@@ -162,28 +162,139 @@ private function getStaffData(): array
             })->toArray();
     }
 
-    private function getOrdersData(): array
+private function getOrdersData(): array
 {
-    return Order::with(['user', 'orderItems.menuItem'])
+    return Order::with(['user', 'orderItems.menuItem', 'createdByStaff', 'lastUpdatedBy'])
         ->latest('order_time')
         ->get()
         ->map(function($order) {
+            
+            // Parse log status dari JSON
+            $statusLog = $order->status_log ? json_decode($order->status_log, true) : [];
+            $statusHistory = [];
+            
+            // Convert log menjadi format yang bisa dibaca frontend
+            foreach ($statusLog as $log) {
+                $statusHistory[] = [
+                    'status' => $log['new_status'],
+                    'changedBy' => $log['changed_by'],
+                    'changedAt' => $log['changed_at'],
+                    'notes' => $log['notes']
+                ];
+            }
+            
+            // Cari siapa yang konfirmasi dari log
+            $confirmedBy = null;
+            foreach ($statusLog as $log) {
+                if ($log['new_status'] === 'confirmed') {
+                    $confirmedBy = [
+                        'id' => $log['changed_by']['id'],
+                        'name' => $log['changed_by']['name'],
+                        'role' => $log['changed_by']['role'],
+                        'confirmedAt' => $log['changed_at']
+                    ];
+                    break;
+                }
+            }
+            
+            // Cari siapa yang batalkan dari log
+            $cancelledBy = null;
+            foreach ($statusLog as $log) {
+                if ($log['new_status'] === 'cancelled') {
+                    $cancelledBy = [
+                        'id' => $log['changed_by']['id'],
+                        'name' => $log['changed_by']['name'],
+                        'role' => $log['changed_by']['role'],
+                        'cancelledAt' => $log['changed_at'],
+                        'reason' => $log['notes']
+                    ];
+                    break;
+                }
+            }
+            
             return [
+                // Data pesanan biasa
                 'id' => $order->order_code,
                 'customerName' => $order->customer_name,
                 'phone' => $order->customer_phone,
+                'email' => $order->customer_email,
                 'service' => $order->orderItems->pluck('menuItem.name')->join(', '),
                 'items' => $order->orderItems->pluck('menuItem.name')->toArray(),
                 'type' => $order->order_type,
                 'status' => $order->status,
                 'price' => $order->total_amount,
                 'date' => $order->order_time->format('Y-m-d'),
+                'time' => $order->order_time->format('H:i'),
                 'paymentMethod' => $order->payment_method,
+                'paymentStatus' => $order->payment_status,
                 'notes' => $order->notes,
                 'paymentProof' => $order->payment_proof ? asset("storage/{$order->payment_proof}") : null,
+                
+                // Data tracking staff (INI YANG PENTING!)
+                'createdBy' => $order->user_id ? [
+                    'id' => $order->user_id,
+                    'name' => $order->customer_name,
+                    'role' => 'customer'
+                ] : ($order->created_by_staff ? [
+                    'id' => $order->created_by_staff,
+                    'name' => $order->createdByStaff->name ?? 'Staff',
+                    'role' => $order->createdByStaff->role ?? 'staff'
+                ] : null),
+                
+                'confirmedBy' => $confirmedBy,        // Staff yang konfirmasi
+                'cancelledBy' => $cancelledBy,        // Staff yang batalkan
+                'statusHistory' => $statusHistory,    // Riwayat lengkap
             ];
         })->toArray();
 }
+
+private function getOrderStatusHistory($order): array
+{
+    $history = [];
+    
+    // Order created
+    $history[] = [
+        'status' => 'pending',
+        'changedBy' => [
+            'id' => $order->user_id ?? $order->created_by_staff,
+            'name' => $order->user_id ? $order->customer_name : ($order->createdByStaff->name ?? 'Staff'),
+            'role' => $order->user_id ? 'customer' : 'staff'
+        ],
+        'changedAt' => $order->created_at->toISOString(),
+        'notes' => 'Pesanan dibuat'
+    ];
+    
+    // If status changed from pending
+    if ($order->status !== 'pending') {
+        $history[] = [
+            'status' => $order->status,
+            'changedBy' => [
+                'id' => auth()->id() ?? 'system',
+                'name' => auth()->user()->name ?? 'System',
+                'role' => auth()->user()->role ?? 'system'
+            ],
+            'changedAt' => $order->updated_at->toISOString(),
+            'notes' => "Status diubah menjadi " . $this->getStatusLabel($order->status)
+        ];
+    }
+    
+    return $history;
+}
+
+private function getStatusLabel($status): string
+{
+    $labels = [
+        'pending' => 'Menunggu Konfirmasi',
+        'confirmed' => 'Dikonfirmasi',
+        'preparing' => 'Sedang Diproses',
+        'ready' => 'Siap Diambil',
+        'completed' => 'Selesai',
+        'cancelled' => 'Dibatalkan'
+    ];
+    
+    return $labels[$status] ?? $status;
+}
+
 
     /**
      * Get reservations data for admin dashboard
