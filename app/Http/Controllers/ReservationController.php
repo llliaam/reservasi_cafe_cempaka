@@ -785,22 +785,33 @@ public function store(Request $request)
         ]);
     }
 
-    /**
-     * Update reservation status (admin only)
-     */
-    public function updateStatus(Request $request, Reservation $reservation)
-    {
-        $validated = $request->validate([
-            'status' => 'required|in:pending,confirmed,completed,cancelled'
-        ]);
+  /**
+ * SAFE VERSION: Update reservation status dengan error handling
+ */
+public function updateStatus(Request $request, Reservation $reservation)
+{
+    $validated = $request->validate([
+        'status' => 'required|in:pending,confirmed,completed,cancelled'
+    ]);
 
-        $oldStatus = $reservation->status;
-        $reservation->update(['status' => $validated['status']]);
-
-        // Log status change
-        \Log::info("Reservation {$reservation->reservation_code} status changed from {$oldStatus} to {$validated['status']}");
-
+    $oldStatus = $reservation->status;
+    $newStatus = $validated['status'];
+    
+    // Ambil notes langsung dari request (bisa null)
+    $notes = $request->input('notes');
+    
+    try {
+        // Update dengan tracking
+        $reservation->updateStatus($newStatus, $notes);
+        
         return redirect()->back()
-                       ->with('success', "Status reservasi {$reservation->reservation_code} berhasil diperbarui dari {$oldStatus} ke {$validated['status']}");
+                       ->with('success', "Status reservasi {$reservation->reservation_code} berhasil diperbarui dari {$oldStatus} ke {$newStatus}");
+                       
+    } catch (\Exception $e) {
+        \Log::error('Error updating reservation status: ' . $e->getMessage());
+        
+        return redirect()->back()
+                       ->with('error', 'Gagal mengupdate status reservasi: ' . $e->getMessage());
     }
+}
 }
