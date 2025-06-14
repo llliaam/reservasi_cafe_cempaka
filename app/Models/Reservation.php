@@ -35,6 +35,14 @@ class Reservation extends Model
         'additional_images',
         'reservation_code',
         'status',
+        'last_updated_by',
+        'status_log',
+        'confirmed_by_staff',
+        'confirmed_at',
+        'cancelled_by_staff',
+        'cancelled_at',
+        'cancelled_by_user',
+        'cancellation_reason'
     ];
 
     protected $casts = [
@@ -480,24 +488,6 @@ public function loadTableSafely()
     }
 }
 
-
-    /**
-     * NEW: Update reservation status
-     */
-    public function updateStatus(string $status, string $notes = null): bool
-    {
-        $oldStatus = $this->status;
-        $this->status = $status;
-
-        $result = $this->save();
-
-        if ($result && $oldStatus !== $status) {
-            $this->updateTableStatus();
-        }
-
-        return $result;
-    }
-
     /**
      * NEW: Cancel reservation
      */
@@ -935,6 +925,120 @@ public function getPackageName(): string
             'menu_items_count' => $this->getTotalMenuItems(),
         ];
     }
+
+    /**
+ * TUJUAN: Relationship ke user yang terakhir update reservasi
+ */
+public function lastUpdatedBy()
+{
+    return $this->belongsTo(User::class, 'last_updated_by');
+}
+
+/**
+ * TUJUAN: Relationship ke staff yang konfirmasi
+ */
+public function confirmedByStaff()
+{
+    return $this->belongsTo(User::class, 'confirmed_by_staff');
+}
+
+/**
+ * TUJUAN: Relationship ke staff yang batalkan
+ */
+public function cancelledByStaff()
+{
+    return $this->belongsTo(User::class, 'cancelled_by_staff');
+}
+
+/**
+ * SAMA seperti Order: Menyimpan log setiap kali status berubah dengan info staff
+ */
+public function addStatusLog($oldStatus, $newStatus, $notes = null, $userId = null)
+{
+    $userId = $userId ?? auth()->id();
+    $user = User::find($userId);
+    
+    // Data log yang akan disimpan (SAMA seperti Order)
+    $log = [
+        'old_status' => $oldStatus,
+        'new_status' => $newStatus,
+        'changed_by' => [
+            'id' => $userId,
+            'name' => $user ? $user->name : 'System',
+            'role' => $user ? $user->role : 'system'
+        ],
+        'changed_at' => now()->toISOString(),
+        'notes' => $notes
+    ];
+    
+    // Ambil log yang sudah ada, tambahkan log baru (SAMA seperti Order)
+    $statusLog = $this->status_log ? json_decode($this->status_log, true) : [];
+    $statusLog[] = $log;
+    
+    // Simpan kembali ke database (SAMA seperti Order)
+    $this->status_log = json_encode($statusLog);
+    $this->last_updated_by = $userId;
+    $this->save();
+}
+
+/**
+ * TUJUAN: Override updateStatus untuk include tracking
+ */
+public function updateStatus(string $status, string $notes = null): bool
+{
+    $oldStatus = $this->status;
+    
+    // Log status change dulu
+    $this->addStatusLog(
+        $oldStatus, 
+        $status, 
+        $notes ?? $this->getDefaultStatusNote($status, auth()->user()->name ?? 'System'),
+        auth()->id()
+    );
+    
+    // Update status utama
+    $this->status = $status;
+    
+    // Update field khusus berdasarkan status
+    switch ($status) {
+        case 'confirmed':
+            $this->confirmed_by_staff = auth()->id();
+            $this->confirmed_at = now();
+            break;
+            
+        case 'cancelled':
+            $this->cancelled_by_staff = auth()->id();
+            $this->cancelled_at = now();
+            $this->cancelled_by_user = false;
+            $this->cancellation_reason = $notes ?? 'Dibatalkan oleh ' . (auth()->user()->name ?? 'Staff');
+            break;
+    }
+    
+    $result = $this->save();
+    
+    if ($result && $oldStatus !== $status) {
+        $this->updateTableStatus();
+    }
+    
+    return $result;
+}
+
+/**
+ * SAFE VERSION: Method helper untuk default notes
+ */
+private function getDefaultStatusNote($status, $staffName)
+{
+    $staffName = $staffName ?: 'System';
+    
+    $notes = [
+        'pending' => "Reservasi dalam status pending",
+        'confirmed' => "Reservasi dikonfirmasi oleh {$staffName}",
+        'cancelled' => "Reservasi dibatalkan oleh {$staffName}",
+        'completed' => "Reservasi selesai - diupdate oleh {$staffName}"
+    ];
+    
+    return $notes[$status] ?? "Status diubah menjadi {$status} oleh {$staffName}";
+}
 
     // ==================== NEW: STATIC HELPER METHODS ====================
 

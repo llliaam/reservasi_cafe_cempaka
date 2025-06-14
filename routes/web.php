@@ -104,6 +104,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reservations/{reservation}', [ReservationController::class, 'show'])->name('reservations.show');
     Route::get('/reservations/{reservation}/edit', [ReservationController::class, 'edit'])->name('reservations.edit');
     Route::put('/reservations/{reservation}', [ReservationController::class, 'update'])->name('reservations.update');
+    Route::patch('/reservations/{reservation}/status', [StaffController::class, 'updateReservationStatus'])->name('reservations.update-status');
     Route::delete('/reservations/{reservation}', [ReservationController::class, 'destroy'])->name('reservations.destroy');
 
     // ===== MENU SEARCH & FILTER =====
@@ -182,7 +183,7 @@ Route::middleware(['auth', 'verified', 'role:staff,admin'])->prefix('staff')->na
     Route::patch('/tables/{tableId}/status', [StaffController::class, 'updateTableStatus'])->name('tables.update-status');
     Route::get('/reservations/today', [StaffController::class, 'getTodayReservations'])->name('reservations.today');
     Route::get('/reservations/stats', [StaffController::class, 'getReservationStats'])->name('reservations.stats');
-    Route::patch('/tables/{tableId}/status', [StaffController::class, 'updateTableStatus'])->name('tables.update-status');
+    // Route::patch('/tables/{tableId}/status', [StaffController::class, 'updateTableStatus'])->name('tables.update-status');
 });
 
 /*

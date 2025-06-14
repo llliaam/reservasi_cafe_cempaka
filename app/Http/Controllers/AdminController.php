@@ -299,7 +299,7 @@ private function getStatusLabel($status): string
     /**
      * Get reservations data for admin dashboard
      */
-    private function getReservationsData(): array
+   private function getReservationsData(): array
     {
         try {
             $reservations = Reservation::with(['user', 'package', 'table'])
@@ -308,7 +308,7 @@ private function getStatusLabel($status): string
                 ->get();
 
             return $reservations->map(function ($reservation) {
-                return $this->transformReservationData($reservation);
+                return $this->transformReservationDataWithStaffTracking($reservation);
             })->toArray();
 
         } catch (\Exception $e) {
@@ -316,6 +316,82 @@ private function getStatusLabel($status): string
             return [];
         }
     }
+
+    /**
+ * TUJUAN: Transform reservation data dengan staff tracking
+ */
+private function transformReservationDataWithStaffTracking($reservation): array
+{
+    // Basic transformation (sama seperti sebelumnya)
+    $basic = $this->transformReservationData($reservation);
+    
+    // TAMBAHAN: Staff tracking data
+    $staffTracking = $this->getReservationStaffTracking($reservation);
+    
+    return array_merge($basic, $staffTracking);
+}
+
+/**
+ * SAMA seperti getOrdersData: Parse status log dari JSON
+ */
+private function getReservationStaffTracking($reservation): array
+{
+    // Parse status log dari JSON (SAMA seperti Order)
+    $statusLog = $reservation->status_log ? json_decode($reservation->status_log, true) : [];
+    $statusHistory = [];
+    
+    // Convert log menjadi format yang bisa dibaca frontend (SAMA seperti Order)
+    foreach ($statusLog as $log) {
+        $statusHistory[] = [
+            'status' => $log['new_status'],
+            'changedBy' => $log['changed_by'],
+            'changedAt' => $log['changed_at'],
+            'notes' => $log['notes']
+        ];
+    }
+    
+    // Cari siapa yang konfirmasi dari log (SAMA seperti Order)
+    $confirmedBy = null;
+    foreach ($statusLog as $log) {
+        if ($log['new_status'] === 'confirmed') {
+            $confirmedBy = [
+                'id' => $log['changed_by']['id'],
+                'name' => $log['changed_by']['name'],
+                'role' => $log['changed_by']['role'],
+                'confirmedAt' => $log['changed_at']
+            ];
+            break;
+        }
+    }
+    
+    // Cari siapa yang batalkan dari log (SAMA seperti Order)
+    $cancelledBy = null;
+    foreach ($statusLog as $log) {
+        if ($log['new_status'] === 'cancelled') {
+            $cancelledBy = [
+                'id' => $log['changed_by']['id'],
+                'name' => $log['changed_by']['name'],
+                'role' => $log['changed_by']['role'],
+                'cancelledAt' => $log['changed_at'],
+                'reason' => $log['notes']
+            ];
+            break;
+        }
+    }
+    
+    return [
+        // Data tracking staff (SAMA seperti Order)
+        'createdBy' => $reservation->user_id ? [
+            'id' => $reservation->user_id,
+            'name' => $reservation->customer_name,
+            'role' => 'customer'
+        ] : null,
+        
+        'confirmedBy' => $confirmedBy,
+        'cancelledBy' => $cancelledBy,
+        'statusHistory' => $statusHistory,
+    ];
+}
 
     /**
      * Transform reservation data for frontend

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+
 use App\Models\Reservation;
 use App\Models\RestaurantTable;
 use App\Models\User;
@@ -1649,91 +1650,68 @@ private function getDefaultStatusNote($status, $staffName)
 }
     
 
-    /**
-     * Update reservation status
-     */
-    public function updateReservationStatus(Request $request, $id): RedirectResponse
-    {
-        \Log::info('=== UPDATE RESERVATION STATUS ===', [
-            'reservation_id' => $id,
-            'request_data' => $request->all()
-        ]);
-
-        $request->validate([
-            'status' => 'required|in:pending,confirmed,cancelled,completed',
+   /**
+ * TUJUAN: Update reservation status SAMA seperti updateOrderStatus
+ */
+public function updateReservationStatus(Request $request, $reservationId)
+{
+    try {
+        $validated = $request->validate([
+            'status' => 'required|in:pending,confirmed,preparing,ready,completed,cancelled',
             'notes' => 'nullable|string|max:500'
         ]);
-
-       try {
-        $reservation = Reservation::with(['package', 'table'])->findOrFail($id);
         
+        $reservation = Reservation::findOrFail($reservationId);
         $oldStatus = $reservation->status;
-        $newStatus = $request->status;
-
-        DB::beginTransaction();
-
-        // Update reservation status
-        $reservation->status = $newStatus;
-        $saved = $reservation->save();
-
-        if (!$saved) {
-            DB::rollBack();
-            return redirect()->back()->with('error', 'Gagal menyimpan status reservasi');
-        }
-
-        // Auto-free table when completed/cancelled
-        if ($reservation->table_id && in_array($newStatus, ['completed', 'cancelled'])) {
-            $table = RestaurantTable::find($reservation->table_id);
-            if ($table) {
-                $table->updateRealtimeStatus(); // Update berdasarkan kondisi realtime
-                
-                \Log::info('Table status auto-updated after reservation status change', [
-                    'reservation_id' => $reservation->id,
-                    'table_id' => $table->id,
-                    'new_table_status' => $table->fresh()->status,
-                    'reason' => $newStatus
-                ]);
-            }
-        }
-
-        // Auto-assign table for confirmed reservations
-        if ($newStatus === 'confirmed' && !$reservation->table_id) {
-            // ... existing auto-assign logic ...
-        }
-
-        DB::commit();
-
-        $statusMessages = [
-            'confirmed' => 'dikonfirmasi',
-            'cancelled' => 'dibatalkan', 
-            'completed' => 'diselesaikan'
-        ];
+        $newStatus = $validated['status'];
         
-        $statusMessage = $statusMessages[$newStatus] ?? "diubah ke {$newStatus}";
-
-        return redirect()->back()->with('success', 
-            "Reservasi {$reservation->reservation_code} berhasil {$statusMessage}"
+        // SAMA seperti Order: Log status change dulu
+        $reservation->addStatusLog(
+            $oldStatus, 
+            $newStatus, 
+            $request->input('notes') ?? $this->getDefaultReservationStatusNote($newStatus, auth()->user()->name),
+            auth()->id() // ID staff yang sedang login
         );
-
-    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            \Log::error('Reservation not found: ' . $id);
-            return redirect()->back()->with('error', 'Reservasi tidak ditemukan');
-            
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            \Log::error('Validation failed:', ['errors' => $e->errors()]);
-            return redirect()->back()->withErrors($e->errors())->withInput();
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            \Log::error('Error updating reservation status: ' . $e->getMessage(), [
-                'reservation_id' => $id,
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return redirect()->back()->with('error', 'Terjadi kesalahan saat mengubah status reservasi: ' . $e->getMessage());
+        
+        // Update status utama
+        $reservation->status = $newStatus;
+        
+        // Update completed_at jika selesai (SAMA seperti Order)
+        if ($newStatus === 'completed') {
+            $reservation->completed_at = now();
         }
+        
+        $reservation->save();
+        
+        // Update table status jika perlu
+        $reservation->updateTableStatus();
+        
+        // PENTING: Return redirect dengan flash message, BUKAN JSON (SAMA seperti Order)
+        return redirect()->back()->with('success', 'Status reservasi berhasil diupdate!');
+        
+    } catch (\Exception $e) {
+        \Log::error('Error updating reservation status: ' . $e->getMessage());
+        
+        // PENTING: Return redirect dengan error message, BUKAN JSON (SAMA seperti Order)
+        return redirect()->back()->with('error', 'Gagal mengupdate status reservasi: ' . $e->getMessage());
     }
+}
+
+/**
+ * SAMA seperti Order: Default notes
+ */
+private function getDefaultReservationStatusNote($status, $staffName)
+{
+    $notes = [
+        'confirmed' => "Reservasi dikonfirmasi oleh {$staffName}",
+        'preparing' => "Reservasi sedang diproses oleh {$staffName}",
+        'ready' => "Reservasi siap - diupdate oleh {$staffName}",
+        'completed' => "Reservasi selesai - diupdate oleh {$staffName}",
+        'cancelled' => "Reservasi dibatalkan oleh {$staffName}"
+    ];
+    
+    return $notes[$status] ?? "Status diubah menjadi {$status} oleh {$staffName}";
+}
 
     /**
      * Assign table to reservation
