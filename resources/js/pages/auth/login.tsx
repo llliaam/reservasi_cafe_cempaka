@@ -36,6 +36,11 @@ export default function Login({ status, canResetPassword }: LoginProps) {
         });
     };
 
+    const isBlockedError = errors.email && 
+    (errors.email.includes('diblokir') || 
+     errors.email.includes('blocked') || 
+     errors.email.includes('administrator'));
+
     return (
         <>
             <Head title="Login" />
@@ -88,6 +93,33 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             </div>
                         )}
 
+                        {/* Blocked Account Alert */}
+                        {errors.email && (errors.email.includes('diblokir') || errors.email.includes('blocked') || errors.email.includes('administrator')) && (
+                            <div className="p-4 mb-4 border border-red-200 shadow-sm bg-red-50 rounded-xl">
+                                <div className="flex items-start space-x-3">
+                                    <div className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5">⚠️</div>
+                                    <div className="flex-1">
+                                        <h3 className="text-sm font-semibold text-red-800 mb-1">
+                                            Akun Diblokir
+                                        </h3>
+                                        <p className="text-sm text-red-700 leading-relaxed">
+                                            {errors.email}
+                                        </p>
+                                        <div className="mt-3 p-3 bg-red-100 rounded-lg border border-red-200">
+                                            <p className="text-xs text-red-800 font-medium">
+                                                📞 Hubungi Administrator:
+                                            </p>
+                                            <p className="text-xs text-red-700 mt-1">
+                                                Email: admin@cempakacafe.com<br />
+                                                Phone: +62 123 456 7890<br />
+                                                WhatsApp: +62 123 456 7890
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <form className="space-y-3" onSubmit={submit}>
                             {/* Email/Phone field */}
                             <div className="space-y-2">
@@ -105,7 +137,13 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                         value={data.email}
                                         onChange={(e) => setData('email', e.target.value)}
                                         placeholder="Enter your email or phone number"
-                                        className="w-full px-4 py-2 font-medium text-gray-800 placeholder-gray-400 transition-all duration-200 border border-gray-200 shadow-sm bg-gray-50 rounded-xl focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                                       className={`w-full px-4 py-2 font-medium text-gray-800 placeholder-gray-400 transition-all duration-200 border shadow-sm bg-gray-50 rounded-xl focus:bg-white focus:ring-2 ${
+                                            isBlockedError 
+                                                ? 'border-red-300 focus:border-red-400 focus:ring-red-100' 
+                                                : errors.email 
+                                                ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
+                                                : 'border-gray-200 focus:border-orange-400 focus:ring-orange-100'
+                                        }`}
                                     />
                                 </div>
                                 <InputError message={errors.email} />
@@ -161,15 +199,21 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             {/* Submit button */}
                             <Button
                                 type="submit"
-                                className="w-full py-2 px-6 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none border border-orange-400/20"
+                                className={`w-full py-2 px-6 text-white font-semibold rounded-xl shadow-lg transform transition-all duration-200 disabled:transform-none border ${
+                                    isBlockedError
+                                        ? 'bg-gray-400 hover:bg-gray-400 border-gray-400/20 cursor-not-allowed'
+                                        : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 hover:shadow-xl hover:scale-[1.02] border-orange-400/20'
+                                } disabled:opacity-50 disabled:cursor-not-allowed`}
                                 tabIndex={4}
-                                disabled={processing}
+                                disabled={processing || isBlockedError}
                             >
                                 {processing ? (
                                     <>
                                         <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
                                         Signing In...
                                     </>
+                                ) : isBlockedError ? (
+                                    'Account Blocked'
                                 ) : (
                                     'Sign In'
                                 )}

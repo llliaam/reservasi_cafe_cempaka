@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Upload, Users, Star, TrendingUp, Eye, Download, Shield, ShieldOff } from 'lucide-react';
 import { router } from '@inertiajs/react';
 
+
 interface CustomersContentProps {
   customers: any[];
   setCustomers: (customers: any[]) => void; // TAMBAH INI

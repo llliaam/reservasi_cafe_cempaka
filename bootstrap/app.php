@@ -20,12 +20,14 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+            \App\Http\Middleware\CheckBlockedStatus::class, // Tambahkan di sini
         ]);
 
         // Register custom middleware aliases
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
             'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
+            'blocked' => \App\Http\Middleware\CheckBlockedStatus::class, // Opsional: untuk alias
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

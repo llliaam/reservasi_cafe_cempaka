@@ -196,6 +196,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
 
     // Di dalam admin routes group
     Route::get('/reservations/refresh', [AdminController::class, 'refreshReservations'])->name('reservations.refresh');
+    Route::patch('/staff/{id}/toggle-block', [AdminController::class, 'toggleUserBlock'])->name('staff.toggle-block');
 
     // ===== ADMIN ORDER MANAGEMENT =====
     Route::get('/orders', [OrderController::class, 'adminIndex'])->name('orders.index');
