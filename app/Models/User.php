@@ -377,6 +377,24 @@ class User extends Authenticatable
     }
 
     /**
+     * Find user by email or phone
+     */
+    public static function findByEmailOrPhone($identifier)
+    {
+        return static::where('email', $identifier)
+                    ->orWhere('phone', $identifier)
+                    ->first();
+    }
+
+    /**
+     * Check if user can login (not blocked and active)
+     */
+    public function canLogin(): bool
+    {
+        return !$this->is_blocked && $this->is_active;
+    }
+
+    /**
      * Scope for non-blocked users
      */
     public function scopeNotBlocked($query)

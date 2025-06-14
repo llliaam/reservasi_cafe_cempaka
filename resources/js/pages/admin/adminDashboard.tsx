@@ -119,8 +119,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [reservations, setReservations] = useState<ReservationData[]>(initialReservations || []);
   const [orders, setOrders] = useState(initialOrders);
-  const [customers, setCustomers] = useState(initialCustomers);
-  const [staff, setStaff] = useState(initialStaff);
+  const [customers, setCustomers] = useState(initialCustomers || []);
+  const [staff, setStaff] = useState(initialStaff || []);
   const [packages, setPackages] = useState(initialPackages);
   const [showImageModal, setShowImageModal] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
@@ -162,7 +162,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isSubmittingEditMenu, setIsSubmittingEditMenu] = useState(false);
   const [showEditPackageConfirm, setShowEditPackageConfirm] = useState(false);
   const [pendingEditPackageData, setPendingEditPackageData] = useState(null);
-  
+    
   
   const [isSubmittingMenu, setIsSubmittingMenu] = useState(false);
 
@@ -1446,7 +1446,7 @@ const executeEditPackage = async () => {
           {activeTab === 'customers' && (
             <CustomersContent 
               customers={customers}
-              setCustomers={setCustomers} // TAMBAH INI
+              setCustomers={setCustomers}
               searchTerm={searchTerm}
               openModal={openModal}
               getStatusColor={getStatusColor}
@@ -1457,6 +1457,7 @@ const executeEditPackage = async () => {
           {activeTab === 'staff' && (
             <StaffContent 
               staff={staff}
+              setStaff={setStaff}
               searchTerm={searchTerm}
               openModal={openModal}
               getStatusColor={getStatusColor}

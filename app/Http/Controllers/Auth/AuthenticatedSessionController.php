@@ -27,14 +27,35 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-    public function store(LoginRequest $request): RedirectResponse
-    {
-        $request->authenticate();
+   public function store(LoginRequest $request): RedirectResponse
+{
+    // Cari user berdasarkan email atau phone
+    $user = \App\Models\User::where('email', $request->email)
+                           ->orWhere('phone', $request->email)
+                           ->first();
 
-        $request->session()->regenerate();
-
-        return redirect()->intended(route('dashboard', absolute: false));
+    // Cek apakah user ditemukan dan statusnya diblokir
+    if ($user && $user->is_blocked) {
+        return redirect()->back()->withErrors([
+            'email' => 'Akun Anda telah diblokir. Silakan hubungi administrator untuk informasi lebih lanjut.',
+        ]);
     }
+
+    $request->authenticate();
+
+    $request->session()->regenerate();
+
+    // Redirect berdasarkan role setelah login berhasil
+    $user = auth()->user();
+    
+    if ($user->isAdmin()) {
+        return redirect()->intended(route('adminDashboard'));
+    } elseif ($user->isStaff()) {
+        return redirect()->intended(route('StaffPage'));
+    } else {
+        return redirect()->intended(route('dashboard'));
+    }
+}
 
     /**
      * Destroy an authenticated session.

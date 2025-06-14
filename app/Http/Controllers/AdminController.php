@@ -122,24 +122,25 @@ class AdminController extends Controller
             })->toArray();
     }
 
-private function getStaffData(): array
-{
-    return User::whereIn('role', ['staff', 'admin'])
-        ->get()
-        ->map(function($user) {
-            return [
-                'id' => $user->id,
-                'name' => $user->name,
-                'position' => ucfirst($user->role),
-                'phone' => $user->phone ?? 'Tidak tersedia',
-                'email' => $user->email,
-                'salary' => 0, // Set default atau ambil dari tabel terpisah
-                'performance' => 85, // Set default atau hitung dari data
-                'status' => 'active',
-                'joinDate' => $user->created_at->format('Y-m-d')
-            ];
-        })->toArray();
-}
+    private function getStaffData(): array
+    {
+        return User::whereIn('role', ['staff', 'admin'])
+            ->get()
+            ->map(function($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'position' => ucfirst($user->role),
+                    'phone' => $user->phone ?? 'Tidak tersedia',
+                    'email' => $user->email,
+                    'salary' => 0,
+                    'performance' => 85,
+                    'status' => $user->is_blocked ? 'blocked' : 'active',
+                    'is_blocked' => $user->is_blocked ?? false,
+                    'joinDate' => $user->created_at->format('Y-m-d')
+                ];
+            })->toArray();
+    }
 
     private function getMenuItemsData(): array
     {
@@ -753,19 +754,19 @@ private function getReservationStaffTracking($reservation): array
     {
         $user = User::findOrFail($id);
         
-        // Pastikan tidak memblokir admin/staff
-        if (in_array($user->role, ['admin', 'staff'])) {
-            return redirect()->back()->with('error', 'Tidak dapat memblokir admin/staff!');
+        // Prevent admin from blocking themselves
+        if ($user->id === auth()->id()) {
+            return redirect()->back()->with('error', 'Anda tidak dapat memblokir akun Anda sendiri!');
         }
         
         $user->toggleBlock();
         
         $status = $user->is_blocked ? 'diblokir' : 'diaktifkan';
         
-        // Return fresh data setelah update
         return redirect()->back()->with([
             'success' => "Akun {$user->name} berhasil {$status}!",
-            'customers' => $this->getCustomersData() // Tambah data fresh
+            'customers' => $this->getCustomersData(),
+            'staff' => $this->getStaffData()
         ]);
     }
 
