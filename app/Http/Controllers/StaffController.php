@@ -1591,44 +1591,61 @@ private function transformReservationData($reservation)
     ];
 }
 
-// === UPDATE METHOD updateOrderStatus ===
-    public function updateOrderStatus(Request $request, $orderId)
+  /**
+ * TUJUAN: Update status pesanan dengan response Inertia (bukan JSON)
+ */
+public function updateOrderStatus(Request $request, $orderId)
 {
-    $request->validate([
-        'status' => 'required|in:confirmed,cancelled,completed',
-        'notes' => 'nullable|string|max:500'
-    ]);
-
     try {
-        $order = Order::findOrFail($orderId);
-        $order->status = $request->status;
+        $validated = $request->validate([
+            'status' => 'required|in:pending,confirmed,preparing,ready,completed,cancelled',
+            'notes' => 'nullable|string|max:500'
+        ]);
         
-        if ($request->status === 'completed' && !$order->completed_at) {
+        $order = Order::findOrFail($orderId);
+        $oldStatus = $order->status;
+        $newStatus = $validated['status'];
+        
+        // Log status change
+        $order->addStatusLog(
+            $oldStatus, 
+            $newStatus, 
+            $validated['notes'] ?? $this->getDefaultStatusNote($newStatus, auth()->user()->name),
+            auth()->id()
+        );
+        
+        // Update status utama
+        $order->status = $newStatus;
+        
+        // Update completed_at jika selesai
+        if ($newStatus === 'completed') {
             $order->completed_at = now();
         }
         
         $order->save();
-
-        $statusMessages = [
-            'confirmed' => 'dikonfirmasi',
-            'cancelled' => 'ditolak/dibatalkan', 
-            'completed' => 'diselesaikan'
-        ];
         
-        $statusMessage = $statusMessages[$request->status] ?? "diubah";
-
-        // === REDIRECT KE URL BEDA (BUKAN BACK) ===
-        return redirect()->route('StaffPage')->with([
-            'success' => "Pesanan {$order->order_code} berhasil {$statusMessage}",
-            'tab' => 'online-orders'  // Pass tab info
-        ]);
-
+        // PERBAIKAN: Return redirect dengan flash message, BUKAN JSON
+        return redirect()->back()->with('success', 'Status pesanan berhasil diupdate!');
+        
     } catch (\Exception $e) {
-        return redirect()->route('StaffPage')->with([
-            'error' => 'Terjadi kesalahan: ' . $e->getMessage(),
-            'tab' => 'online-orders'
-        ]);
+        \Log::error('Error updating order status: ' . $e->getMessage());
+        
+        // PERBAIKAN: Return redirect dengan error message, BUKAN JSON  
+        return redirect()->back()->with('error', 'Gagal mengupdate status pesanan: ' . $e->getMessage());
     }
+}
+
+private function getDefaultStatusNote($status, $staffName)
+{
+    $notes = [
+        'confirmed' => "Pesanan dikonfirmasi oleh {$staffName}",
+        'preparing' => "Pesanan sedang diproses oleh {$staffName}", 
+        'ready' => "Pesanan siap diambil - diupdate oleh {$staffName}",
+        'completed' => "Pesanan selesai - diupdate oleh {$staffName}",
+        'cancelled' => "Pesanan dibatalkan oleh {$staffName}"
+    ];
+    
+    return $notes[$status] ?? "Status diubah menjadi {$status} oleh {$staffName}";
 }
     
 

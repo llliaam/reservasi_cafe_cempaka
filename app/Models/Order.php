@@ -1037,4 +1037,43 @@ public function getOrderSourceAttribute(): string
             self::PAYMENT_FAILED,
         ];
     }
+
+    /**
+ * TUJUAN: Relationship ke user yang terakhir update order
+ */
+public function lastUpdatedBy()
+{
+    return $this->belongsTo(User::class, 'last_updated_by');
+}
+
+/**
+ * TUJUAN: Menyimpan log setiap kali status berubah dengan info staff yang melakukan
+ */
+public function addStatusLog($oldStatus, $newStatus, $notes = null, $userId = null)
+{
+    $userId = $userId ?? auth()->id();
+    $user = User::find($userId);
+    
+    // Data log yang akan disimpan
+    $log = [
+        'old_status' => $oldStatus,
+        'new_status' => $newStatus,
+        'changed_by' => [
+            'id' => $userId,
+            'name' => $user ? $user->name : 'System',
+            'role' => $user ? $user->role : 'system'
+        ],
+        'changed_at' => now()->toISOString(),
+        'notes' => $notes
+    ];
+    
+    // Ambil log yang sudah ada, tambahkan log baru
+    $statusLog = $this->status_log ? json_decode($this->status_log, true) : [];
+    $statusLog[] = $log;
+    
+    // Simpan kembali ke database
+    $this->status_log = json_encode($statusLog);
+    $this->last_updated_by = $userId;
+    $this->save();
+}
 }
