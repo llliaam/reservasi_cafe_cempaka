@@ -52,7 +52,7 @@ class ReservationPackage extends Model
         if ($this->image && file_exists(public_path('images/paket_reservasi/' . $this->image))) {
             return asset('images/paket_reservasi/' . $this->image);
         }
-        
+
         // Fallback sederhana berdasarkan jumlah orang
         if ($this->max_people <= 2) {
             $fallbackImage = 'default-couple.jpg';
@@ -61,12 +61,12 @@ class ReservationPackage extends Model
         } else {
             $fallbackImage = 'default-group.jpg';
         }
-        
+
         // Cek apakah file ada, jika tidak pakai default umum
         if (file_exists(public_path('images/paket_reservasi/' . $fallbackImage))) {
             return asset('images/paket_reservasi/' . $fallbackImage);
         }
-        
+
         return asset('images/paket_reservasi/default-package.jpg');
     }
 

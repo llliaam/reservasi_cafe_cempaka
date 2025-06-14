@@ -144,7 +144,7 @@ const Navbar = () => {
                                 >
                                     <span className="relative z-10">{item.name}</span>
                                     <div className="absolute inset-0 transition-transform duration-300 ease-out scale-0 rounded-lg bg-gradient-to-r from-orange-500/10 to-yellow-500/10 group-hover:scale-100"></div>
-                                    <div className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-gradient-to-r from-orange-500 to-yellow-500 group-hover:w-full group-hover:left-0 transition-all duration-300 ease-out"></div>
+                                    <div className="absolute bottom-0 cursor-pointer left-1/2 w-0 h-0.5 bg-gradient-to-r from-orange-500 to-yellow-500 group-hover:w-full group-hover:left-0 transition-all duration-300 ease-out"></div>
                                 </a>
                             )
                         ))}
@@ -154,14 +154,14 @@ const Navbar = () => {
                                 <button
                                     id="profile-button"
                                     onClick={toggleSidebar}
-                                    className="relative inline-flex items-center justify-center w-10 h-10 transition-all duration-300 rounded-full shadow-lg bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 group hover:shadow-xl"
+                                    className="inline-flex items-center justify-center w-10 h-10 transition-all duration-300 rounded-full shadow-lg cursor-pointer cursor-pointerrelative bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 group hover:shadow-xl"
                                 >
                                     <div className="absolute inset-0 transition-opacity duration-300 rounded-full opacity-0 bg-gradient-to-r from-orange-400 to-yellow-400 blur group-hover:opacity-75"></div>
                                     <svg className="relative w-5 h-5 text-white transition-transform duration-300 group-hover:scale-110" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                                     </svg>
                                 </button>
-                                <div className="absolute top-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full animate-pulse"></div>
+                                <div className="absolute top-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full cursor-pointer animate-pulse"></div>
                             </div>
                         ) : (
                             <div className="flex items-center ml-4 space-x-3">
@@ -305,14 +305,14 @@ const Navbar = () => {
                                 <button
                                     onClick={closeLogoutModal}
                                     disabled={isLoggingOut}
-                                    className="flex-1 px-4 py-3 font-semibold text-gray-700 transition-all duration-300 bg-gray-100 border border-gray-200 rounded-xl hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex-1 px-4 py-3 font-semibold text-gray-700 transition-all duration-300 bg-gray-100 border border-gray-200 cursor-pointer rounded-xl hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     Batal
                                 </button>
                                 <button
                                     onClick={handleLogout}
                                     disabled={isLoggingOut}
-                                    className="flex-1 px-4 py-3 font-semibold text-white transition-all duration-300 transform rounded-xl bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 hover:scale-105 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                    className="flex-1 px-4 py-3 font-semibold text-white transition-all duration-300 transform cursor-pointer rounded-xl bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 hover:scale-105 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                                 >
                                     {isLoggingOut ? (
                                         <div className="flex items-center justify-center space-x-2">
@@ -393,10 +393,10 @@ const Navbar = () => {
                     <div className="flex-1 p-4 space-y-2">
                         {[
                             { name: 'Dashboard', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z', color: 'blue', route: route('dashboard') },
-                            { name: 'Order History', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', color: 'purple' },
+                            { name: 'History', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', color: 'purple', route: route('unified.history') },
                             { name: 'My Reviews', icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z', color: 'amber', route: route('reviews.index') },
-                            { name: 'Favorites', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z', color: 'pink' },
-                            { name: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', color: 'gray' }
+                            { name: 'Favorites', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z', color: 'pink', route: route('menu-favorit') },
+                            { name: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', color: 'gray', route: route('profile.edit') }
                         ].map((item, index) => (
                             item.route ? (
                                 <Link
@@ -433,10 +433,10 @@ const Navbar = () => {
                     </div>
 
                     {/* Enhanced Logout Button */}
-                    <div className="p-4 border-t border-gray-200/50 dark:border-gray-700/50">
+                    <div className="p-4 border-t border-gray-200/50 dark:border-gray-700/50 ">
                         <button
                             onClick={openLogoutModal}
-                            className="flex items-center w-full px-4 py-3 text-left text-red-600 transition-all duration-300 dark:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 group hover:scale-105"
+                            className="flex items-center w-full px-4 py-3 text-left text-red-600 transition-all duration-300 cursor-pointer dark:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 group hover:scale-105"
                         >
                             <div className="flex items-center space-x-3">
                                 <div className="p-2.5 bg-red-100 dark:bg-red-900/30 rounded-xl group-hover:bg-red-200 dark:group-hover:bg-red-800/50 transition-all duration-300 group-hover:scale-110">

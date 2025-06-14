@@ -17,7 +17,7 @@ class MenuItemController extends Controller
     {
         $query = $request->get('q', '');
         $category = $request->get('category');
-        
+
         $menuItemsQuery = MenuItem::with('category')
                                 ->where('is_available', true);
 
@@ -119,7 +119,7 @@ class MenuItemController extends Controller
     public function show(MenuItem $menuItem)
     {
         $menuItem->load('category');
-        
+
         // Get review statistics
         $reviewStats = UserReview::where('menu_item_id', $menuItem->id)
                                ->where('is_verified', true)

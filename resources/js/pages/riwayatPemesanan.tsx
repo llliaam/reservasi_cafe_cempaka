@@ -1,12 +1,14 @@
+//riwayatPemesanan.tsx
+
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { 
-    Calendar, 
-    Clock, 
-    MapPin, 
-    CreditCard, 
-    Star, 
+import {
+    Calendar,
+    Clock,
+    MapPin,
+    CreditCard,
+    Star,
     ChevronRight,
     Filter,
     Search,
@@ -168,7 +170,7 @@ export default function OrdersHistory({ orders, filters }: OrdersHistoryProps) {
         const cleanFilters = Object.fromEntries(
             Object.entries(newFilters).filter(([key, value]) => value && value !== 'all')
         );
-        
+
         router.get(route('orders.history'), cleanFilters, {
             preserveState: true,
             preserveScroll: true,
@@ -188,10 +190,10 @@ export default function OrdersHistory({ orders, filters }: OrdersHistoryProps) {
     };
 
     const handleDateFilter = (dateFrom: string, dateTo: string) => {
-        const newFilters = { 
-            ...localFilters, 
-            date_from: dateFrom || undefined, 
-            date_to: dateTo || undefined 
+        const newFilters = {
+            ...localFilters,
+            date_from: dateFrom || undefined,
+            date_to: dateTo || undefined
         };
         setLocalFilters(newFilters);
         handleFilterChange(newFilters);
@@ -210,77 +212,77 @@ export default function OrdersHistory({ orders, filters }: OrdersHistoryProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Riwayat Pemesanan" />
-            
-            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+
+            <div className="flex flex-col flex-1 h-full gap-4 p-4 rounded-xl">
                 {/* Stats Cards */}
-                <div className="grid auto-rows-min gap-4 md:grid-cols-4">
+                <div className="grid gap-4 auto-rows-min md:grid-cols-4">
                     {/* Total Pesanan */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-xl border border-blue-200/50 dark:border-blue-800/50 p-6">
+                    <div className="p-6 border bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-xl border-blue-200/50 dark:border-blue-800/50">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Total Pesanan</p>
-                                <p className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-1">
+                                <p className="mt-1 text-3xl font-bold text-blue-900 dark:text-blue-100">
                                     {totalOrders}
                                 </p>
-                                <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">
+                                <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-400/70">
                                     {completedOrders.length} selesai
                                 </p>
                             </div>
-                            <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                            <div className="flex items-center justify-center w-12 h-12 bg-blue-500 rounded-xl">
                                 <Package className="w-6 h-6 text-white" />
                             </div>
                         </div>
                     </div>
 
                     {/* Total Belanja */}
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-xl border border-green-200/50 dark:border-green-800/50 p-6">
+                    <div className="p-6 border bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-xl border-green-200/50 dark:border-green-800/50">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-green-600 dark:text-green-400">Total Belanja</p>
-                                <p className="text-2xl font-bold text-green-900 dark:text-green-100 mt-1">
+                                <p className="mt-1 text-2xl font-bold text-green-900 dark:text-green-100">
                                     {formatCurrency(totalSpent)}
                                 </p>
-                                <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">
+                                <p className="mt-1 text-xs text-green-600/70 dark:text-green-400/70">
                                     Rata-rata {formatCurrency(avgOrderValue)}
                                 </p>
                             </div>
-                            <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
+                            <div className="flex items-center justify-center w-12 h-12 bg-green-500 rounded-xl">
                                 <CreditCard className="w-6 h-6 text-white" />
                             </div>
                         </div>
                     </div>
 
                     {/* Reviews Given */}
-                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 rounded-xl border border-amber-200/50 dark:border-amber-800/50 p-6">
+                    <div className="p-6 border bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 rounded-xl border-amber-200/50 dark:border-amber-800/50">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Review Diberikan</p>
-                                <p className="text-3xl font-bold text-amber-900 dark:text-amber-100 mt-1">
+                                <p className="mt-1 text-3xl font-bold text-amber-900 dark:text-amber-100">
                                     {ordersData.filter(o => o.has_review).length}
                                 </p>
-                                <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-1">
+                                <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-400/70">
                                     {ordersData.filter(o => o.can_be_reviewed).length} bisa direview
                                 </p>
                             </div>
-                            <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center">
+                            <div className="flex items-center justify-center w-12 h-12 bg-amber-500 rounded-xl">
                                 <Star className="w-6 h-6 text-white fill-current" />
                             </div>
                         </div>
                     </div>
 
                     {/* Order Types Breakdown */}
-                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-xl border border-purple-200/50 dark:border-purple-800/50 p-6">
+                    <div className="p-6 border bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-xl border-purple-200/50 dark:border-purple-800/50">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Jenis Pesanan</p>
-                                <p className="text-2xl font-bold text-purple-900 dark:text-purple-100 mt-1">
+                                <p className="mt-1 text-2xl font-bold text-purple-900 dark:text-purple-100">
                                     {dineInCount}
                                 </p>
-                                <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">
+                                <p className="mt-1 text-xs text-purple-600/70 dark:text-purple-400/70">
                                     Dine In • {takeawayCount} Take Away • {deliveryCount} Delivery
                                 </p>
                             </div>
-                            <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
+                            <div className="flex items-center justify-center w-12 h-12 bg-purple-500 rounded-xl">
                                 <Coffee className="w-6 h-6 text-white" />
                             </div>
                         </div>
@@ -291,18 +293,18 @@ export default function OrdersHistory({ orders, filters }: OrdersHistoryProps) {
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl flex-1 flex flex-col min-h-[70vh]">
                     {/* Header */}
                     <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                                     Riwayat Pemesanan
                                 </h2>
-                                <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                                     Menampilkan {orders.from}-{orders.to} dari {orders.total} pesanan
                                 </p>
                             </div>
-                            
+
                             <div className="flex items-center gap-3">
-                                <button className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                <button className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
                                     <Download className="w-4 h-4" />
                                     Export
                                 </button>
@@ -310,14 +312,14 @@ export default function OrdersHistory({ orders, filters }: OrdersHistoryProps) {
                         </div>
 
                         {/* Filters */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+                        <div className="grid grid-cols-1 gap-3 mt-4 sm:grid-cols-2 lg:grid-cols-4">
                             {/* Status Filter */}
                             <div className="flex items-center gap-2">
                                 <Filter className="w-4 h-4 text-gray-500" />
                                 <select
                                     value={localFilters.status || 'all'}
                                     onChange={(e) => handleStatusFilter(e.target.value)}
-                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"
+                                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 >
                                     <option value="all">Semua Status</option>
                                     <option value="completed">Selesai</option>
@@ -333,7 +335,7 @@ export default function OrdersHistory({ orders, filters }: OrdersHistoryProps) {
                             <select
                                 value={localFilters.order_type || 'all'}
                                 onChange={(e) => handleOrderTypeFilter(e.target.value)}
-                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"
+                                className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                             >
                                 <option value="all">Semua Jenis</option>
                                 <option value="dine_in">Dine In</option>
@@ -346,7 +348,7 @@ export default function OrdersHistory({ orders, filters }: OrdersHistoryProps) {
                                 type="date"
                                 value={localFilters.date_from || ''}
                                 onChange={(e) => handleDateFilter(e.target.value, localFilters.date_to || '')}
-                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"
+                                className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 placeholder="Dari tanggal"
                             />
 
@@ -355,7 +357,7 @@ export default function OrdersHistory({ orders, filters }: OrdersHistoryProps) {
                                 type="date"
                                 value={localFilters.date_to || ''}
                                 onChange={(e) => handleDateFilter(localFilters.date_from || '', e.target.value)}
-                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"
+                                className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 placeholder="Sampai tanggal"
                             />
                         </div>
@@ -364,18 +366,18 @@ export default function OrdersHistory({ orders, filters }: OrdersHistoryProps) {
                     {/* Orders List */}
                     <div className="flex-1 overflow-auto">
                         {ordersData.length === 0 ? (
-                            <div className="text-center py-12">
-                                <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                <p className="text-gray-500 dark:text-gray-400 mb-4">
-                                    {Object.keys(localFilters).some(key => localFilters[key as keyof typeof localFilters]) 
-                                        ? 'Tidak ada pesanan yang sesuai dengan filter' 
+                            <div className="py-12 text-center">
+                                <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                                <p className="mb-4 text-gray-500 dark:text-gray-400">
+                                    {Object.keys(localFilters).some(key => localFilters[key as keyof typeof localFilters])
+                                        ? 'Tidak ada pesanan yang sesuai dengan filter'
                                         : 'Belum ada riwayat pesanan'
                                     }
                                 </p>
                                 {!Object.keys(localFilters).some(key => localFilters[key as keyof typeof localFilters]) && (
                                     <Link
                                         href={route('orders.index')}
-                                        className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                                        className="inline-flex items-center gap-2 px-4 py-2 text-white transition-colors bg-orange-600 rounded-lg hover:bg-orange-700"
                                     >
                                         <Package className="w-4 h-4" />
                                         Buat Pesanan Pertama
@@ -385,7 +387,7 @@ export default function OrdersHistory({ orders, filters }: OrdersHistoryProps) {
                         ) : (
                             <div className="divide-y divide-gray-200 dark:divide-gray-700">
                                 {ordersData.map((order) => (
-                                    <div key={order.id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                    <div key={order.id} className="p-6 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                         <div className="flex items-start justify-between">
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-3 mb-3">
@@ -395,12 +397,12 @@ export default function OrdersHistory({ orders, filters }: OrdersHistoryProps) {
                                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
                                                         {getStatusText(order.status)}
                                                     </span>
-                                                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs font-medium">
+                                                    <span className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">
                                                         {getOrderTypeText(order.order_type)}
                                                     </span>
                                                 </div>
-                                                
-                                                <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400 mb-3">
+
+                                                <div className="flex items-center gap-6 mb-3 text-sm text-gray-600 dark:text-gray-400">
                                                     <div className="flex items-center gap-1">
                                                         <Calendar className="w-4 h-4" />
                                                         {formatDate(order.order_date)}
@@ -410,16 +412,16 @@ export default function OrdersHistory({ orders, filters }: OrdersHistoryProps) {
                                                         {formatTime(order.order_date)}
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div className="mb-3">
-                                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Menu yang dipesan:</p>
-                                                    <ul className="text-sm text-gray-800 dark:text-gray-200 space-y-1">
+                                                    <p className="mb-1 text-sm text-gray-600 dark:text-gray-400">Menu yang dipesan:</p>
+                                                    <ul className="space-y-1 text-sm text-gray-800 dark:text-gray-200">
                                                         {order.items.map((item, index) => (
                                                             <li key={index} className="flex justify-between">
                                                                 <span>
                                                                     {item.quantity}x {item.menu_name}
                                                                     {item.special_instructions && (
-                                                                        <span className="text-gray-500 text-xs ml-1">
+                                                                        <span className="ml-1 text-xs text-gray-500">
                                                                             ({item.special_instructions})
                                                                         </span>
                                                                     )}
@@ -429,10 +431,10 @@ export default function OrdersHistory({ orders, filters }: OrdersHistoryProps) {
                                                         ))}
                                                     </ul>
                                                 </div>
-                                                
+
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-4">
-                                                        <p className="font-bold text-lg text-gray-900 dark:text-white">
+                                                        <p className="text-lg font-bold text-gray-900 dark:text-white">
                                                             Total: {formatCurrency(order.total_amount)}
                                                         </p>
                                                         {order.review && (
@@ -444,7 +446,7 @@ export default function OrdersHistory({ orders, filters }: OrdersHistoryProps) {
                                                             </div>
                                                         )}
                                                     </div>
-                                                    
+
                                                     <div className="flex items-center gap-2">
                                                         <Link
                                                             href={route('orders.show', order.id)}

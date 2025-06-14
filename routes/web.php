@@ -12,6 +12,8 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\FavoriteMenuController;
 use App\Http\Controllers\MenuItemController;
 use App\Http\Controllers\RestaurantTableController;
+use App\Http\Controllers\UnifiedHistoryController;
+use App\Http\Controllers\Settings\ProfileController;
 use Inertia\Inertia;
 
 /*
@@ -80,6 +82,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         request()->session()->regenerateToken();
         return redirect('/');
     })->name('logout');
+
+    // ===== UNIFIED HISTORY PAGE (FIXED - MOVED FROM TEST SECTION) =====
+    Route::get('/riwayat', [UnifiedHistoryController::class, 'index'])->name('unified.history');
 
     // ===== ORDER MANAGEMENT (All authenticated users can order) =====
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
@@ -208,17 +213,19 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::patch('/packages/{id}/toggle-status', [AdminReservationPackageController::class, 'toggleStatus'])->name('packages.toggle-status');
 
     // ===== ADMIN REVIEW MANAGEMENT =====
-    // Route::post('/reviews/{id}/response', [ReviewController::class, 'addAdminResponse'])->name('reviews.add-response');
-    // Route::delete('/reviews/{id}/response', [ReviewController::class, 'removeAdminResponse'])->name('reviews.remove-response');
-    // Route::patch('/reviews/{id}/featured', [ReviewController::class, 'markAsFeatured'])->name('reviews.mark-featured');
-    // Route::patch('/reviews/{id}/verified', [ReviewController::class, 'markAsVerified'])->name('reviews.mark-verified');
-    // Route::delete('/reviews/{id}', [ReviewController::class, 'adminDestroy'])->name('reviews.destroy');
+    Route::post('/reviews/{id}/response', [ReviewController::class, 'addAdminResponse'])->name('reviews.add-response');
+    Route::delete('/reviews/{id}/response', [ReviewController::class, 'removeAdminResponse'])->name('reviews.remove-response');
+    Route::patch('/reviews/{id}/featured', [ReviewController::class, 'markAsFeatured'])->name('reviews.mark-featured');
+    Route::patch('/reviews/{id}/verified', [ReviewController::class, 'markAsVerified'])->name('reviews.mark-verified');
+    Route::delete('/reviews/{id}', [ReviewController::class, 'adminDestroy'])->name('reviews.destroy');
 
     // ===== ADMIN USER MANAGEMENT =====
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::get('/users/{user}', [UserController::class, 'show'])->name('users.show');
     Route::patch('/users/{user}/role', [UserController::class, 'updateRole'])->name('users.update-role');
     Route::patch('/users/{user}/status', [UserController::class, 'updateStatus'])->name('users.update-status');
+    Route::patch('/users/{id}/toggle-block', [AdminController::class, 'toggleUserBlock'])->name('users.toggle-block');
+    Route::get('/customers/export', [AdminController::class, 'exportCustomers'])->name('customers.export');
 
     // ===== ADMIN MENU MANAGEMENT =====
     Route::get('/menu', [MenuItemController::class, 'adminIndex'])->name('menu.index');
@@ -358,12 +365,19 @@ if (app()->environment('local')) {
     });
 }
 
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/settings/profile', [ProfileController::class, 'edit'])->name('settings.profile');
+    Route::patch('/settings/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Route lainnya...
+});
+
 /*
 |--------------------------------------------------------------------------
 | papi 5 mei
 |--------------------------------------------------------------------------
 */
-
 
 /*
 |--------------------------------------------------------------------------

@@ -44,26 +44,30 @@ const PackagesContent: React.FC<PackagesContentProps> = ({
   
 
   useEffect(() => {
-    let filtered = packages;
-    
-    if (filterType !== 'all') {
-      filtered = filtered.filter(pkg => pkg.type === filterType);
-    }
-    
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(pkg => pkg.status === filterStatus);
-    }
-    
-    if (searchTerm) {
-      filtered = filtered.filter(pkg => 
-        pkg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pkg.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pkg.category.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    setFilteredPackages(filtered);
-  }, [filterType, filterStatus, searchTerm, packages]);
+  let filtered = packages;
+  
+  if (filterType !== 'all') {
+    filtered = filtered.filter(pkg => pkg.type === filterType);
+  }
+  
+  if (filterStatus !== 'all') {
+    filtered = filtered.filter(pkg => pkg.status === filterStatus);
+  }
+  
+  if (searchTerm) {
+    filtered = filtered.filter(pkg => {
+      const name = pkg.name || '';
+      const description = pkg.description || '';
+      const category = pkg.category || '';
+      
+      return name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             category.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+  }
+  
+  setFilteredPackages(filtered);
+}, [filterType, filterStatus, searchTerm, packages]);
 
 const handleToggleStatus = (id: number) => {
   const packageItem = packages.find(pkg => pkg.id === id);

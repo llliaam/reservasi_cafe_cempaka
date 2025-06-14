@@ -220,7 +220,7 @@ public function store(Request $request)
     if (!empty($validated['menu_items'])) {
         $menuItemIds = collect($validated['menu_items'])->pluck('id');
         $validMenuItems = MenuItem::where('is_available', true)->whereIn('id', $menuItemIds)->get();
-        
+
         if ($validMenuItems->count() !== $menuItemIds->count()) {
             return redirect()->back()
                            ->withErrors(['menu_items' => 'Beberapa menu item tidak ditemukan atau tidak tersedia.'])
@@ -230,7 +230,7 @@ public function store(Request $request)
 
     // Validate payment proof for certain methods
     $paymentMethodsRequiringProof = [
-        'transfer', 'bca', 'mandiri', 'bni', 'bri', 
+        'transfer', 'bca', 'mandiri', 'bni', 'bri',
         'gopay', 'ovo', 'dana', 'shopeepay'
     ];
 
@@ -289,8 +289,8 @@ public function store(Request $request)
 
         DB::commit();
 
-        $message = $initialStatus === 'confirmed' 
-            ? 'Reservasi berhasil dibuat dan dikonfirmasi!' 
+        $message = $initialStatus === 'confirmed'
+            ? 'Reservasi berhasil dibuat dan dikonfirmasi!'
             : 'Reservasi berhasil dibuat! Menunggu konfirmasi pembayaran.';
 
         // Log successful creation
@@ -314,19 +314,19 @@ public function store(Request $request)
 
     } catch (\Exception $e) {
         DB::rollBack();
-        
+
         \Log::error('Reservation creation failed:', [
             'error' => $e->getMessage(),
             'trace' => $e->getTraceAsString(),
             'request_data' => $request->except(['proof_of_payment', 'additional_images']),
             'user_id' => Auth::id()
         ]);
-        
+
         return redirect()->back()
                        ->withErrors(['reservation' => 'Terjadi kesalahan saat membuat reservasi.'])
                        ->withInput();
     }
-}   
+}
 
     /**
      * Display the specified resource.
@@ -557,7 +557,7 @@ public function store(Request $request)
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return redirect()->back()
                            ->withErrors(['reservation' => 'Terjadi kesalahan saat memperbarui reservasi.'])
                            ->withInput();
@@ -593,7 +593,7 @@ public function store(Request $request)
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return redirect()->back()
                            ->withErrors(['cancel' => 'Terjadi kesalahan saat membatalkan reservasi.']);
         }
@@ -607,13 +607,13 @@ public function store(Request $request)
         // Handle proof of payment upload
         if ($request->hasFile('proof_of_payment')) {
             $file = $request->file('proof_of_payment');
-            
+
             // Generate unique filename
             $filename = $this->generateImageFileName($reservation->reservation_code, 'payment', $file->getClientOriginalExtension());
-            
+
             // Store file
             $path = $file->storeAs('reservations/payments', $filename, 'public');
-            
+
             // Update reservation with filename
             $reservation->update(['proof_of_payment' => $filename]);
         }
@@ -622,21 +622,21 @@ public function store(Request $request)
         if ($request->hasFile('additional_images')) {
             $files = $request->file('additional_images');
             $additionalImageNames = [];
-            
+
             foreach ($files as $index => $file) {
                 // Generate unique filename
                 $filename = $this->generateImageFileName(
-                    $reservation->reservation_code, 
-                    'additional', 
+                    $reservation->reservation_code,
+                    'additional',
                     $file->getClientOriginalExtension(),
                     $index
                 );
-                
+
                 // Store file
                 $path = $file->storeAs('reservations/additional', $filename, 'public');
                 $additionalImageNames[] = $filename;
             }
-            
+
             // Update reservation with filenames
             $reservation->update(['additional_images' => $additionalImageNames]);
         }
@@ -650,7 +650,7 @@ public function store(Request $request)
         $timestamp = now()->format('YmdHis');
         $randomString = substr(str_shuffle('0123456789abcdefghijklmnopqrstuvwxyz'), 0, 4);
         $suffix = $index !== null ? "_{$index}" : '';
-        
+
         return "{$reservationCode}_{$type}_{$timestamp}_{$randomString}{$suffix}.{$extension}";
     }
 
@@ -672,7 +672,7 @@ public function store(Request $request)
         try {
             $uploadedImages = [];
             $existingImages = $reservation->additional_images ?? [];
-            
+
             foreach ($validated['images'] as $index => $file) {
                 $filename = $this->generateImageFileName(
                     $reservation->reservation_code,
@@ -680,7 +680,7 @@ public function store(Request $request)
                     $file->getClientOriginalExtension(),
                     count($existingImages) + $index
                 );
-                
+
                 $path = $file->storeAs('reservations/additional', $filename, 'public');
                 $uploadedImages[] = $filename;
             }
@@ -711,7 +711,7 @@ public function store(Request $request)
             if ($reservation->proof_of_payment === $filename) {
                 Storage::disk('public')->delete('reservations/payments/' . $filename);
                 $reservation->update(['proof_of_payment' => null]);
-                
+
                 return redirect()->back()->with('success', 'Bukti pembayaran berhasil dihapus!');
             }
 
@@ -719,13 +719,13 @@ public function store(Request $request)
             $additionalImages = $reservation->additional_images ?? [];
             if (in_array($filename, $additionalImages)) {
                 Storage::disk('public')->delete('reservations/additional/' . $filename);
-                
+
                 $updatedImages = array_filter($additionalImages, function($img) use ($filename) {
                     return $img !== $filename;
                 });
-                
+
                 $reservation->update(['additional_images' => array_values($updatedImages)]);
-                
+
                 return redirect()->back()->with('success', 'Gambar berhasil dihapus!');
             }
 

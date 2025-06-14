@@ -27,7 +27,9 @@ import {
   Eye,
   Edit3,
   Menu,
-  ChevronLeft             
+  ChevronLeft,
+  Shield,
+  ShieldOff             
 } from 'lucide-react';
 
 interface ReservationData {
@@ -159,6 +161,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isSubmittingEditMenu, setIsSubmittingEditMenu] = useState(false);
   const [showEditPackageConfirm, setShowEditPackageConfirm] = useState(false);
   const [pendingEditPackageData, setPendingEditPackageData] = useState(null);
+  
   
   const [isSubmittingMenu, setIsSubmittingMenu] = useState(false);
   
@@ -326,6 +329,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
     });
   };
+
+  const formatRupiahSafe = (amount: any) => {
+  const safeAmount = Number(amount) || 0;
+  
+  if (isNaN(safeAmount)) {
+    return 'Rp 0';
+  }
+  
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(safeAmount);
+};
 
   const handleDeleteReservation = (reservationId: number) => {
     showConfirmAlert({
@@ -659,23 +677,27 @@ const executeEditPackage = async () => {
 
   // Helper functions
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'processing':
-      case 'vip':
-        return 'bg-blue-100 text-blue-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'ready':
-        return 'bg-purple-100 text-purple-800';
-      case 'inactive':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  switch (status) {
+    case 'completed':
+    case 'active':
+      return 'bg-green-100 text-green-800';
+    case 'processing':
+    case 'vip':
+      return 'bg-blue-100 text-blue-800';
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'ready':
+      return 'bg-purple-100 text-purple-800';
+    case 'inactive':
+      return 'bg-gray-100 text-gray-800';
+    case 'blocked': // TAMBAH INI
+      return 'bg-red-100 text-red-800';
+    case 'cancelled':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
 
   const getStatusText = (status: string) => {
     switch (status) {
@@ -688,6 +710,7 @@ const executeEditPackage = async () => {
       case 'vip': return 'VIP';
       case 'confirmed': return 'Dikonfirmasi';
       case 'cancelled': return 'Dibatalkan';
+      case 'blocked': return 'Diblokir';
       default: return status;
     }
   };
@@ -910,13 +933,13 @@ const executeEditPackage = async () => {
                   </button>
                 )}
                 
-                <button
+                {/* <button
                   onClick={() => handleDeleteReservation(modalData.id)}
                   className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center text-sm"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Hapus
-                </button>
+                </button> */}
                 
                 <button
                   onClick={closeModal}
@@ -930,50 +953,191 @@ const executeEditPackage = async () => {
         );
       
       case 'customer':
-        return (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">Nama</p>
-                <p className="font-medium break-words">{modalData.name}</p>
+  return (
+    <div className="space-y-6">
+      {/* Customer Info */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <p className="text-sm text-gray-600">Nama</p>
+          <p className="font-medium break-words">{modalData.name}</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-600">Status</p>
+          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(modalData.status)}`}>
+            {getStatusText(modalData.status)}
+          </span>
+        </div>
+        <div>
+          <p className="text-sm text-gray-600">No. Telepon</p>
+          <p className="font-medium break-words">{modalData.phone}</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-600">Email</p>
+          <p className="font-medium break-words">{modalData.email}</p>
+        </div>
+        <div className="col-span-1 sm:col-span-2">
+          <p className="text-sm text-gray-600">Alamat</p>
+          <p className="font-medium break-words">{modalData.address}</p>
+        </div>
+      </div>
+
+     {/* Statistics */}
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+      <div className="text-center">
+        <div className="text-lg font-bold text-gray-900">{modalData.totalOrders || 0}</div>
+        <div className="text-xs text-gray-600">Total Pesanan</div>
+      </div>
+      <div className="text-center">
+        <div className="text-lg font-bold text-gray-900">{modalData.totalReservations || 0}</div>
+        <div className="text-xs text-gray-600">Total Reservasi</div>
+      </div>
+      <div className="text-center">
+        <div className="text-lg font-bold text-gray-900">
+          {formatRupiahSafe(modalData.totalSpent)}
+        </div>
+        <div className="text-xs text-gray-600">Belanja Pesanan</div>
+      </div>
+      <div className="text-center">
+        <div className="text-lg font-bold text-gray-900">
+          {formatRupiahSafe(modalData.reservationSpent)}
+        </div>
+        <div className="text-xs text-gray-600">Belanja Reservasi</div>
+      </div>
+    </div>
+
+    {/* Total Keseluruhan */}
+    <div className="bg-blue-50 p-4 rounded-lg">
+      <div className="text-center">
+        <div className="text-xl font-bold text-blue-900">
+          {formatRupiahSafe((Number(modalData.totalSpent) || 0) + (Number(modalData.reservationSpent) || 0))}
+        </div>
+        <div className="text-sm text-blue-700">Total Belanja Keseluruhan</div>
+      </div>
+    </div>
+
+      {/* Recent Orders */}
+    {modalData.recentOrders && modalData.recentOrders.length > 0 && (
+      <div>
+        <h4 className="text-lg font-semibold text-gray-900 mb-3">Pesanan Terbaru</h4>
+        <div className="space-y-3 max-h-48 overflow-y-auto">
+          {modalData.recentOrders.map((order, index) => (
+            <div key={index} className="flex justify-between items-start p-3 border border-gray-200 rounded-lg">
+              <div className="flex-1">
+                <div className="font-medium text-sm">{order.id}</div>
+                <div className="text-xs text-gray-600">{order.date}</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {order.items.slice(0, 2).join(', ')}
+                  {order.items.length > 2 && ` +${order.items.length - 2} lainnya`}
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Status</p>
-                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(modalData.status)}`}>
-                  {getStatusText(modalData.status)}
+              <div className="text-right">
+                <div className="font-medium text-sm">
+                  {formatRupiahSafe(order.total)}
+                </div>
+                <span className={`inline-flex px-2 py-1 text-xs rounded-full ${getStatusColor(order.status)}`}>
+                  {getStatusText(order.status)}
                 </span>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">No. Telepon</p>
-                <p className="font-medium break-words">{modalData.phone}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Email</p>
-                <p className="font-medium break-words">{modalData.email}</p>
-              </div>
-              <div className="col-span-1 sm:col-span-2">
-                <p className="text-sm text-gray-600">Alamat</p>
-                <p className="font-medium break-words">{modalData.address}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Pesanan</p>
-                <p className="font-medium">{modalData.totalOrders}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Belanja</p>
-                <p className="font-medium">Rp {modalData.totalSpent.toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Bergabung Sejak</p>
-                <p className="font-medium">{modalData.joinDate}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Terakhir Order</p>
-                <p className="font-medium">{modalData.lastOrder}</p>
-              </div>
             </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+      {/* Recent Reservations */}
+      {modalData.recentReservations && modalData.recentReservations.length > 0 && (
+        <div>
+          <h4 className="text-lg font-semibold text-gray-900 mb-3">Reservasi Terbaru</h4>
+          <div className="space-y-3 max-h-48 overflow-y-auto">
+            {modalData.recentReservations.map((reservation, index) => (
+              <div key={index} className="flex justify-between items-start p-3 border border-gray-200 rounded-lg">
+                <div className="flex-1">
+                  <div className="font-medium text-sm">{reservation.id}</div>
+                  <div className="text-xs text-gray-600">{reservation.date} - {reservation.time}</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {reservation.package} ({reservation.guests} orang)
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-medium text-sm">
+                    {formatRupiahSafe(reservation.total)}
+                  </div>
+                  <span className={`inline-flex px-2 py-1 text-xs rounded-full ${getStatusColor(reservation.status)}`}>
+                    {getStatusText(reservation.status)}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
-        );
+        </div>
+      )}
+
+      {/* Join Date and Last Activity */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t">
+        <div>
+          <p className="text-sm text-gray-600">Bergabung Sejak</p>
+          <p className="font-medium">{modalData.joinDate}</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-600">Aktivitas Terakhir</p>
+          <p className="font-medium">{modalData.lastActivityDate}</p>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="border-t pt-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => {
+              if (confirm(`Apakah Anda yakin ingin ${modalData.is_blocked ? 'membuka blokir' : 'memblokir'} akun ${modalData.name}?`)) {
+                router.patch(`/admin/users/${modalData.id}/toggle-block`, {}, {
+                  preserveState: true,
+                  preserveScroll: true,
+                  onSuccess: (page) => {
+                    if (page.props.customers) {
+                      setCustomers(page.props.customers);
+                      // Update modal data
+                      const updatedCustomer = page.props.customers.find((c: any) => c.id === modalData.id);
+                      if (updatedCustomer) {
+                        setModalData(updatedCustomer);
+                      }
+                    }
+                    console.log(`Status blokir berhasil diubah`);
+                  },
+                  onError: (errors) => {
+                    console.error('Error toggling block status:', errors);
+                  }
+                });
+              }
+            }}
+            className={`flex-1 px-4 py-2 rounded-lg font-medium text-white ${
+              modalData.is_blocked 
+                ? 'bg-green-600 hover:bg-green-700' 
+                : 'bg-red-600 hover:bg-red-700'
+            }`}
+          >
+            {modalData.is_blocked ? (
+              <>
+                <ShieldOff className="w-4 h-4 mr-2 inline" />
+                Buka Blokir Akun
+              </>
+            ) : (
+              <>
+                <Shield className="w-4 h-4 mr-2 inline" />
+                Blokir Akun
+              </>
+            )}
+          </button>
+          <button
+            onClick={closeModal}
+            className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium"
+          >
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+    );
       
       case 'staff':
         return (
@@ -1257,23 +1421,25 @@ const executeEditPackage = async () => {
           )}
           
           {activeTab === 'customers' && (
-              <CustomersContent 
-                customers={customers}
-                searchTerm={searchTerm}
-                openModal={openModal}
-                getStatusColor={getStatusColor}
-                getStatusText={getStatusText}
-              />
-            )}
+            <CustomersContent 
+              customers={customers}
+              setCustomers={setCustomers} // TAMBAH INI
+              searchTerm={searchTerm}
+              openModal={openModal}
+              getStatusColor={getStatusColor}
+              getStatusText={getStatusText}
+            />
+          )}
           
           {activeTab === 'staff' && (
-              <StaffContent 
-                staff={staff}
-                openModal={openModal}
-                getStatusColor={getStatusColor}
-                getStatusText={getStatusText}
-              />
-            )}
+            <StaffContent 
+              staff={staff}
+              searchTerm={searchTerm}
+              openModal={openModal}
+              getStatusColor={getStatusColor}
+              getStatusText={getStatusText}
+            />
+          )}
           
          {activeTab === 'packages' && (
           <PackagesContent 
