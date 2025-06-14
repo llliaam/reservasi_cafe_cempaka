@@ -798,14 +798,15 @@ const handleSubmitOrder = (e: React.FormEvent) => {
 )}
 
         {/* Floating Cart Button */}
-        {cartCount > 0 && (
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="fixed z-50 py-8 px-15 text-white rounded-full shadow-2xl bottom-6 right-6 bg-gradient-to-r from-orange-500 to-amber-500"
-            >
-            🛒 {cartCount}
-          </button>
-        )}
+{!isCartOpen && cartCount > 0 && (
+  <button
+    onClick={() => setIsCartOpen(true)}
+    
+    className="fixed z-50 py-6 px-14 text-white rounded-full shadow-2xl bottom-6 right-6 bg-gradient-to-r from-orange-500 to-amber-500"
+  >
+    🛒 {cartCount}
+  </button>
+)}
       </div>
     </>
   );
