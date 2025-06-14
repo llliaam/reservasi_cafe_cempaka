@@ -48,8 +48,8 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     <div className="space-y-4 sm:space-y-6">
       {/* Welcome Card */}
       <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-white">
-        <h2 className="text-xl sm:text-2xl font-bold mb-2">Selamat Datang di CleanCare Pro!</h2>
-        <p className="text-orange-100 text-sm sm:text-base mb-4">Kelola bisnis laundry Anda dengan mudah dan efisien</p>
+        <h2 className="text-xl sm:text-2xl font-bold mb-2">Da Money countah</h2>
+        <p className="text-orange-100 text-sm sm:text-base mb-4">On sum nonchalant shi</p>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <button 
             onClick={() => setActiveTab('orders')}
@@ -300,35 +300,34 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
       {/* Quick Actions */}
       <div className="bg-white rounded-xl border border-gray-100 p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <button 
             onClick={() => setActiveTab('menu')}
-            className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center transition-colors"
+            className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-orange-50 text-center transition-all duration-200 hover:scale-[1.2]"
+
           >
             <FileText className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-blue-600" />
             <div className="text-xs sm:text-sm font-medium truncate">Kelola Menu</div>
           </button>
           <button 
             onClick={() => setActiveTab('packages')}
-            className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center transition-colors"
+            className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-orange-50 text-center transition-all duration-200 hover:scale-[1.2]"
+
           >
             <Package className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-purple-600" />
             <div className="text-xs sm:text-sm font-medium truncate">Paket Reservasi</div>
           </button>
-          <button className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center transition-colors">
+          <button className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-orange-50 text-center transition-all duration-200 hover:scale-[1.2]"
+>
             <Download className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-green-600" />
             <div className="text-xs sm:text-sm font-medium truncate">Export Data</div>
           </button>
-          <button 
-            onClick={() => setActiveTab('analytics')}
-            className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center transition-colors"
-          >
-            <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-orange-600" />
-            <div className="text-xs sm:text-sm font-medium truncate">Lihat Report</div>
-          </button>
-        </div>
+  </div>
+</div>
+
       </div>
-    </div>
+    
   );
 };
 

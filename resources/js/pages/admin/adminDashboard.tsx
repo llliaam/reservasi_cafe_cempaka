@@ -76,6 +76,7 @@ interface AdminDashboardProps {
   
 }
 
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   user, 
   stats, 
@@ -164,6 +165,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   
   
   const [isSubmittingMenu, setIsSubmittingMenu] = useState(false);
+
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const openLogoutModal = () => setShowLogoutModal(true);
+  const closeLogoutModal = () => setShowLogoutModal(false);
+
+const handleLogout = () => {
+  setIsLoggingOut(true);
+  closeLogoutModal();
+  router.post(route('logout'), {}, {
+    onFinish: () => setIsLoggingOut(false),
+    onError: () => {
+      setIsLoggingOut(false);
+      console.error('Logout gagal');
+    }
+  });
+};
+
   
   // Mobile sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -1348,6 +1368,7 @@ const executeEditPackage = async () => {
   };
 
   return (
+    
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       {/* Mobile Sidebar Backdrop */}
       {isSidebarOpen && (
@@ -1364,14 +1385,16 @@ const executeEditPackage = async () => {
         lg:translate-x-0 transition-transform duration-300 ease-in-out
       `}>
         <Sidebar 
-          activeTab={activeTab} 
+          activeTab={activeTab}
           setActiveTab={setActiveTab}
           isMobile={true}
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
+          onLogoutClick={openLogoutModal} // ⬅️ Tambahkan ini
         />
+
       </div>
-      
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* TopBar */}
@@ -1464,13 +1487,7 @@ const executeEditPackage = async () => {
             />
           )}
           
-          {activeTab === 'analytics' && (
-            <div className="text-center py-20">
-              <TrendingUp className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900">Analytics & Report</h3>
-              <p className="text-gray-600">Fitur ini sedang dalam pengembangan</p>
-            </div>
-          )}
+          
         </div>
       </div>
 
@@ -1767,7 +1784,44 @@ const executeEditPackage = async () => {
   </div>
         </form>
       </Modal>
+              {showLogoutModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center">
+                  <div
+                    className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                    onClick={closeLogoutModal}
+                  />
 
+                  <div className="relative z-10 w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden dark:bg-gray-900">
+                    <div className="p-6 bg-gradient-to-br from-red-500 via-orange-500 to-yellow-500">
+                      <h3 className="text-xl font-bold text-white">Konfirmasi Logout</h3>
+                      <p className="text-sm text-white/90">Apakah Anda yakin ingin keluar?</p>
+                    </div>
+
+                    <div className="px-6 py-4 bg-white dark:bg-gray-900 flex flex-col gap-3">
+                      
+                      <p className="text-sm text-gray-700">
+                        Anda akan keluar dari akun. Pastikan semua pekerjaan tersimpan.
+                      </p>
+
+                      <div className="flex justify-end gap-3 pt-2">
+                        <button
+                          onClick={closeLogoutModal}
+                          className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          onClick={handleLogout}
+                          disabled={isLoggingOut}
+                          className="px-4 py-2 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {isLoggingOut ? 'Logging out...' : 'Ya, Logout'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
       {/* Add Menu Modal */}
       <Modal 
         isOpen={isAddMenuOpen} 
@@ -1960,7 +2014,7 @@ const executeEditPackage = async () => {
                 className="hidden"
                 id="edit-menu-image-upload"
               />
-              
+            
               {/* New Image Preview */}
               {editMenuData.image ? (
                 <div className="space-y-3">

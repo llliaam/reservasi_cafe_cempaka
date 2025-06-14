@@ -5,19 +5,27 @@ import {
   Settings, HelpCircle, LogOut, X
 } from 'lucide-react';
 
+import { useState, useEffect } from 'react';
+import { Link as ScrollLink } from 'react-scroll';
+import { type SharedData } from '@/types';
+import { Link, usePage, router } from '@inertiajs/react'; // Tambahkan router import
+
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   isMobile?: boolean;
   isOpen?: boolean;
   onClose?: () => void;
+  onLogoutClick?: () => void; // ⬅️ TAMBAHKAN INI
 }
+
 
 const Sidebar: React.FC<SidebarProps> = ({ 
   activeTab, 
   setActiveTab, 
   isMobile = false, 
-  isOpen = false, 
+  isOpen = false,
+  onLogoutClick, // ⬅️ TAMBAHKAN DI SINI 
   onClose 
 }) => {
   const menuItems = [
@@ -28,7 +36,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     { id: 'reservations', label: 'Reservasi', icon: Calendar },
     { id: 'customers', label: 'Data Pelanggan', icon: Users },
     { id: 'staff', label: 'Manajemen Staff', icon: UserCheck },
-    { id: 'analytics', label: 'Analytics & Report', icon: TrendingUp }
   ];
 
   const handleTabClick = (tabId: string) => {
@@ -87,17 +94,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-<<<<<<< HEAD
-<div className="mt-auto px-4 pb-4">
-  <div className="mb-4">
-    <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg shadow-sm">
-      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-        <span className="text-white text-sm font-medium">A</span>
-      </div>
-      <div className="flex-1">
-       nigger
-       
-=======
       {/* User Profile and Account Section */}
       <div className="mt-auto p-4 border-t border-gray-100 flex-shrink-0">
         {/* User Profile */}
@@ -126,13 +122,17 @@ const Sidebar: React.FC<SidebarProps> = ({
               <HelpCircle className="w-4 h-4 mr-3 flex-shrink-0" />
               <span className="truncate">Bantuan</span>
             </button>
-            <button className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-              <LogOut className="w-4 h-4 mr-3 flex-shrink-0" />
-              <span className="truncate">Logout</span>
-            </button>
+           <button 
+            onClick={onLogoutClick}
+            className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <LogOut className="w-4 h-4 mr-3 flex-shrink-0" />
+            <span className="truncate">Logout</span>
+          </button>
+
+
           </div>
         </div>
->>>>>>> 15dc52042dfed7c694b0203358f21728baeab523
       </div>
     </div>
   );

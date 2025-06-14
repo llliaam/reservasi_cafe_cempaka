@@ -448,7 +448,7 @@ const ConfirmationDialog = ({ isOpen, onClose, onConfirm, title, message, confir
         {/* Dialog Konfirmasi Logout */}
         <ConfirmationDialog
           isOpen={showLogoutDialog}
-          onClose={cancelLogout}
+          onClose={cancelLogout} 
           onConfirm={confirmLogout}
           title="Konfirmasi Keluar"
           message="Apakah Anda yakin ingin keluar dari sistem?"
