@@ -326,13 +326,13 @@ const handleSubmitOrder = (e: React.FormEvent) => {
           {/* Search & Category */}
           <div className="mb-8">
             <div className="p-4 mb-4 bg-white shadow-lg rounded-2xl">
-              <input
-                type="text"
-                placeholder="Cari menu favorit..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full p-3 border-2 border-gray-100 rounded-xl focus:border-orange-400 focus:ring-0"
-              />
+             <input
+              type="text"
+              placeholder="Cari menu favorit..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full p-3 text-black border-2 border-gray-100 rounded-xl focus:border-orange-400 focus:ring-0"
+            />
             </div>
 
             <div className="flex pb-4 space-x-4 overflow-x-auto">
@@ -801,8 +801,8 @@ const handleSubmitOrder = (e: React.FormEvent) => {
         {cartCount > 0 && (
           <button
             onClick={() => setIsCartOpen(true)}
-            className="fixed z-40 p-4 text-white rounded-full shadow-2xl lg:hidden bottom-6 right-6 bg-gradient-to-r from-orange-500 to-amber-500"
-          >
+            className="fixed z-50 py-8 px-15 text-white rounded-full shadow-2xl bottom-6 right-6 bg-gradient-to-r from-orange-500 to-amber-500"
+            >
             🛒 {cartCount}
           </button>
         )}
