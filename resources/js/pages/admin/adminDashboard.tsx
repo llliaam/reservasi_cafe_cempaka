@@ -64,6 +64,18 @@ interface ReservationData {
 interface AdminDashboardProps {
   user: any;
   stats: any;
+  chartData?: Array<{
+    hour: string;
+    orders: number;
+    revenue: number;
+    full_date?: string;
+  }>; // TAMBAH INI
+  currentPeriod?: string; // TAMBAH INI
+  dateRange?: {
+    start: string;
+    end: string;
+    period: string;
+  }; // TAMBAH INI
   notifications: any[];
   recentActivity: any[];
   reservations: ReservationData[];
@@ -73,13 +85,15 @@ interface AdminDashboardProps {
   menuItems?: any[];
   menuCategories?: any[];    
   packages?: any[];
-  
 }
 
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   user, 
   stats, 
+  chartData = [],
+  currentPeriod: initialPeriod = 'today', 
+  dateRange: initialDateRange,
   notifications, 
   recentActivity, 
   reservations: initialReservations,
@@ -96,6 +110,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
     return 'dashboard';
   });
+
+  const [customStartDate, setCustomStartDate] = useState(initialDateRange?.start || '');
+  const [customEndDate, setCustomEndDate] = useState(initialDateRange?.end || '');
+  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState('');
@@ -674,27 +693,41 @@ const executeEditPackage = async () => {
   });
 };
 
-  // Calculate combined stats including reservations
-  const combinedStats = {
-    totalOrders: stats.total_orders || 0,
-    completedOrders: orders.filter(o => o.status === 'completed').length,
-    totalRevenue: stats.total_revenue || 0,
-    totalCustomers: stats.total_customers || 0,
-    totalReservations: reservations.length,
-    pendingReservations: reservations.filter(r => r.status === 'pending').length,
-    confirmedReservations: reservations.filter(r => r.status === 'confirmed').length,
-    avgOrderValue: stats.avg_order_value || 0,
-    monthlyGrowth: stats.monthly_growth || 0,
-    
-    reservationRevenue: reservations
-      .filter(r => r.status === 'completed')
-      .reduce((sum, r) => sum + parseFloat(r.total_price.replace(/[^\d]/g, '')), 0),
-    todayOrders: stats.today_orders || 0,
-    todayReservations: stats.today_reservations || 0,
-    newCustomersThisMonth: stats.new_customers_this_month || 0,
-    totalStaff: stats.total_staff || 0
-  };
 
+  // Calculate combined stats including reservations
+const combinedStats = {
+  totalOrders: stats.totalOrders || 0,
+  completedOrders: stats.completedOrders || 0,
+  totalRevenue: stats.totalRevenue || 0,
+  totalCustomers: stats.totalCustomers || 0,
+  totalReservations: stats.totalReservations || reservations.length,
+  pendingReservations: reservations.filter(r => r.status === 'pending').length,
+  confirmedReservations: stats.confirmedReservations || reservations.filter(r => r.status === 'confirmed').length,
+  avgOrderValue: stats.avgOrderValue || 0,
+  monthlyGrowth: stats.monthlyGrowth || 0,
+  revenueGrowth: stats.revenueGrowth || 0,
+  ordersGrowth: stats.ordersGrowth || 0,
+  customerGrowth: stats.customerGrowth || 0,
+  
+  // PENTING: Pastikan breakdown data di-pass ke frontend
+  orderRevenue: stats.orderRevenue || 0,           // TAMBAH INI
+  orderCount: stats.orderCount || 0,               // TAMBAH INI  
+  reservationRevenue: stats.reservationRevenue || 0, // TAMBAH INI
+  reservationCount: stats.reservationCount || 0,   // TAMBAH INI
+  
+  // Recent data dari stats backend
+  recentOrders: stats.recentOrders || [],
+  recentReservations: stats.recentReservations || [],
+  
+  // Data lainnya
+  reservationRevenue: reservations
+    .filter(r => r.status === 'completed')
+    .reduce((sum, r) => sum + parseFloat(r.total_price.replace(/[^\d]/g, '')), 0),
+  todayOrders: stats.todayOrders || 0,
+  todayReservations: stats.todayReservations || 0,
+  newCustomersThisMonth: stats.newCustomersThisMonth || 0,
+  totalStaff: stats.totalStaff || 0
+};
   // Helper functions
   const getStatusColor = (status: string) => {
   switch (status) {
@@ -1409,16 +1442,20 @@ const executeEditPackage = async () => {
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {activeTab === 'dashboard' && (
-              <DashboardContent 
-                stats={combinedStats}
-                setActiveTab={setActiveTab}
-                openModal={openModal}
-                orders={orders}
-                menuItems={menuItems}
-                getStatusColor={getStatusColor}
-                getStatusText={getStatusText}
-              />
-            )}
+            <DashboardContent 
+              stats={combinedStats}
+              chartData={chartData}
+              currentPeriod={initialPeriod} // GUNAKAN initialPeriod
+              dateRange={initialDateRange} // GUNAKAN initialDateRange
+              setActiveTab={setActiveTab}
+              openModal={openModal}
+              orders={orders}
+              menuItems={menuItems}
+              getStatusColor={getStatusColor}
+              getStatusText={getStatusText}
+              handleConfirmReservation={handleConfirmReservation}
+            />
+          )}
           
           {activeTab === 'orders' && (
             <OrdersContent 
