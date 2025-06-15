@@ -13,6 +13,7 @@ use App\Models\MenuCategory;
 use App\Models\User;
 use App\Models\UserReview;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
@@ -21,9 +22,70 @@ class AdminController extends Controller
      */
     public function index(): Response
     {
+        // PERBAIKAN: Tambah validasi dan default values
+        $period = request()->get('period', 'today');
+        $startDate = request()->get('start_date');
+        $endDate = request()->get('end_date');
+        
+        \Log::info('Dashboard request', [
+            'period' => $period,
+            'start_date' => $startDate,
+            'end_date' => $endDate
+        ]);
+        
+        // Determine date range dengan validasi
+        switch ($period) {
+            case 'week':
+                $start = Carbon::now()->startOfWeek();
+                $end = Carbon::now()->endOfWeek();
+                break;
+            case 'month':
+                $start = Carbon::now()->startOfMonth();
+                $end = Carbon::now()->endOfMonth();
+                break;
+            case 'custom':
+                // PERBAIKAN: Validasi custom date
+                if ($startDate && $endDate) {
+                    try {
+                        $start = Carbon::parse($startDate)->startOfDay();
+                        $end = Carbon::parse($endDate)->endOfDay();
+                    } catch (\Exception $e) {
+                        // Fallback ke today jika invalid
+                        $start = Carbon::today();
+                        $end = Carbon::today();
+                        $period = 'today';
+                    }
+                } else {
+                    $start = Carbon::today();
+                    $end = Carbon::today();
+                    $period = 'today';
+                }
+                break;
+            default: // today
+                $start = Carbon::today();
+                $end = Carbon::today();
+        }
+        
+        // PERBAIKAN: Log untuk debugging
+        \Log::info('Final date range', [
+            'start' => $start->format('Y-m-d H:i:s'),
+            'end' => $end->format('Y-m-d H:i:s'),
+            'period' => $period
+        ]);
+        
+        // Update stats calculation to use filtered dates
+        $filteredStats = $this->getStatsForPeriod($start, $end);
+        $filteredStats['currentPeriod'] = $period;
+        $filteredStats['dateRange'] = [
+            'start' => $start->format('Y-m-d'),
+            'end' => $end->format('Y-m-d'),
+            'period' => $period
+        ];
+
         return Inertia::render('admin/adminDashboard', [
             'user' => auth()->user(),
-            'stats' => $this->getAdminStats(),
+            'stats' => $filteredStats,
+            'chartData' => $this->getHourlyDataForPeriod($start, $end, $period)->toArray(),
             'notifications' => $this->getAdminNotifications(),
             'recentActivity' => $this->getRecentActivity(),
             'reservations' => $this->getReservationsData(), 
@@ -33,8 +95,357 @@ class AdminController extends Controller
             'menuItems' => $this->getMenuItemsData(),
             'menuCategories' => MenuCategory::active()->orderBy('name')->get(), 
             'packages' => $this->getPackagesData(),
+            'currentPeriod' => $period,
+            'dateRange' => [
+                'start' => $start->format('Y-m-d'),
+                'end' => $end->format('Y-m-d'),
+                'period' => $period
+            ],
+            'dashboardContent' => [
+                'stats' => $filteredStats,
+                'chartData' => $this->getHourlyDataForPeriod($start, $end, $period),
+                'currentPeriod' => $period,
+                'dateRange' => [
+                    'start' => $start->format('Y-m-d'),
+                    'end' => $end->format('Y-m-d'),
+                    'period' => $period
+                ]
+            ],
         ]);
     }
+
+    // TAMBAHKAN METHOD BARU
+private function getStatsForPeriod($startDate, $endDate)
+{
+    // PERBAIKAN: Pastikan format tanggal sudah benar
+    $startDate = Carbon::parse($startDate)->startOfDay();
+    $endDate = Carbon::parse($endDate)->endOfDay();
+    
+    // ORDERS (Online) - PERBAIKI QUERY
+    $orderRevenue = Order::whereBetween('order_time', [$startDate, $endDate])
+        ->where('status', 'completed')
+        ->sum('total_amount');
+    
+    $orderCount = Order::whereBetween('order_time', [$startDate, $endDate])
+        ->count();
+        
+    // RESERVATIONS - PERBAIKI QUERY
+    $reservationRevenue = Reservation::whereBetween('reservation_date', [$startDate, $endDate])
+        ->where('status', 'completed') 
+        ->sum('total_price');
+        
+    $reservationCount = Reservation::whereBetween('reservation_date', [$startDate, $endDate])
+        ->count();
+    
+    // TOTAL GABUNGAN
+    $totalRevenue = $orderRevenue + $reservationRevenue;
+    $totalTransactions = $orderCount + $reservationCount;
+    
+    // CUSTOMER COUNT 
+    $totalCustomers = User::where('role', 'customer')->count();
+    
+    // Previous period untuk growth calculation
+    $diffDays = $startDate->diffInDays($endDate) + 1;
+    $previousStart = $startDate->copy()->subDays($diffDays);
+    $previousEnd = $startDate->copy()->subDay();
+    
+    $previousOrderRevenue = Order::whereBetween('order_time', [$previousStart, $previousEnd])
+        ->where('status', 'completed')->sum('total_amount');
+    $previousReservationRevenue = Reservation::whereBetween('reservation_date', [$previousStart, $previousEnd])
+        ->where('status', 'completed')->sum('total_price');
+    
+    $previousTotalRevenue = $previousOrderRevenue + $previousReservationRevenue;
+    
+    $previousOrderCount = Order::whereBetween('order_time', [$previousStart, $previousEnd])->count();
+    $previousReservationCount = Reservation::whereBetween('reservation_date', [$previousStart, $previousEnd])->count();
+    $previousTotalTransactions = $previousOrderCount + $previousReservationCount;
+    
+    // PERBAIKAN: Pastikan semua data di-return dengan benar
+    $result = [
+        // Data utama gabungan
+        'totalRevenue' => $totalRevenue,
+        'totalOrders' => $totalTransactions,
+        'totalCustomers' => $totalCustomers,
+        'avgOrderValue' => $totalTransactions > 0 ? $totalRevenue / $totalTransactions : 0,
+        
+        // BREAKDOWN DATA UNTUK FILTER (INI YANG PENTING!)
+        'orderRevenue' => (float) $orderRevenue,           // Cast ke float
+        'orderCount' => (int) $orderCount,                 // Cast ke int
+        'reservationRevenue' => (float) $reservationRevenue, // Cast ke float
+        'reservationCount' => (int) $reservationCount,     // Cast ke int
+        
+        // Data lainnya
+        'totalReservations' => $reservationCount,
+        'confirmedReservations' => Reservation::whereBetween('reservation_date', [$startDate, $endDate])
+            ->where('status', 'confirmed')->count(),
+        'completedOrders' => Order::whereBetween('order_time', [$startDate, $endDate])
+            ->where('status', 'completed')->count(),
+        
+        // Growth calculations
+        'revenueGrowth' => $this->calculateGrowth($totalRevenue, $previousTotalRevenue),
+        'ordersGrowth' => $this->calculateGrowth($totalTransactions, $previousTotalTransactions),
+        'customerGrowth' => 0,
+        
+        // Recent data
+        'recentOrders' => $this->getRecentOrdersForPeriod($startDate, $endDate),
+        'recentReservations' => $this->getRecentReservationsForPeriod($startDate, $endDate),
+    ];
+    
+    // DEBUG: Log hasil untuk memastikan data benar
+    \Log::info('Stats calculation result', [
+        'orderRevenue' => $result['orderRevenue'],
+        'orderCount' => $result['orderCount'],
+        'reservationRevenue' => $result['reservationRevenue'], 
+        'reservationCount' => $result['reservationCount'],
+        'totalRevenue' => $result['totalRevenue']
+    ]);
+    
+    return $result;
+}
+private function calculateGrowth($current, $previous)
+{
+    if ($previous == 0) {
+        return $current > 0 ? 100 : 0;
+    }
+    return round((($current - $previous) / $previous) * 100, 1);
+}
+
+
+private function getRecentOrdersForPeriod($startDate, $endDate)
+{
+    return Order::with(['user'])
+        ->whereBetween('order_time', [$startDate, $endDate])
+        ->orderBy('order_time', 'desc')
+        ->limit(10)
+        ->get()
+        ->map(function($order) {
+            return [
+                'id' => $order->order_code,
+                'customer_name' => $order->customer_name ?: ($order->user ? $order->user->name : 'Guest'),
+                'total_amount' => $order->total_amount,
+                'status' => $order->status,
+                'order_time' => $order->order_time->format('d/m/Y H:i'),
+                'items_count' => $order->orderItems ? $order->orderItems->sum('quantity') : 0
+            ];
+        });
+}
+
+private function getRecentReservationsForPeriod($startDate, $endDate)
+{
+    return Reservation::with(['package'])
+        ->whereBetween('reservation_date', [$startDate, $endDate])
+        ->orderBy('created_at', 'desc')
+        ->limit(10)
+        ->get()
+        ->map(function($reservation) {
+            return [
+                'id' => $reservation->id,
+                'reservation_code' => $reservation->reservation_code,
+                'customer_name' => $reservation->customer_name,
+                'package_name' => $reservation->package ? $reservation->package->name : $this->getPackageNameFallback($reservation->package_id),
+                'date' => $reservation->reservation_date ? $reservation->reservation_date->format('d/m/Y') : 'No Date',
+                'time' => $reservation->reservation_time ? $reservation->reservation_time->format('H:i') : 'No Time',
+                'guests' => $reservation->number_of_people,
+                'status' => $reservation->status,
+                'total_price' => 'Rp ' . number_format($reservation->total_price, 0, ',', '.')
+            ];
+        });
+}
+
+/**
+ * Get hourly data for period - SAMA seperti StaffController
+ */
+private function getHourlyDataForPeriod($startDate, $endDate, $period)
+{
+    $diffDays = $startDate->diffInDays($endDate);
+    
+    if ($period === 'today' || $diffDays <= 1) {
+        return $this->getHourlyDataCombined($startDate);
+    } elseif ($period === 'week' || $diffDays <= 7) {
+        return $this->getDailyDataCombined($startDate, $endDate, 'days');
+    } elseif ($period === 'month' || $diffDays <= 31) {
+        return $this->getDailyDataCombined($startDate, $endDate, 'dates');
+    } else {
+        return $this->getMonthlyDataCombined($startDate, $endDate);
+    }
+}
+
+private function getHourlyDataCombined($date)
+{
+    try {
+        // ORDERS
+        $orderData = Order::whereDate('order_time', $date)
+            ->selectRaw('HOUR(order_time) as hour, COUNT(*) as orders, SUM(CASE WHEN status = ? THEN total_amount ELSE 0 END) as revenue', ['completed'])
+            ->groupByRaw('HOUR(order_time)')
+            ->get()
+            ->keyBy('hour');
+        
+        // RESERVATIONS
+        $reservationData = Reservation::whereDate('reservation_date', $date)
+            ->whereNotNull('reservation_time')
+            ->selectRaw('HOUR(reservation_time) as hour, COUNT(*) as reservations, SUM(CASE WHEN status = ? THEN total_price ELSE 0 END) as reservation_revenue', ['completed'])
+            ->groupByRaw('HOUR(reservation_time)')
+            ->get()
+            ->keyBy('hour');
+
+        // GABUNGKAN DATA DENGAN VALIDASI
+        $completeHourlyData = collect();
+        for ($hour = 8; $hour <= 22; $hour++) {
+            $orderHour = $orderData->get($hour);
+            $reservationHour = $reservationData->get($hour);
+            
+            // PERBAIKAN: Pastikan semua nilai numeric dan tidak null
+            $orders = (int) ($orderHour->orders ?? 0);
+            $reservations = (int) ($reservationHour->reservations ?? 0);
+            $orderRevenue = (float) ($orderHour->revenue ?? 0);
+            $reservationRevenue = (float) ($reservationHour->reservation_revenue ?? 0);
+            
+            $completeHourlyData->push([
+                'hour' => sprintf('%02d:00', $hour),
+                // Data terpisah untuk chart - DENGAN VALIDASI
+                'orders' => $orders,
+                'reservations' => $reservations,
+                'orderRevenue' => $orderRevenue,
+                'reservationRevenue' => $reservationRevenue,
+                // Total gabungan
+                'totalTransactions' => $orders + $reservations,
+                'totalRevenue' => $orderRevenue + $reservationRevenue,
+                // Backward compatibility
+                'revenue' => $orderRevenue + $reservationRevenue
+            ]);
+        }
+
+        return $completeHourlyData;
+
+    } catch (\Exception $e) {
+        \Log::error('Error in getHourlyDataCombined: ' . $e->getMessage());
+        
+        // Return fallback data dengan nilai 0
+        $fallbackData = collect();
+        for ($hour = 8; $hour <= 22; $hour++) {
+            $fallbackData->push([
+                'hour' => sprintf('%02d:00', $hour),
+                'orders' => 0,
+                'reservations' => 0,
+                'orderRevenue' => 0,
+                'reservationRevenue' => 0,
+                'totalTransactions' => 0,
+                'totalRevenue' => 0,
+                'revenue' => 0
+            ]);
+        }
+        return $fallbackData;
+    }
+}
+
+private function getDailyDataCombined($startDate, $endDate, $format = 'dates')
+{
+    try {
+        // ORDERS
+        $orderData = Order::whereBetween('order_time', [$startDate, $endDate])
+            ->selectRaw('DATE(order_time) as date, COUNT(*) as orders, SUM(CASE WHEN status = ? THEN total_amount ELSE 0 END) as revenue', ['completed'])
+            ->groupByRaw('DATE(order_time)')
+            ->get()
+            ->keyBy('date');
+
+        // RESERVATIONS
+        $reservationData = Reservation::whereBetween('reservation_date', [$startDate, $endDate])
+            ->selectRaw('DATE(reservation_date) as date, COUNT(*) as reservations, SUM(CASE WHEN status = ? THEN total_price ELSE 0 END) as reservation_revenue', ['completed'])
+            ->groupByRaw('DATE(reservation_date)')
+            ->get()
+            ->keyBy('date');
+
+        // GABUNGKAN DATA
+        $combinedData = collect();
+        $currentDate = $startDate->copy();
+        
+        while ($currentDate->lte($endDate)) {
+            $dateStr = $currentDate->format('Y-m-d');
+            
+            $orderDay = $orderData->get($dateStr);
+            $reservationDay = $reservationData->get($dateStr);
+            
+            if ($format === 'days') {
+                $dayNames = ['Ming', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+                $label = $dayNames[$currentDate->dayOfWeek];
+            } else {
+                $label = $currentDate->format('j');
+            }
+            
+            $combinedData->push([
+                'hour' => $label,
+                // Data terpisah
+                'orders' => $orderDay->orders ?? 0,
+                'reservations' => $reservationDay->reservations ?? 0,
+                'orderRevenue' => $orderDay->revenue ?? 0,
+                'reservationRevenue' => $reservationDay->reservation_revenue ?? 0,
+                // Total gabungan
+                'totalTransactions' => ($orderDay->orders ?? 0) + ($reservationDay->reservations ?? 0),
+                'totalRevenue' => ($orderDay->revenue ?? 0) + ($reservationDay->reservation_revenue ?? 0),
+                'full_date' => $currentDate->format('d/m/Y')
+            ]);
+            
+            $currentDate->addDay();
+        }
+
+        return $combinedData;
+
+    } catch (\Exception $e) {
+        \Log::error('Error in getDailyDataCombined: ' . $e->getMessage());
+        return collect([]);
+    }
+}
+
+private function getMonthlyDataCombined($startDate, $endDate)
+{
+    try {
+        // ORDERS
+        $orderData = Order::whereBetween('order_time', [$startDate, $endDate])
+            ->selectRaw('YEAR(order_time) as year, MONTH(order_time) as month, COUNT(*) as orders, SUM(CASE WHEN status = ? THEN total_amount ELSE 0 END) as revenue', ['completed'])
+            ->groupByRaw('YEAR(order_time), MONTH(order_time)')
+            ->get()
+            ->keyBy(function ($item) {
+                return $item->year . '-' . str_pad($item->month, 2, '0', STR_PAD_LEFT);
+            });
+
+        // RESERVATIONS
+        $reservationData = Reservation::whereBetween('reservation_date', [$startDate, $endDate])
+            ->selectRaw('YEAR(reservation_date) as year, MONTH(reservation_date) as month, COUNT(*) as orders, SUM(CASE WHEN status = ? THEN total_price ELSE 0 END) as revenue', ['completed'])
+            ->groupByRaw('YEAR(reservation_date), MONTH(reservation_date)')
+            ->get()
+            ->keyBy(function ($item) {
+                return $item->year . '-' . str_pad($item->month, 2, '0', STR_PAD_LEFT);
+            });
+
+        // GABUNGKAN DATA PER BULAN
+        $combinedData = collect();
+        $currentMonth = $startDate->copy()->startOfMonth();
+        $endMonth = $endDate->copy()->endOfMonth();
+        
+        while ($currentMonth->lte($endMonth)) {
+            $monthKey = $currentMonth->format('Y-m');
+            
+            $orderMonth = $orderData->get($monthKey);
+            $reservationMonth = $reservationData->get($monthKey);
+            
+            $combinedData->push([
+                'hour' => $currentMonth->format('M'),
+                'orders' => ($orderMonth->orders ?? 0) + ($reservationMonth->orders ?? 0),
+                'revenue' => ($orderMonth->revenue ?? 0) + ($reservationMonth->revenue ?? 0),
+                'full_date' => $currentMonth->format('M Y')
+            ]);
+            
+            $currentMonth->addMonth();
+        }
+
+        return $combinedData;
+
+    } catch (\Exception $e) {
+        \Log::error('Error in getMonthlyDataCombined: ' . $e->getMessage());
+        return collect([]);
+    }
+}
+
 
    private function getCustomersData(): array
     {
@@ -564,6 +975,44 @@ private function getReservationStaffTracking($reservation): array
                 ];
             });
 
+            // Recent orders untuk dashboard (7 hari terakhir) - TAMBAHKAN SETELAH EXISTING CODE
+        $weekAgo = Carbon::now()->subDays(7);
+        $recentOrders = Order::with(['user'])
+            ->where('order_time', '>=', $weekAgo)
+            ->orderBy('order_time', 'desc')
+            ->take(10)
+            ->get()
+            ->map(function($order) {
+                return [
+                    'id' => $order->order_code,
+                    'customer_name' => $order->customer_name ?: ($order->user ? $order->user->name : 'Guest'),
+                    'total_amount' => $order->total_amount,
+                    'status' => $order->status,
+                    'order_time' => $order->order_time->format('d/m/Y H:i'),
+                    'items_count' => $order->orderItems ? $order->orderItems->sum('quantity') : 0
+                ];
+            });
+
+        // Recent reservations untuk dashboard (7 hari terakhir) - TAMBAHKAN
+        $recentReservations = Reservation::with(['package'])
+            ->where('created_at', '>=', $weekAgo)
+            ->orderBy('created_at', 'desc')
+            ->take(10)
+            ->get()
+            ->map(function($reservation) {
+                return [
+                    'id' => $reservation->id,
+                    'reservation_code' => $reservation->reservation_code,
+                    'customer_name' => $reservation->customer_name,
+                    'package_name' => $reservation->package ? $reservation->package->name : 'Unknown Package',
+                    'date' => $reservation->reservation_date ? $reservation->reservation_date->format('d/m/Y') : 'No Date',
+                    'time' => $reservation->reservation_time ? $reservation->reservation_time->format('H:i') : 'No Time',
+                    'guests' => $reservation->number_of_people,
+                    'status' => $reservation->status,
+                    'total_price' => 'Rp ' . number_format($reservation->total_price, 0, ',', '.')
+                ];
+            });
+
         return [
             'total_orders' => $totalOrders,
             'today_orders' => $todayOrders,
@@ -579,6 +1028,8 @@ private function getReservationStaffTracking($reservation): array
             'monthly_growth' => round($monthlyGrowth, 1),
             'avg_order_value' => round($avgOrderValue),
             'popular_menu_items' => $popularMenuItems,
+            'recent_reservations' => $recentReservations,
+            'recent_orders' => $recentOrders,
         ];
     }
 
