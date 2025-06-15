@@ -16,7 +16,7 @@ class FavoriteMenuController extends Controller
     public function index()
     {
         $user = Auth::user();
-        
+
         $favorites = FavoriteMenu::with(['menuItem.category'])
                                 ->where('user_id', $user->id)
                                 ->latest()
@@ -24,7 +24,7 @@ class FavoriteMenuController extends Controller
 
         $transformedFavorites = $favorites->map(function ($favorite) {
             $menuItem = $favorite->menuItem;
-            
+
             if (!$menuItem) {
                 return null; // Skip deleted menu items
             }
@@ -63,7 +63,7 @@ class FavoriteMenuController extends Controller
     public function toggle(MenuItem $menuItem)
     {
         $user = Auth::user();
-        
+
         $favorite = FavoriteMenu::where('user_id', $user->id)
                               ->where('menu_item_id', $menuItem->id)
                               ->first();
@@ -90,7 +90,7 @@ class FavoriteMenuController extends Controller
     public function remove(MenuItem $menuItem)
     {
         $user = Auth::user();
-        
+
         $deleted = FavoriteMenu::where('user_id', $user->id)
                              ->where('menu_item_id', $menuItem->id)
                              ->delete();
@@ -108,7 +108,7 @@ class FavoriteMenuController extends Controller
     public function clear()
     {
         $user = Auth::user();
-        
+
         $deletedCount = FavoriteMenu::where('user_id', $user->id)->delete();
 
         return redirect()->back()->with('success', "Berhasil menghapus {$deletedCount} item dari favorit");
