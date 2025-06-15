@@ -116,7 +116,7 @@ const MenuPage: React.FC = () => {
 
 // Replace your existing toggleFavorite function with this fixed version:
 
-const toggleFavorite = async (menuItemId: number, e?: React.MouseEvent) => {
+const toggleFavorite = (menuItemId: number, e?: React.MouseEvent) => {
   if (e) {
     e.stopPropagation(); // Prevent triggering product detail modal
   }
@@ -126,52 +126,43 @@ const toggleFavorite = async (menuItemId: number, e?: React.MouseEvent) => {
     return;
   }
 
-  try {
-    // Optimistic update
-    const isFavorited = userFavorites.includes(menuItemId);
-    if (isFavorited) {
-      setUserFavorites(prev => prev.filter(id => id !== menuItemId));
-    } else {
-      setUserFavorites(prev => [...prev, menuItemId]);
-    }
+  // Optimistic update
+  const isCurrentlyFavorited = userFavorites.includes(menuItemId);
+  setUserFavorites(prev => 
+    isCurrentlyFavorited
+      ? prev.filter(id => id !== menuItemId)
+      : [...prev, menuItemId]
+  );
 
-    // Send request to server using Inertia's router.post
-    router.post('/favorites/toggle', {
-      menu_item_id: menuItemId  // Make sure this matches your backend expectation
-    }, {
-      preserveState: true,
-      preserveScroll: true,
-      onSuccess: (page) => {
-        // Update favorites from server response if available
-        if (page.props.favoriteIds) {
-          setUserFavorites(page.props.favoriteIds);
-        }
-      },
-      onError: (errors) => {
-        console.error('Favorite toggle error:', errors);
-        // Revert the optimistic update on error
-        if (isFavorited) {
-          setUserFavorites(prev => [...prev, menuItemId]);
-        } else {
-          setUserFavorites(prev => prev.filter(id => id !== menuItemId));
-        }
-
-        // Show user-friendly error message
-        alert('Gagal mengubah status favorit. Silakan coba lagi.');
+  // Submit form using Inertia.js dengan route yang benar
+  router.post(route('favorites.toggle', menuItemId), {}, {
+    preserveState: true,
+    preserveScroll: true,
+    onSuccess: (page) => {
+      // Update favorites from server response if available
+      if (page.props.favoriteIds) {
+        setUserFavorites(page.props.favoriteIds);
       }
-    });
-  } catch (error) {
-    console.error('Toggle favorite error:', error);
-    // Revert optimistic update on catch
-    const isFavorited = userFavorites.includes(menuItemId);
-    if (isFavorited) {
-      setUserFavorites(prev => [...prev, menuItemId]);
-    } else {
-      setUserFavorites(prev => prev.filter(id => id !== menuItemId));
+      
+      const product = menuItems.find(p => p.id === menuItemId);
+      const message = !isCurrentlyFavorited 
+        ? `${product?.name} ditambahkan ke favorit` 
+        : `${product?.name} dihapus dari favorit`;
+      
+      console.log(message);
+    },
+    onError: (errors) => {
+      console.error('Failed to toggle favorite:', errors);
+      // Revert optimistic update on error
+      setUserFavorites(prev => 
+        isCurrentlyFavorited
+          ? [...prev, menuItemId]
+          : prev.filter(id => id !== menuItemId)
+      );
+      
+      alert('Gagal mengubah status favorit. Silakan coba lagi.');
     }
-
-    alert('Terjadi kesalahan. Silakan coba lagi.');
-  }
+  });
 };
 
   // Filter products based on search and category

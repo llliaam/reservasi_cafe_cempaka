@@ -63,15 +63,16 @@ class FavoriteMenuController extends Controller
     public function toggle(MenuItem $menuItem)
     {
         $user = Auth::user();
-
+        
         $favorite = FavoriteMenu::where('user_id', $user->id)
-                              ->where('menu_item_id', $menuItem->id)
-                              ->first();
+                            ->where('menu_item_id', $menuItem->id)
+                            ->first();
 
         if ($favorite) {
             // Remove from favorites
             $favorite->delete();
             $message = "'{$menuItem->name}' dihapus dari favorit";
+            $isFavorited = false;
         } else {
             // Add to favorites
             FavoriteMenu::create([
@@ -79,9 +80,18 @@ class FavoriteMenuController extends Controller
                 'menu_item_id' => $menuItem->id
             ]);
             $message = "'{$menuItem->name}' ditambahkan ke favorit";
+            $isFavorited = true;
         }
 
-        return redirect()->back()->with('success', $message);
+        // Return updated favorite IDs untuk frontend
+        $favoriteIds = FavoriteMenu::where('user_id', $user->id)
+                                ->pluck('menu_item_id')
+                                ->toArray();
+
+        return redirect()->back()->with([
+            'success' => $message,
+            'favoriteIds' => $favoriteIds
+        ]);
     }
 
     /**
