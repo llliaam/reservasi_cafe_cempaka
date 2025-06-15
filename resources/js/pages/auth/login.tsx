@@ -65,6 +65,11 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             <p className="mb-6 text-base text-orange-100 xl:text-lg drop-shadow-md">
                                 Delicious & Fresh meals await you. Sign in to explore our amazing menu and exclusive offers.
                             </p>
+                            <div className="flex space-x-2">
+                                <div className="w-12 h-1 bg-orange-400 rounded-full shadow-md" />
+                                <div className="w-6 h-1 rounded-full shadow-sm bg-orange-300/50" />
+                                <div className="w-6 h-1 rounded-full shadow-sm bg-orange-300/30" />
+                            </div>
                         </div>
                     </div>
                 </div>

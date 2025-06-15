@@ -381,6 +381,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 |--------------------------------------------------------------------------
 */
 
+// In your routes/web.php
+// In your web.php or routes file
+Route::post('/favorites/toggle', [FavoriteMenuController::class, 'toggle'])->name('favorites.toggle')->middleware('auth');
+Route::post('/favorites/toggle', [FavoriteMenuController::class, 'toggle']);
+
+
 /*
 |--------------------------------------------------------------------------
 | Include Additional Route Files
