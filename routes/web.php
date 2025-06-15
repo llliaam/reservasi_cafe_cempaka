@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Settings\ProfileController;
+use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AdminMenuController;
@@ -13,7 +15,6 @@ use App\Http\Controllers\FavoriteMenuController;
 use App\Http\Controllers\MenuItemController;
 use App\Http\Controllers\RestaurantTableController;
 use App\Http\Controllers\UnifiedHistoryController;
-use App\Http\Controllers\Settings\ProfileController;
 use Inertia\Inertia;
 
 /*
@@ -367,13 +368,22 @@ if (app()->environment('local')) {
     });
 }
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/settings/profile', [ProfileController::class, 'edit'])->name('settings.profile');
-    Route::patch('/settings/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+Route::middleware(['auth'])->group(function () {
+    Route::get('/settings', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Route lainnya...
+    Route::put('/password', [PasswordController::class, 'update'])->name('password.update');
 });
+
+
+// Route::middleware(['auth', 'verified'])->group(function () {
+//     Route::get('/settings/profile', [ProfileController::class, 'edit'])->name('settings.profile');
+//     Route::patch('/settings/profile', [ProfileController::class, 'update'])->name('profile.update');
+//     Route::delete('/settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+//     // Route lainnya...
+// });
 
 /*
 |--------------------------------------------------------------------------

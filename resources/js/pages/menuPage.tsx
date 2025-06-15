@@ -1010,7 +1010,6 @@ const toggleFavorite = async (menuItemId: number, e?: React.MouseEvent) => {
         )}
 
         {/* Floating Cart Button */}
-<<<<<<< HEAD
 {!isCartOpen && cartCount > 0 && (
   <button
     onClick={() => setIsCartOpen(true)}
@@ -1020,16 +1019,6 @@ const toggleFavorite = async (menuItemId: number, e?: React.MouseEvent) => {
     🛒 {cartCount}
   </button>
 )}
-=======
-        {cartCount > 0 && (
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="fixed z-50 py-5 text-white rounded-full shadow-2xl px-15 bottom-6 right-6 bg-gradient-to-r from-orange-500 to-amber-500"
-            >
-            🛒 {cartCount}
-          </button>
-        )}
->>>>>>> 48fdcb3b433f32463fbfbc313ab587d1a8232227
       </div>
     </>
   );
